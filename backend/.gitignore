@@ -9,8 +9,6 @@ testUtils
 jest.config.cjs
 jest.setup.cjs
 jesthtmlreporter.config.json
-src/config/connectDB.js
-src/models/index.js
 
 # undo
 #  npx sequelize-cli db:migrate:undo --name migrations-shares.js
