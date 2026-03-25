@@ -13,10 +13,10 @@ module.exports = {
 		dialect: "mysql",
 		port: process.env.DB_PORT,
 		dialectOptions: {
-			ssl: {
-				require: true,
-				rejectUnauthorized: true,
-			},
+			// ssl: {
+			// 	require: true,
+			// 	rejectUnauthorized: true,
+			// },
 		},
 	},
 	production: {
