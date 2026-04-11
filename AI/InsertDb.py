@@ -58,6 +58,7 @@ def split_job_content(raw: str):
         r[current] += (t + "\n\n")
     for k in r:
         r[k] = r[k].strip()
+        r[k] = re.sub(r'^[:\s]+', '', r[k])
     return r
 
 def upsert_one(table, key_col, key_val, col_values):

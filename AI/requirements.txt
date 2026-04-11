@@ -1,0 +1,12 @@
+Flask
+pdfplumber
+google-genai
+pandas
+xgboost
+scikit-learn
+joblib
+requests
+matplotlib
+python-dotenv
+sqlalchemy
+pymysql

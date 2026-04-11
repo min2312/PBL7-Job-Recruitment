@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="vi">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>CV Analyzer</title>
+		<link
+			href="https://cdn.jsdelivr.net/npm/bootstrap@5.4.0/dist/css/bootstrap.min.css"
+			rel="stylesheet"
+		/>
+	</head>
+	<body class="bg-light">
+		<div class="container py-5">
+			<h1 class="mb-4">CV Analyzer + Market Demand + Salary Prediction</h1>
+
+			{% with messages = get_flashed_messages() %} {% if messages %}
+			<div class="alert alert-warning" role="alert">{{ messages[0] }}</div>
+			{% endif %} {% endwith %}
+
+			<form method="POST" enctype="multipart/form-data">
+				<div class="mb-3">
+					<label for="file" class="form-label">Chọn file PDF CV</label>
+					<input
+						class="form-control"
+						type="file"
+						id="file"
+						name="file"
+						accept="application/pdf"
+						required
+					/>
+				</div>
+
+				<button class="btn btn-primary" type="submit">
+					Phân tích và dự đoán
+				</button>
+			</form>
+
+			<hr />
+			<p>
+				Thông tin: app sẽ đọc CV, gọi API neo4j /market-demand và dự đoán lương
+				từ model đã train.
+			</p>
+		</div>
+	</body>
+</html>
