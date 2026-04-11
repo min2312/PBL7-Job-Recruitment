@@ -1,6 +1,7 @@
 import express from "express";
 import userController from "../controllers/userController";
 import adminController from "../controllers/adminController";
+import * as neo4jController from "../controllers/neo4jController";
 import { checkUserJWT, CreateJWT } from "../middleware/JWT_Action";
 import checkExpiredSubscriptions from "../middleware/checkExpiredSubscriptions";
 import passport from "passport";
@@ -12,9 +13,11 @@ import {
 	verifyResetOTP,
 	resetPassword,
 } from "../controllers/otpController.js";
+import * as syncToNeo4jController from "../controllers/syncToNeo4jController";
 let router = express.Router();
 
 let initWebRoutes = (app) => {
+	/*
 	router.all("*", checkUserJWT);
 	router.all("*", checkExpiredSubscriptions); // Chạy SAU khi đã có req.user
 	router.post("/api/login", userController.HandleLogin);
@@ -94,6 +97,43 @@ let initWebRoutes = (app) => {
 	router.post("/api/admin/unblock-post", adminController.HandleUnblockPost);
 	router.delete("/api/admin/delete-post", adminController.HandleDeletePost);
 	router.get("/api/admin/statistics", adminController.HandleGetStatistics);
+*/
+	// Neo4j analytics endpoints
+	router.get("/api/neo4j/heatmap", neo4jController.HandleGetJobHeatmap); //nhu cầu tuyển dụng theo ngành và địa điểm
+	router.get(
+		"/api/neo4j/competition",
+		neo4jController.HandleGetCategoryCompetition, //tỷ lệ cạnh tranh theo ngành
+	);
+	router.get(
+		"/api/neo4j/market-demand",
+		neo4jController.HandleGetMarketDemand, // thị trường theo ngành + địa điểm
+	);
+	router.get(
+		"/api/neo4j/hiring-criteria",
+		neo4jController.HandleGetHiringCriteria, //tiêu chí tuyển dụng phổ biến theo ngành
+	);
+	router.get("/api/neo4j/salary-trend", neo4jController.HandleGetSalaryTrend); //xu hướng lương theo thời gian
+	router.get(
+		"/api/neo4j/training-dataset",
+		neo4jController.HandleBuildTrainingDataset,
+	); //tập dữ liệu dùng cho train XGBoost
+	router.post(
+		"/api/neo4j/salary-backfill", //backfill dữ liệu lương đã có trong SQL sang Neo4j
+		neo4jController.HandleBackfillSalary,
+	);
+
+	// Neo4j sync endpoint
+	router.post(
+		"/api/neo4j/sync-all",
+		syncToNeo4jController.HandleSyncAllToNeo4j,
+	);
+
+	router.post("/api/refresh-token", userController.HandleRefreshToken);
+	router.post(
+		"/api/admin/refresh-token",
+		adminController.HandleRefreshAdminToken,
+	);
+
 	// router.get(
 	// 	"/auth/google",
 	// 	passport.authenticate("google", { scope: ["profile", "email"] })
@@ -153,11 +193,11 @@ let initWebRoutes = (app) => {
 	// 	}
 	// );
 
-	router.post("/api/reset-otp/send", sendResetOTP);
-	router.post("/api/reset-otp/verify", verifyResetOTP);
-	router.post("/api/reset-password", resetPassword);
-	router.get("/api/messages", socialController.handleGetMessages);
-	router.put("/api/messages/edit", socialController.handleEditMessage);
+	// router.post("/api/reset-otp/send", sendResetOTP);
+	// router.post("/api/reset-otp/verify", verifyResetOTP);
+	// router.post("/api/reset-password", resetPassword);
+	// router.get("/api/messages", socialController.handleGetMessages);
+	// router.put("/api/messages/edit", socialController.handleEditMessage);
 
 	return app.use("/", router);
 };

@@ -5,7 +5,9 @@ const nonSecurePaths = [
 	"/api/login",
 	"/api/create-new-user",
 	"/api/logout",
+	"/api/refresh-token",
 	"/api/admin_login",
+	"/api/admin/refresh-token",
 	"/api/createTime",
 	"/payment",
 	"/payment/ZaloPay",
@@ -20,15 +22,26 @@ const nonSecurePaths = [
 	"/api/reset-password",
 ];
 
-const CreateJWT = (payload) => {
-	let key = process.env.JWT_Secrect;
+const createSignedToken = (payload, secretKey, expiresIn) => {
 	let token = null;
 	try {
-		token = jwt.sign(payload, key, { expiresIn: process.env.JWT_Expires_In });
+		token = jwt.sign(payload, secretKey, { expiresIn });
 	} catch (e) {
 		console.log(e);
 	}
 	return token;
+};
+
+const CreateJWT = (payload) => {
+	let key = process.env.JWT_Secrect;
+	let expiresIn = process.env.JWT_Expires_In || "1h";
+	return createSignedToken(payload, key, expiresIn);
+};
+
+const CreateRefreshJWT = (payload) => {
+	let key = process.env.JWT_Refresh_Secrect || process.env.JWT_Secrect;
+	let expiresIn = process.env.JWT_Refresh_Expires_In || "7d";
+	return createSignedToken(payload, key, expiresIn);
 };
 
 const verifyToken = (token) => {
@@ -39,6 +52,23 @@ const verifyToken = (token) => {
 	} catch (e) {
 		if (e.name === "TokenExpiredError") {
 			return { error: "TokenExpiredError", message: "Token has expired" };
+		}
+		console.log(e);
+	}
+	return decoded;
+};
+
+const verifyRefreshToken = (token) => {
+	let key = process.env.JWT_Refresh_Secrect || process.env.JWT_Secrect;
+	let decoded = null;
+	try {
+		decoded = jwt.verify(token, key);
+	} catch (e) {
+		if (e.name === "TokenExpiredError") {
+			return {
+				error: "TokenExpiredError",
+				message: "Refresh token has expired",
+			};
 		}
 		console.log(e);
 	}
@@ -134,7 +164,9 @@ const verifySocketToken = (socket, next) => {
 
 module.exports = {
 	CreateJWT,
+	CreateRefreshJWT,
 	verifyToken,
+	verifyRefreshToken,
 	checkUserJWT,
 	verifySocketToken,
 };

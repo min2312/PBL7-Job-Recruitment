@@ -1,6 +1,27 @@
 import userService from "../service/userService";
 // import apiService from "../service/apiService";
+import {
+	verifyRefreshToken,
+	CreateJWT,
+	CreateRefreshJWT,
+} from "../middleware/JWT_Action";
 require("dotenv").config();
+
+const getCookieOptions = (maxAge) => ({
+	httpOnly: true,
+	maxAge,
+	secure: true,
+	sameSite: "none",
+});
+
+const setAuthCookies = (res, accessToken, refreshToken) => {
+	const accessMaxAge = Number(process.env.maxAgeCookie) || 60 * 60 * 1000;
+	const refreshMaxAge =
+		Number(process.env.maxAgeRefreshCookie) || 7 * 24 * 60 * 60 * 1000;
+	res.cookie("jwt", accessToken, getCookieOptions(accessMaxAge));
+	res.cookie("refreshJwt", refreshToken, getCookieOptions(refreshMaxAge));
+};
+
 let HandleLogin = async (req, res) => {
 	let email = req.body.email;
 	let pass = req.body.password;
@@ -12,13 +33,13 @@ let HandleLogin = async (req, res) => {
 	}
 
 	let userdata = await userService.HandleUserLogin(email, pass);
-	if (userdata && userdata.DT && userdata.DT.access_token) {
-		res.cookie("jwt", userdata.DT.access_token, {
-			httpOnly: true,
-			maxAge: process.env.maxAgeCookie,
-			secure: true,
-			sameSite: "none",
-		});
+	if (
+		userdata &&
+		userdata.DT &&
+		userdata.DT.access_token &&
+		userdata.DT.refresh_token
+	) {
+		setAuthCookies(res, userdata.DT.access_token, userdata.DT.refresh_token);
 	}
 	return res.status(200).json({
 		errcode: userdata.errCode,
@@ -151,6 +172,7 @@ const getUserAccount = async (req, res) => {
 const HandleLogOut = (req, res) => {
 	try {
 		res.clearCookie("jwt");
+		res.clearCookie("refreshJwt");
 		return res.status(200).json({
 			errCode: 0,
 			errMessage: "Clear cookie done",
@@ -163,6 +185,42 @@ const HandleLogOut = (req, res) => {
 		});
 	}
 };
+
+const HandleRefreshToken = (req, res) => {
+	const refreshToken = req.cookies?.refreshJwt || req.body?.refresh_token;
+	if (!refreshToken) {
+		return res.status(401).json({
+			errCode: -2,
+			errMessage: "Refresh token is missing",
+		});
+	}
+
+	const decoded = verifyRefreshToken(refreshToken);
+	if (!decoded || decoded.error === "TokenExpiredError") {
+		return res.status(401).json({
+			errCode: -2,
+			errMessage:
+				decoded?.error === "TokenExpiredError"
+					? "Refresh token has expired. Please log in again."
+					: "Invalid refresh token.",
+		});
+	}
+
+	const { iat, exp, ...payload } = decoded;
+	const accessToken = CreateJWT(payload);
+	const newRefreshToken = CreateRefreshJWT(payload);
+	setAuthCookies(res, accessToken, newRefreshToken);
+
+	return res.status(200).json({
+		errCode: 0,
+		errMessage: "Token refreshed successfully",
+		DT: {
+			access_token: accessToken,
+			refresh_token: newRefreshToken,
+		},
+	});
+};
+
 let HandleGetInfoCar = async (req, res) => {
 	let id = req.query.id;
 	if (!id) {
@@ -202,5 +260,6 @@ module.exports = {
 	HandleDeleteUser: HandleDeleteUser,
 	getUserAccount,
 	HandleLogOut: HandleLogOut,
+	HandleRefreshToken: HandleRefreshToken,
 	HandleGetInfoCar: HandleGetInfoCar,
 };

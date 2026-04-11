@@ -1,5 +1,18 @@
 import adminService from "../service/adminService";
+import {
+	verifyRefreshToken,
+	CreateJWT,
+	CreateRefreshJWT,
+} from "../middleware/JWT_Action";
 require("dotenv").config();
+
+const getAdminCookieOptions = (maxAge) => ({
+	httpOnly: true,
+	maxAge,
+	secure: true,
+	sameSite: "none",
+});
+
 let HandleLoginAdmin = async (req, res) => {
 	let email = req.body.email;
 	let pass = req.body.password;
@@ -11,13 +24,24 @@ let HandleLoginAdmin = async (req, res) => {
 	}
 
 	let userdata = await adminService.HandleAdminLogin(email, pass);
-	if (userdata && userdata.DT && userdata.DT.access_token) {
-		res.cookie("jwt2", userdata.DT.access_token, {
-			httpOnly: true,
-			maxAge: process.env.maxAgeCookie,
-			secure: true,
-			sameSite: "none",
-		});
+	if (
+		userdata &&
+		userdata.DT &&
+		userdata.DT.access_token &&
+		userdata.DT.refresh_token
+	) {
+		res.cookie(
+			"jwt2",
+			userdata.DT.access_token,
+			getAdminCookieOptions(Number(process.env.maxAgeCookie) || 60 * 60 * 1000),
+		);
+		res.cookie(
+			"refreshJwt2",
+			userdata.DT.refresh_token,
+			getAdminCookieOptions(
+				Number(process.env.maxAgeRefreshCookie) || 7 * 24 * 60 * 60 * 1000,
+			),
+		);
 	}
 	return res.status(200).json({
 		errcode: userdata.errCode,
@@ -30,6 +54,7 @@ let HandleLoginAdmin = async (req, res) => {
 const HandleLogOut = (req, res) => {
 	try {
 		res.clearCookie("jwt2");
+		res.clearCookie("refreshJwt2");
 		return res.status(200).json({
 			errCode: 0,
 			errMessage: "Clear cookie done",
@@ -41,6 +66,52 @@ const HandleLogOut = (req, res) => {
 			errMessage: "Error from server",
 		});
 	}
+};
+
+const HandleRefreshAdminToken = (req, res) => {
+	const refreshToken = req.cookies?.refreshJwt2 || req.body?.refresh_token;
+	if (!refreshToken) {
+		return res.status(401).json({
+			errCode: -2,
+			errMessage: "Admin refresh token is missing",
+		});
+	}
+
+	const decoded = verifyRefreshToken(refreshToken);
+	if (!decoded || decoded.error === "TokenExpiredError") {
+		return res.status(401).json({
+			errCode: -2,
+			errMessage:
+				decoded?.error === "TokenExpiredError"
+					? "Refresh token has expired. Please log in again."
+					: "Invalid admin refresh token.",
+		});
+	}
+
+	const { iat, exp, ...payload } = decoded;
+	const accessToken = CreateJWT(payload);
+	const newRefreshToken = CreateRefreshJWT(payload);
+	res.cookie(
+		"jwt2",
+		accessToken,
+		getAdminCookieOptions(Number(process.env.maxAgeCookie) || 60 * 60 * 1000),
+	);
+	res.cookie(
+		"refreshJwt2",
+		newRefreshToken,
+		getAdminCookieOptions(
+			Number(process.env.maxAgeRefreshCookie) || 7 * 24 * 60 * 60 * 1000,
+		),
+	);
+
+	return res.status(200).json({
+		errCode: 0,
+		errMessage: "Admin token refreshed successfully",
+		DT: {
+			access_token: accessToken,
+			refresh_token: newRefreshToken,
+		},
+	});
 };
 
 const getAdminAccount = async (req, res) => {
@@ -238,6 +309,7 @@ const HandleGetStatistics = async (req, res) => {
 module.exports = {
 	HandleLoginAdmin: HandleLoginAdmin,
 	HandleLogOut: HandleLogOut,
+	HandleRefreshAdminToken: HandleRefreshAdminToken,
 	getAdminAccount: getAdminAccount,
 
 	HandleGetAllUsers: HandleGetAllUsers,

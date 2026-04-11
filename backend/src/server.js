@@ -7,6 +7,7 @@ import cookieParser from "cookie-parser";
 import passport from "passport";
 import http from "http";
 import { initSocket } from "./socket/socket";
+import verifyConnection from "./config/connectNeo4j";
 // import configSession from "../src/config/session";
 // import LoginWithGoogle from "../src/controllers/social/googleController";
 // import LoginWithFacebook from "./controllers/social/facebookController";
@@ -25,9 +26,10 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 app.use(cookieParser());
 // configSession(app);
-// initWebRouters(app);
+initWebRouters(app);
 
 connectDB();
+verifyConnection();
 const server = http.createServer(app);
 initSocket(server);
 

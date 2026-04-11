@@ -3,7 +3,7 @@ import db from "../models/index";
 import bcrypt from "bcryptjs";
 import { where } from "sequelize";
 import { response } from "express";
-import { CreateJWT } from "../middleware/JWT_Action";
+import { CreateJWT, CreateRefreshJWT } from "../middleware/JWT_Action";
 const cloudinary = require("cloudinary").v2;
 require("dotenv").config();
 const salt = bcrypt.genSaltSync(10);
@@ -18,26 +18,25 @@ let HandleUserLogin = (email, password) => {
 					raw: true,
 				});
 				if (user) {
-					let check = await bcrypt.compareSync(password, user.passwordHash);
+					let check = await bcrypt.compareSync(password, user.password);
 					if (check) {
 						let payload = {
 							id: user.id,
 							email: user.email,
-							fullName: user.fullName,
+							name: user.name,
 							phone: user.phone,
-							gender: user.gender,
-							bio: user.bio,
 							createdAt: user.createdAt,
-							profilePicture: user.profilePicture,
-							isPremium: user.isPremium,
+							role: user.role,
 						};
-						let token = CreateJWT(payload);
+						let accessToken = CreateJWT(payload);
+						let refreshToken = CreateRefreshJWT(payload);
 						userData.errCode = 0;
 						userData.errMessage = `OK`;
 						delete user.passwordHash;
 						userData.user = user;
 						userData.DT = {
-							access_token: token,
+							access_token: accessToken,
+							refresh_token: refreshToken,
 						};
 					} else {
 						userData.errCode = 3;
@@ -82,7 +81,7 @@ let getAllUser = (userId) => {
 			if (userId === "ALL") {
 				users = await db.User.findAll({
 					attributes: {
-						exclude: ["passwordHash"],
+						exclude: ["password"],
 					},
 				});
 			}
@@ -90,7 +89,7 @@ let getAllUser = (userId) => {
 				users = await db.User.findOne({
 					where: { id: userId },
 					attributes: {
-						exclude: ["passwordHash"],
+						exclude: ["password"],
 					},
 				});
 			}
@@ -141,9 +140,10 @@ let CreateNewUser = (data) => {
 				let new_user = await db.User.create({
 					//(value my sql): (value name-html)
 					email: data.email,
-					passwordHash: hashPasswordFromBcrypt,
-					fullName: data.fullName,
+					password: hashPasswordFromBcrypt,
+					name: data.name,
 					phone: data.phone,
+					role: data.role,
 				});
 				resolve({
 					errCode: 0,
@@ -197,15 +197,15 @@ let updateUser = (data) => {
 				let hashPasswordFromBcrypt = await hashUserPassword(data.password);
 				await db.User.update(
 					{
-						fullName: data.fullName,
+						name: data.name,
 						email: data.email,
-						passwordHash: hashPasswordFromBcrypt,
+						password: hashPasswordFromBcrypt,
 						phone: data.phone,
-						gender: data.gender,
+						role: data.role,
 					},
 					{
 						where: { id: data.id },
-					}
+					},
 				);
 				let newUser = await db.User.findOne({
 					where: { id: data.id },
@@ -213,7 +213,8 @@ let updateUser = (data) => {
 				let payload = {
 					id: newUser.id,
 					email: newUser.email,
-					fullName: newUser.fullName,
+					name: newUser.name,
+					role: newUser.role,
 				};
 				let token = CreateJWT(payload);
 				delete user.password;
@@ -379,7 +380,7 @@ let resetPassword = (email, newPassword) => {
 				let hashPassword = await bcrypt.hashSync(newPassword, salt);
 				await db.User.update(
 					{ passwordHash: hashPassword },
-					{ where: { email } }
+					{ where: { email } },
 				);
 				resolve({ errCode: 0, message: "Password reset successful" });
 			}
