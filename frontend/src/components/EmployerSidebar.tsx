@@ -1,6 +1,6 @@
 import { LayoutDashboard, FileText, Users, MessageSquare, CalendarDays, BarChart3, Settings, LogOut } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { getCompanyById } from '@/data/mockData';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';

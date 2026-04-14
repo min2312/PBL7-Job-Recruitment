@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { MapPin, Clock, GraduationCap, Briefcase, Users, Calendar, Share2, Building2, FileText, Heart, Send, DollarSign, Facebook, Linkedin, Twitter, Copy, ChevronDown, Search, Menu, Laptop, Gift, Package } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import RelatedJobs from '@/components/RelatedJobs';
 import JobNeedsBanner from '@/components/JobNeedsBanner';
 

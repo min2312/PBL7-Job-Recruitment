@@ -4,14 +4,11 @@ import {
 	CreateJWT,
 	CreateRefreshJWT,
 } from "../middleware/JWT_Action";
+import {
+	clearAuthCookies,
+	setAuthCookies,
+} from "../helpers/authCookies";
 require("dotenv").config();
-
-const getAdminCookieOptions = (maxAge) => ({
-	httpOnly: true,
-	maxAge,
-	secure: true,
-	sameSite: "none",
-});
 
 let HandleLoginAdmin = async (req, res) => {
 	let email = req.body.email;
@@ -30,17 +27,12 @@ let HandleLoginAdmin = async (req, res) => {
 		userdata.DT.access_token &&
 		userdata.DT.refresh_token
 	) {
-		res.cookie(
-			"jwt2",
+		clearAuthCookies(res, "user");
+		setAuthCookies(
+			res,
+			"admin",
 			userdata.DT.access_token,
-			getAdminCookieOptions(Number(process.env.maxAgeCookie) || 60 * 60 * 1000),
-		);
-		res.cookie(
-			"refreshJwt2",
 			userdata.DT.refresh_token,
-			getAdminCookieOptions(
-				Number(process.env.maxAgeRefreshCookie) || 7 * 24 * 60 * 60 * 1000,
-			),
 		);
 	}
 	return res.status(200).json({
@@ -53,8 +45,7 @@ let HandleLoginAdmin = async (req, res) => {
 
 const HandleLogOut = (req, res) => {
 	try {
-		res.clearCookie("jwt2");
-		res.clearCookie("refreshJwt2");
+		clearAuthCookies(res, "admin");
 		return res.status(200).json({
 			errCode: 0,
 			errMessage: "Clear cookie done",
@@ -79,6 +70,7 @@ const HandleRefreshAdminToken = (req, res) => {
 
 	const decoded = verifyRefreshToken(refreshToken);
 	if (!decoded || decoded.error === "TokenExpiredError") {
+		clearAuthCookies(res, "admin");
 		return res.status(401).json({
 			errCode: -2,
 			errMessage:
@@ -91,18 +83,7 @@ const HandleRefreshAdminToken = (req, res) => {
 	const { iat, exp, ...payload } = decoded;
 	const accessToken = CreateJWT(payload);
 	const newRefreshToken = CreateRefreshJWT(payload);
-	res.cookie(
-		"jwt2",
-		accessToken,
-		getAdminCookieOptions(Number(process.env.maxAgeCookie) || 60 * 60 * 1000),
-	);
-	res.cookie(
-		"refreshJwt2",
-		newRefreshToken,
-		getAdminCookieOptions(
-			Number(process.env.maxAgeRefreshCookie) || 7 * 24 * 60 * 60 * 1000,
-		),
-	);
+	setAuthCookies(res, "admin", accessToken, newRefreshToken);
 
 	return res.status(200).json({
 		errCode: 0,
@@ -127,9 +108,9 @@ const getAdminAccount = async (req, res) => {
 		DT: {
 			access_token: req.adminToken,
 			id: req.admin.id,
-			fullName: req.admin.fullName,
+			name: req.admin.name || req.admin.fullName || req.admin.email,
 			email: req.admin.email,
-			role: req.admin.role,
+			role: req.admin.role || "ADMIN",
 		},
 	});
 };

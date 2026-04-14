@@ -22,14 +22,19 @@ let HandleAdminLogin = (email, password) => {
 						let payload = {
 							id: user.id,
 							email: user.email,
-							role: "admin",
+							name: user.email,
+							role: "ADMIN",
 						};
 						let accessToken = CreateJWT(payload);
 						let refreshToken = CreateRefreshJWT(payload);
 						userData.errCode = 0;
 						userData.errMessage = `OK`;
 						delete user.password;
-						userData.user = user;
+						userData.user = {
+							...user,
+							name: user.email,
+							role: "ADMIN",
+						};
 						userData.DT = {
 							access_token: accessToken,
 							refresh_token: refreshToken,

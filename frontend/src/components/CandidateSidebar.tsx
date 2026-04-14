@@ -1,6 +1,6 @@
 import { Briefcase, User, Settings, LayoutDashboard, LogOut } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import {
   Sidebar,
   SidebarContent,

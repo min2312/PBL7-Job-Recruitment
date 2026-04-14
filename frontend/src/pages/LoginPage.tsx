@@ -1,29 +1,82 @@
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useEffect, useState, type FormEvent } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { users } from '@/data/mockData';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { Briefcase, User, Shield } from 'lucide-react';
+import { loginWithScope } from '@/services/authService';
+import { toast } from 'react-toastify';
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { user, isAuthReady, login } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'candidate' | 'employer' | 'admin'>('candidate');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   // Scroll to top when page loads
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
 
-  const quickLogin = (role: 'CANDIDATE' | 'EMPLOYER' | 'ADMIN') => {
-    const user = users.find(u => u.role === role);
-    if (user) {
-      login(user);
-      if (role === 'ADMIN') navigate('/admin');
-      else if (role === 'EMPLOYER') navigate('/employer');
-      else navigate('/');  // Candidate → Home
+  useEffect(() => {
+    if (!isAuthReady || !user) {
+      return;
+    }
+
+    if (user.role === 'ADMIN') {
+      navigate('/admin', { replace: true });
+    } else if (user.role === 'EMPLOYER') {
+      navigate('/employer', { replace: true });
+    } else {
+      navigate('/', { replace: true });
+    }
+  }, [isAuthReady, user, navigate]);
+
+  const handleQuickFill = (role: 'CANDIDATE' | 'EMPLOYER' | 'ADMIN') => {
+    const userAccount = users.find((item) => item.role === role);
+    if (!userAccount) {
+      return;
+    }
+
+    setActiveTab(role === 'ADMIN' ? 'admin' : role === 'EMPLOYER' ? 'employer' : 'candidate');
+    setEmail(userAccount.email);
+    setPassword('');
+    setErrorMessage('');
+  };
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsSubmitting(true);
+    setErrorMessage('');
+
+    try {
+      const scope = activeTab === 'admin' ? 'admin' : 'user';
+      const authenticatedUser = await loginWithScope(scope, { email, password });
+      login(authenticatedUser);
+      if(authenticatedUser){
+        toast.success("Đăng nhập thành công!");
+      }
+      if (authenticatedUser.role === 'ADMIN') {
+        navigate('/admin', { replace: true });
+      } else if (authenticatedUser.role === 'EMPLOYER') {
+        navigate('/employer', { replace: true });
+      } else {
+        navigate('/', { replace: true });
+      }
+    } catch (error: any) {
+      setErrorMessage(
+        error?.response?.data?.message ||
+        error?.response?.data?.errMessage ||
+        'Đăng nhập thất bại. Kiểm tra lại email và mật khẩu.'
+      );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -32,6 +85,14 @@ export default function LoginPage() {
     { key: 'employer' as const, label: 'Nhà tuyển dụng', icon: Briefcase, role: 'EMPLOYER' as const },
     { key: 'admin' as const, label: 'Admin', icon: Shield, role: 'ADMIN' as const },
   ];
+
+  if (!isAuthReady) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center py-12">
+        <div className="text-sm text-muted-foreground">Đang kiểm tra phiên đăng nhập...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center py-12">
@@ -49,7 +110,10 @@ export default function LoginPage() {
           {tabs.map(tab => (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => {
+                setActiveTab(tab.key);
+                setErrorMessage('');
+              }}
               className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-medium transition-all ${
                 activeTab === tab.key
                   ? 'bg-primary text-primary-foreground'
@@ -62,30 +126,44 @@ export default function LoginPage() {
           ))}
         </div>
 
-        <div className="bg-card rounded-xl border border-border p-6">
+        <form className="bg-card rounded-xl border border-border p-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div>
               <Label>Email</Label>
-              <Input placeholder="email@example.com" className="mt-1" />
+              <Input
+                placeholder="email@example.com"
+                className="mt-1"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                autoComplete="email"
+              />
             </div>
             <div>
               <Label>Mật khẩu</Label>
-              <Input type="password" placeholder="••••••••" className="mt-1" />
+              <PasswordInput
+                placeholder="••••••••"
+                className="mt-1"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                autoComplete="current-password"
+              />
             </div>
-            <Button className="w-full" onClick={() => quickLogin(tabs.find(t => t.key === activeTab)!.role)}>
+            {errorMessage && <p className="text-sm text-destructive">{errorMessage}</p>}
+            <Button className="w-full" type="submit" disabled={isSubmitting}>
               Đăng nhập
             </Button>
           </div>
 
           <div className="mt-4 pt-4 border-t border-border">
-            <p className="text-xs text-muted-foreground text-center mb-3">Đăng nhập nhanh (demo)</p>
+            <p className="text-xs text-muted-foreground text-center mb-3">Điền nhanh tài khoản demo</p>
             <div className="grid grid-cols-3 gap-2">
               {tabs.map(tab => (
                 <Button
                   key={tab.key}
                   variant="outline"
                   size="sm"
-                  onClick={() => quickLogin(tab.role)}
+                  type="button"
+                  onClick={() => handleQuickFill(tab.role)}
                   className="text-xs"
                 >
                   {tab.label}
@@ -93,7 +171,7 @@ export default function LoginPage() {
               ))}
             </div>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );

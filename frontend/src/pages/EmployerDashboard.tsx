@@ -1,4 +1,4 @@
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { Navigate, Routes, Route } from 'react-router-dom';
 import { applications, jobs, getCompanyById } from '@/data/mockData';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
@@ -18,7 +18,15 @@ import EmployerReports from '@/pages/employer/EmployerReports';
 import EmployerSettings from '@/pages/employer/EmployerSettings';
 
 export default function EmployerDashboard() {
-  const { user } = useAuth();
+  const { user, isAuthReady } = useAuth();
+
+  if (!isAuthReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">
+        Đang kiểm tra phiên đăng nhập...
+      </div>
+    );
+  }
 
   if (!user || user.role !== 'EMPLOYER') return <Navigate to="/login" />;
 
