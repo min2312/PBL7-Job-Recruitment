@@ -1,4 +1,4 @@
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { Navigate, Routes, Route } from 'react-router-dom';
 import { jobs, users, companies, applications } from '@/data/mockData';
 import { Badge } from '@/components/ui/badge';
@@ -159,7 +159,16 @@ function JobsTab() {
 }
 
 export default function AdminDashboard() {
-  const { user } = useAuth();
+  const { user, isAuthReady } = useAuth();
+
+  if (!isAuthReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">
+        Đang kiểm tra phiên đăng nhập...
+      </div>
+    );
+  }
+
   if (!user || user.role !== 'ADMIN') return <Navigate to="/login" />;
 
   return (

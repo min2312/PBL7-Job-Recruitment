@@ -16,47 +16,63 @@ import AdminDashboard from "@/pages/AdminDashboard";
 import InsightsPage from "@/pages/InsightsPage";
 import CompaniesPage from "@/pages/CompaniesPage";
 import NotFound from "@/pages/NotFound";
-
+import { Bounce, ToastContainer } from "react-toastify";
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <AuthProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            {/* Dashboards with their own sidebar layout */}
-            <Route path="/employer/*" element={<EmployerDashboard />} />
-            <Route path="/admin/*" element={<AdminDashboard />} />
+	<QueryClientProvider client={queryClient}>
+		<TooltipProvider>
+			<ToastContainer
+				position="top-right"
+				autoClose={5000}
+				hideProgressBar={false}
+				newestOnTop={false}
+				closeOnClick={false}
+				rtl={false}
+				pauseOnFocusLoss
+				draggable
+				pauseOnHover
+				transition={Bounce}
+			/>
+			<BrowserRouter>
+				<AuthProvider>
+					<Toaster />
+					<Sonner />
 
-            {/* Public pages - HomePage manages its own header */}
-            <Route path="/" element={<HomePage />} />
-            
-            {/* Other public pages with HeaderMNP */}
-            <Route path="*" element={
-              <div className="min-h-screen flex flex-col">
-                <HeaderMNP />
-                <main className="flex-1">
-                  <Routes>
-                    <Route path="/jobs" element={<JobListPage />} />
-                    <Route path="/jobs/:id" element={<JobDetailPage />} />
-                    <Route path="/saved-jobs" element={<SavedJobsPage />} />
-                    <Route path="/companies" element={<CompaniesPage />} />
-                    <Route path="/insights" element={<InsightsPage />} />
-                    <Route path="/login" element={<LoginPage />} />
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </main>
-                <Footer />
-              </div>
-            } />
-          </Routes>
-        </BrowserRouter>
-      </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
+					<Routes>
+						{/* Dashboards with their own sidebar layout */}
+						<Route path="/employer/*" element={<EmployerDashboard />} />
+						<Route path="/admin/*" element={<AdminDashboard />} />
+
+						{/* Public pages - HomePage manages its own header */}
+						<Route path="/" element={<HomePage />} />
+
+						{/* Other public pages with HeaderMNP */}
+						<Route
+							path="*"
+							element={
+								<div className="min-h-screen flex flex-col">
+									<HeaderMNP />
+									<main className="flex-1">
+										<Routes>
+											<Route path="/jobs" element={<JobListPage />} />
+											<Route path="/jobs/:id" element={<JobDetailPage />} />
+											<Route path="/saved-jobs" element={<SavedJobsPage />} />
+											<Route path="/companies" element={<CompaniesPage />} />
+											<Route path="/insights" element={<InsightsPage />} />
+											<Route path="/login" element={<LoginPage />} />
+											<Route path="*" element={<NotFound />} />
+										</Routes>
+									</main>
+									<Footer />
+								</div>
+							}
+						/>
+					</Routes>
+				</AuthProvider>
+			</BrowserRouter>
+		</TooltipProvider>
+	</QueryClientProvider>
 );
 
 export default App;

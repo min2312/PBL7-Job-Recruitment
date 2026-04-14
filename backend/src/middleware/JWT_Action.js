@@ -6,7 +6,7 @@ const nonSecurePaths = [
 	"/api/create-new-user",
 	"/api/logout",
 	"/api/refresh-token",
-	"/api/admin_login",
+	"/api/admin/login",
 	"/api/admin/refresh-token",
 	"/api/createTime",
 	"/payment",

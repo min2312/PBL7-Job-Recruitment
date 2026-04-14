@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { Navigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,7 +24,7 @@ interface Education {
 }
 
 export default function CandidateProfile({ embedded = false }: { embedded?: boolean }) {
-  const { user } = useAuth();
+  const { user, isAuthReady } = useAuth();
   const [editing, setEditing] = useState(false);
   const [profile, setProfile] = useState({
     name: '',
@@ -46,6 +46,10 @@ export default function CandidateProfile({ embedded = false }: { embedded?: bool
   ]);
 
   const [newSkill, setNewSkill] = useState('');
+
+  if (!isAuthReady) {
+    return <div className="min-h-[40vh] flex items-center justify-center text-sm text-muted-foreground">Đang kiểm tra phiên đăng nhập...</div>;
+  }
 
   if (!user || user.role !== 'CANDIDATE') return <Navigate to="/login" />;
 

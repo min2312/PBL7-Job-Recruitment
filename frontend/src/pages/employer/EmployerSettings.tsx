@@ -6,7 +6,7 @@ import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Building2, Camera, Shield, Bell, Palette } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { getCompanyById } from '@/data/mockData';
 
 export default function EmployerSettings() {

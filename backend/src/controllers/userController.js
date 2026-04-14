@@ -5,22 +5,12 @@ import {
 	CreateJWT,
 	CreateRefreshJWT,
 } from "../middleware/JWT_Action";
+import {
+	clearAuthCookies,
+	setAccessCookie,
+	setAuthCookies,
+} from "../helpers/authCookies";
 require("dotenv").config();
-
-const getCookieOptions = (maxAge) => ({
-	httpOnly: true,
-	maxAge,
-	secure: true,
-	sameSite: "none",
-});
-
-const setAuthCookies = (res, accessToken, refreshToken) => {
-	const accessMaxAge = Number(process.env.maxAgeCookie) || 60 * 60 * 1000;
-	const refreshMaxAge =
-		Number(process.env.maxAgeRefreshCookie) || 7 * 24 * 60 * 60 * 1000;
-	res.cookie("jwt", accessToken, getCookieOptions(accessMaxAge));
-	res.cookie("refreshJwt", refreshToken, getCookieOptions(refreshMaxAge));
-};
 
 let HandleLogin = async (req, res) => {
 	let email = req.body.email;
@@ -39,7 +29,13 @@ let HandleLogin = async (req, res) => {
 		userdata.DT.access_token &&
 		userdata.DT.refresh_token
 	) {
-		setAuthCookies(res, userdata.DT.access_token, userdata.DT.refresh_token);
+		clearAuthCookies(res, "admin");
+		setAuthCookies(
+			res,
+			"user",
+			userdata.DT.access_token,
+			userdata.DT.refresh_token,
+		);
 	}
 	return res.status(200).json({
 		errcode: userdata.errCode,
@@ -73,12 +69,7 @@ let HandleEditUser = async (req, res) => {
 	let data = req.body;
 	let message = await userService.updateUser(data);
 	if (message && message.DT && message.DT.access_token) {
-		res.cookie("jwt", message.DT.access_token, {
-			httpOnly: true,
-			maxAge: 60 * 60 * 1000,
-			sameSite: "none",
-			secure: true,
-		});
+		setAccessCookie(res, "user", message.DT.access_token);
 	}
 	return res.status(200).json(message);
 };
@@ -112,12 +103,7 @@ let HandleUpdateProfile = async (req, res) => {
 		let message = await userService.updateUserProfile(data, fileImage);
 
 		if (message && message.DT && message.DT.access_token) {
-			res.cookie("jwt", message.DT.access_token, {
-				httpOnly: true,
-				maxAge: process.env.maxAgeCookie,
-				secure: true,
-				sameSite: "none",
-			});
+			setAccessCookie(res, "user", message.DT.access_token);
 		}
 
 		return res.status(200).json(message);
@@ -162,6 +148,8 @@ const getUserAccount = async (req, res) => {
 			id: req.user.id,
 			fullName: req.user.fullName,
 			email: req.user.email,
+			name: req.user.name,
+			role: req.user.role,
 			bio: req.user.bio,
 			isPremium: req.user.isPremium,
 			profilePicture: req.user.profilePicture,
@@ -171,8 +159,7 @@ const getUserAccount = async (req, res) => {
 };
 const HandleLogOut = (req, res) => {
 	try {
-		res.clearCookie("jwt");
-		res.clearCookie("refreshJwt");
+		clearAuthCookies(res, "user");
 		return res.status(200).json({
 			errCode: 0,
 			errMessage: "Clear cookie done",
@@ -197,6 +184,7 @@ const HandleRefreshToken = (req, res) => {
 
 	const decoded = verifyRefreshToken(refreshToken);
 	if (!decoded || decoded.error === "TokenExpiredError") {
+		clearAuthCookies(res, "user");
 		return res.status(401).json({
 			errCode: -2,
 			errMessage:
@@ -209,7 +197,7 @@ const HandleRefreshToken = (req, res) => {
 	const { iat, exp, ...payload } = decoded;
 	const accessToken = CreateJWT(payload);
 	const newRefreshToken = CreateRefreshJWT(payload);
-	setAuthCookies(res, accessToken, newRefreshToken);
+	setAuthCookies(res, "user", accessToken, newRefreshToken);
 
 	return res.status(200).json({
 		errCode: 0,

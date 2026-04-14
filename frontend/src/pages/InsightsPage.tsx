@@ -4,7 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieCha
 import { TrendingUp, MapPin, DollarSign, GraduationCap, Flame, BarChart3, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 
 const colors = ['#0d9488', '#14b8a6', '#2dd4bf', '#5eead4', '#f59e0b', '#d97706', '#3b82f6', '#8b5cf6'];
 
