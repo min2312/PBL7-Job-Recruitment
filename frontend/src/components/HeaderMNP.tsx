@@ -1,9 +1,10 @@
 import { useAuth } from '@/hooks/useAuth';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { usePageLoad } from '@/contexts/PageLoadContext';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Bell, ChevronDown, ArrowRight, User, LogOut } from 'lucide-react';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, memo } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,24 +12,37 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-export default function HeaderMNP() {
+export default memo(function HeaderMNP() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { triggerPageLoad } = usePageLoad();
   const [jobMenuOpen, setJobMenuOpen] = useState(false);
+  const [companyMenuOpen, setCompanyMenuOpen] = useState(false);
   const [careerMenuOpen, setCareerMenuOpen] = useState(false);
   const [toolMenuOpen, setToolMenuOpen] = useState(false);
   const closeJobMenuTimeoutRef = useRef<NodeJS.Timeout>();
+  const closeCompanyMenuTimeoutRef = useRef<NodeJS.Timeout>();
   const closeCareerMenuTimeoutRef = useRef<NodeJS.Timeout>();
   const closeToolMenuTimeoutRef = useRef<NodeJS.Timeout>();
   const navRef = useRef<HTMLElement>(null);
+  const companyBtnRef = useRef<HTMLDivElement>(null);
   const careerBtnRef = useRef<HTMLDivElement>(null);
   const toolBtnRef = useRef<HTMLDivElement>(null);
+
+  // Close all dropdowns when location changes
+  useEffect(() => {
+    setJobMenuOpen(false);
+    setCompanyMenuOpen(false);
+    setCareerMenuOpen(false);
+    setToolMenuOpen(false);
+  }, [location.pathname]);
 
   const handleJobMenuEnter = () => {
     if (closeJobMenuTimeoutRef.current) clearTimeout(closeJobMenuTimeoutRef.current);
     setCareerMenuOpen(false);
     setToolMenuOpen(false);
+    setCompanyMenuOpen(false);
     setJobMenuOpen(true);
   };
 
@@ -36,10 +50,23 @@ export default function HeaderMNP() {
     closeJobMenuTimeoutRef.current = setTimeout(() => setJobMenuOpen(false), 150);
   };
 
+  const handleCompanyMenuEnter = () => {
+    if (closeCompanyMenuTimeoutRef.current) clearTimeout(closeCompanyMenuTimeoutRef.current);
+    setJobMenuOpen(false);
+    setToolMenuOpen(false);
+    setCareerMenuOpen(false);
+    setCompanyMenuOpen(true);
+  };
+
+  const handleCompanyMenuLeave = () => {
+    closeCompanyMenuTimeoutRef.current = setTimeout(() => setCompanyMenuOpen(false), 150);
+  };
+
   const handleCareerMenuEnter = () => {
     if (closeCareerMenuTimeoutRef.current) clearTimeout(closeCareerMenuTimeoutRef.current);
     setJobMenuOpen(false);
     setToolMenuOpen(false);
+    setCompanyMenuOpen(false);
     setCareerMenuOpen(true);
   };
 
@@ -51,6 +78,7 @@ export default function HeaderMNP() {
     if (closeToolMenuTimeoutRef.current) clearTimeout(closeToolMenuTimeoutRef.current);
     setJobMenuOpen(false);
     setCareerMenuOpen(false);
+    setCompanyMenuOpen(false);
     setToolMenuOpen(true);
   };
 
@@ -60,10 +88,19 @@ export default function HeaderMNP() {
 
   const handleHomeClick = () => {
     if (location.pathname === '/') {
-      window.scrollTo(0, 0);
-      window.location.reload();
+      triggerPageLoad();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
       navigate('/');
+    }
+  };
+
+  const handleNavigate = (path: string) => {
+    if (location.pathname === path) {
+      triggerPageLoad();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      navigate(path);
     }
   };
 
@@ -85,7 +122,11 @@ export default function HeaderMNP() {
               onMouseEnter={handleJobMenuEnter}
               onMouseLeave={handleJobMenuLeave}
             >
-              <Button variant="ghost" className="gap-1 text-base font-semibold text-slate-600 hover:text-black">
+              <Button 
+                onClick={handleHomeClick}
+                variant="ghost" 
+                className="gap-1 text-base font-semibold text-slate-600 hover:text-black"
+              >
                 Việc làm
                 <ChevronDown className="w-4 h-4" />
               </Button>
@@ -93,209 +134,203 @@ export default function HeaderMNP() {
               {jobMenuOpen && (
                 <div
                   className="absolute top-full left-0 mt-2 bg-white border border-slate-200 shadow-xl z-50 rounded-xl transition-all duration-300 origin-top animate-in fade-in slide-in-from-top-2"
-                  style={{ minWidth: '860px' }}
+                  style={{ width: 'fit-content' }}
                 >
-                  <div className="px-6 py-6 grid grid-cols-4 gap-8">
-                    {/* Col 1: VIỆC LÀM + CÔNG TY */}
-                    <div>
-                      <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-4">Việc làm</div>
-                      <div className="flex flex-col gap-2.5">
-                        <button onClick={handleHomeClick} className="flex items-center gap-1 text-base text-slate-600 hover:text-black text-left group">
+                  <div className="px-6 py-6" style={{ display: 'grid', gridTemplateColumns: 'auto', gap: '12px' }}>
+                    {/* Col 1: VIỆC LÀM */}
+                    <div className="pr-0 max-w-none">
+                      {/* <div className="text-[13px] font-bold text-slate-400 uppercase tracking-widest mb-2">Việc làm</div> */}
+                      <div className="flex flex-col gap-4">
+                        <button onClick={() => handleNavigate('/job-search')} className="flex items-center gap-1 text-sm text-slate-700 hover:text-black text-left group font-medium whitespace-nowrap">
                           <span>Tìm việc làm</span>
                           <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1" />
                         </button>
-                        <Link to="/saved-jobs" className="flex items-center gap-1 text-base text-slate-600 hover:text-black group">
+                        <button onClick={() => handleNavigate('/saved-jobs')} className="flex items-center gap-1 text-sm text-slate-700 hover:text-black text-left group font-medium whitespace-nowrap">
                           <span>Việc làm đã lưu</span>
                           <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1" />
-                        </Link>
-                        <Link to="/jobs" className="flex items-center gap-1 text-base text-slate-600 hover:text-black group">
+                        </button>
+                        <button onClick={() => handleNavigate('/applications')} className="flex items-center gap-1 text-sm text-slate-700 hover:text-black text-left group font-medium whitespace-nowrap">
                           <span>Việc làm đã ứng tuyển</span>
                           <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1" />
-                        </Link>
-                        <button onClick={() => navigate('/jobs')} className="flex items-center gap-1 text-base text-slate-600 hover:text-black text-left group">
+                        </button>
+                        {/* <button onClick={() => handleNavigate('/jobs')} className="flex items-center gap-1 text-sm text-slate-700 hover:text-black text-left group font-medium">
                           <span>Việc làm phù hợp</span>
                           <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1" />
-                        </button>
-                      </div>
-                      <div className="border-t border-slate-100 my-4" />
-                      <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-4">Công ty</div>
-                      <div className="flex flex-col gap-2.5">
-                        <Link to="/companies" className="flex items-center gap-1 text-base text-slate-600 hover:text-black group">
-                          <span>Danh sách công ty</span>
-                          <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1" />
-                        </Link>
-                        <Link to="/companies" className="flex items-center gap-1 text-base text-slate-600 hover:text-black group">
-                          <span>Công ty Top</span>
-                          <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1" />
-                        </Link>
+                        </button> */}
                       </div>
                     </div>
 
                     {/* Col 2: THEO VỊ TRÍ */}
-                    <div>
-                      <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-4">Việc làm theo vị trí</div>
-                      <div className="flex flex-col gap-2">
+                    {/* <div>
+                      <div className="text-[13px] font-bold text-slate-400 uppercase tracking-widest mb-2">Việc làm theo vị trí</div>
+                      <div className="flex flex-col gap-4">
                         {['Nhân viên kinh doanh','Kế toán','Marketing','Hành chính nhân sự','Chăm sóc khách hàng','Ngân hàng','IT'].map(item => (
-                          <Link key={item} to={`/jobs`} className="flex items-center gap-1 text-base text-slate-600 hover:text-black group">
-                            <span>{item}</span>
+                          <button key={item} onClick={() => navigate(`/job-search?position=${encodeURIComponent(item)}`)} className="flex items-center gap-1 text-sm text-slate-700 hover:text-black text-left group font-medium">
+                            <span>Việc làm {item}</span>
                             <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1" />
-                          </Link>
+                          </button>
                         ))}
                       </div>
-                    </div>
+                    </div> */}
 
-                    {/* Col 3: THEO LĨNH VỰC */}
-                    <div>
-                      <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-4">Việc làm theo lĩnh vực</div>
-                      <div className="flex flex-col gap-2">
+                    {/* Col 3: VIỆC LÀM THEO LĨNH VỰC */}
+                    {/* <div>
+                      <div className="text-[13px] font-bold text-slate-400 uppercase tracking-widest mb-2 invisible">Spacer</div>
+                      <div className="flex flex-col gap-4">
                         {['Lao động phổ thông','Senior','Kỹ sư xây dựng','Thiết kế đồ họa','Bất động sản','Giáo dục','Telesales'].map(item => (
-                          <Link key={item} to={`/jobs`} className="flex items-center gap-1 text-base text-slate-600 hover:text-black group">
-                            <span>{item}</span>
+                          <button key={item} onClick={() => navigate(`/job-search?category=${encodeURIComponent(item)}`)} className="flex items-center gap-1 text-sm text-slate-700 hover:text-black text-left group font-medium">
+                            <span>Việc làm {item}</span>
                             <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1" />
-                          </Link>
+                          </button>
                         ))}
                       </div>
-                    </div>
-
-                    {/* Col 4: NGÀNH NGHỀ */}
-                    <div>
-                      <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-4">Ngành nghề</div>
-                      <div className="flex flex-col gap-2">
-                        {['Sản xuất','Bán lẻ - FMCG','IT - Phần mềm','Xây dựng','Giáo dục/Đào tạo'].map(item => (
-                          <Link key={item} to={`/jobs`} className="flex items-center gap-1 text-base text-slate-600 hover:text-black group">
-                            <span>{item}</span>
-                            <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1" />
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
+                    </div> */}
                   </div>
                 </div>
               )}
             </div>
 
-            <div
-              ref={toolBtnRef}
-              className="relative"
-              onMouseEnter={handleToolMenuEnter}
-              onMouseLeave={handleToolMenuLeave}
+            <Button 
+              onClick={() => handleNavigate('/companies')} 
+              variant="ghost" 
+              className="gap-1 text-base font-semibold text-slate-600 hover:text-black"
             >
-              <Button variant="ghost" className="gap-1 text-base font-semibold text-slate-600 hover:text-black">
-                Công cụ
-                <ChevronDown className="w-4 h-4" />
-              </Button>
+              Công ty
+            </Button>
 
-              {toolMenuOpen && (() => {
-                const navLeft = navRef.current?.getBoundingClientRect().left ?? 0;
-                const btnLeft = toolBtnRef.current?.getBoundingClientRect().left ?? 0;
-                const offset = -(btnLeft - navLeft);
-                return (
-                  <div
-                    className="absolute top-full bg-white border border-slate-200 shadow-xl z-50 rounded-xl transition-all duration-300 origin-top animate-in fade-in slide-in-from-top-2"
-                    style={{ minWidth: '800px', left: `${offset}px`, marginTop: '8px' }}
-                  >
-                  <div className="px-6 py-6 grid grid-cols-3 gap-8">
-                    {/* Col 1: KHÁM PHÁ VÀ NÂNG CẤP BẢN THÂN */}
-                    <div>
-                      <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-4">Khám phá và nâng cấp bản thân</div>
-                      <div className="flex flex-col gap-2.5">
-                        <button onClick={() => navigate('/jobs')} className="flex items-center gap-1 text-base text-slate-600 hover:text-black text-left group">
-                          <span>Bộ câu hỏi phỏng vấn</span>
-                          <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1" />
-                        </button>
-                        <button onClick={() => navigate('/jobs')} className="flex items-center gap-1 text-base text-slate-600 hover:text-black text-left group">
-                          <span>Trắc nghiệm MBTI</span>
-                          <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1" />
-                        </button>
-                        <button onClick={() => navigate('/jobs')} className="flex items-center gap-1 text-base text-slate-600 hover:text-black text-left group">
-                          <span>Trắc nghiệm MI</span>
-                          <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Col 2: CÔNG CỤ */}
-                    <div>
-                      <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-4">Công cụ</div>
-                      <div className="flex flex-col gap-2.5">
-                        <button onClick={() => navigate('/jobs')} className="flex items-center gap-1 text-base text-slate-600 hover:text-black text-left group">
-                          <span>Tính lương Gross - Net</span>
-                          <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1" />
-                        </button>
-                        <button onClick={() => navigate('/jobs')} className="flex items-center gap-1 text-base text-slate-600 hover:text-black text-left group">
-                          <span>Tính thuế thu nhập cá nhân</span>
-                          <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Col 3: HỖ TRỢ TÀI CHÍNH */}
-                    <div>
-                      <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-4">Hỗ trợ tài chính</div>
-                      <div className="flex flex-col gap-2.5">
-                        <button onClick={() => navigate('/jobs')} className="flex items-center gap-1 text-base text-slate-600 hover:text-black text-left group">
-                          <span>Bảo hiểm xã hội</span>
-                          <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  </div>
-                );
-              })()}
-            </div>
-
-            <div
-              ref={careerBtnRef}
-              className="relative"
-              onMouseEnter={handleCareerMenuEnter}
-              onMouseLeave={handleCareerMenuLeave}
+            <Button
+              onClick={() => handleNavigate('/insights')}
+              variant="ghost"
+              className="gap-1 text-base font-semibold text-slate-600 hover:text-black"
             >
-              <Button variant="ghost" className="gap-1 text-base font-semibold text-slate-600 hover:text-black">
-                Cẩm nang nghề nghiệp
-                <ChevronDown className="w-4 h-4" />
-              </Button>
+              Thị trường
+            </Button>
 
-              {careerMenuOpen && (() => {
-                const navLeft = navRef.current?.getBoundingClientRect().left ?? 0;
-                const btnLeft = careerBtnRef.current?.getBoundingClientRect().left ?? 0;
-                const offset = -(btnLeft - navLeft);
-                return (
-                  <div
-                    className="absolute top-full bg-white border border-slate-200 shadow-xl z-50 rounded-xl transition-all duration-300 origin-top animate-in fade-in slide-in-from-top-2"
-                    style={{ minWidth: '650px', left: `${offset}px`, marginTop: '8px' }}
-                  >
-                  <div className="px-6 py-6 grid grid-cols-2 gap-4">
-                    {/* Col 1: HƯỚNG DẪN + KỸ NĂNG */}
-                    <div>
-                      <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-4">Hướng dẫn nghề nghiệp</div>
-                      <div className="flex flex-col gap-2.5">
-                        <button onClick={() => navigate('/jobs')} className="flex items-center gap-1 text-base text-slate-600 hover:text-black text-left group">
-                          <span>Định hướng nghề nghiệp</span>
-                          <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1" />
-                        </button>
-                        <button onClick={() => navigate('/jobs')} className="flex items-center gap-1 text-base text-slate-600 hover:text-black text-left group">
-                          <span>Bí kíp tìm việc</span>
-                          <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1" />
-                        </button>
+            {false && (
+              <div
+                onMouseEnter={handleToolMenuEnter}
+                onMouseLeave={handleToolMenuLeave}
+              >
+                <Button variant="ghost" className="gap-1 text-base font-semibold text-slate-600 hover:text-black">
+                  Công cụ
+                  <ChevronDown className="w-4 h-4" />
+                </Button>
+
+                {toolMenuOpen && (() => {
+                  const navLeft = navRef.current?.getBoundingClientRect().left ?? 0;
+                  const btnLeft = toolBtnRef.current?.getBoundingClientRect().left ?? 0;
+                  const offset = -(btnLeft - navLeft);
+                  return (
+                    <div
+                      className="absolute top-full bg-white border border-slate-200 shadow-xl z-50 rounded-xl transition-all duration-300 origin-top animate-in fade-in slide-in-from-top-2"
+                      style={{ minWidth: '800px', left: `${offset}px`, marginTop: '8px' }}
+                    >
+                    <div className="px-6 py-6 grid grid-cols-3 gap-8">
+                      {/* Col 1: KHÁM PHÁ VÀ NÂNG CẤP BẢN THÂN */}
+                      <div>
+                        <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-4">Khám phá và nâng cấp bản thân</div>
+                        <div className="flex flex-col gap-2.5">
+                          <button onClick={() => handleNavigate('/jobs')} className="flex items-center gap-1 text-base text-slate-600 hover:text-black text-left group">
+                            <span>Bộ câu hỏi phỏng vấn</span>
+                            <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1" />
+                          </button>
+                          <button onClick={() => handleNavigate('/jobs')} className="flex items-center gap-1 text-base text-slate-600 hover:text-black text-left group">
+                            <span>Trắc nghiệm MBTI</span>
+                            <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1" />
+                          </button>
+                          <button onClick={() => handleNavigate('/jobs')} className="flex items-center gap-1 text-base text-slate-600 hover:text-black text-left group">
+                            <span>Trắc nghiệm MI</span>
+                            <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1" />
+                          </button>
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Col 2: INSIGHTS & FEATURES */}
-                    <div>
-                      <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-4">Bài viết nổi bật</div>
-                      <div className="space-y-3">
-                        <div className="text-[13px] text-slate-600 hover:text-black cursor-pointer">
-                          <p className="font-semibold mb-1">Ngành Marketing là gì?</p>
-                          <p className="text-[12px] text-slate-500">Khám phá cơ hội việc làm...</p>
+                      {/* Col 2: CÔNG CỤ */}
+                      <div>
+                        <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-4">Công cụ</div>
+                        <div className="flex flex-col gap-2.5">
+                          <button onClick={() => handleNavigate('/jobs')} className="flex items-center gap-1 text-base text-slate-600 hover:text-black text-left group">
+                            <span>Tính lương Gross - Net</span>
+                            <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1" />
+                          </button>
+                          <button onClick={() => handleNavigate('/jobs')} className="flex items-center gap-1 text-base text-slate-600 hover:text-black text-left group">
+                            <span>Tính thuế thu nhập cá nhân</span>
+                            <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Col 3: HỖ TRỢ TÀI CHÍNH */}
+                      <div>
+                        <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-4">Hỗ trợ tài chính</div>
+                        <div className="flex flex-col gap-2.5">
+                          <button onClick={() => handleNavigate('/jobs')} className="flex items-center gap-1 text-base text-slate-600 hover:text-black text-left group">
+                            <span>Bảo hiểm xã hội</span>
+                            <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1" />
+                          </button>
                         </div>
                       </div>
                     </div>
-                  </div>
-                  </div>
-                );
-              })()}
-            </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+
+            {false && (
+              <div
+                ref={careerBtnRef}
+                className="relative"
+                onMouseEnter={handleCareerMenuEnter}
+                onMouseLeave={handleCareerMenuLeave}
+              >
+                <Button variant="ghost" className="gap-1 text-base font-semibold text-slate-600 hover:text-black">
+                  Cẩm nang nghề nghiệp
+                  <ChevronDown className="w-4 h-4" />
+                </Button>
+
+                {careerMenuOpen && (() => {
+                  const navLeft = navRef.current?.getBoundingClientRect().left ?? 0;
+                  const btnLeft = careerBtnRef.current?.getBoundingClientRect().left ?? 0;
+                  const offset = -(btnLeft - navLeft);
+                  return (
+                    <div
+                      className="absolute top-full bg-white border border-slate-200 shadow-xl z-50 rounded-xl transition-all duration-300 origin-top animate-in fade-in slide-in-from-top-2"
+                      style={{ minWidth: '650px', left: `${offset}px`, marginTop: '8px' }}
+                    >
+                    <div className="px-6 py-6 grid grid-cols-2 gap-4">
+                      {/* Col 1: HƯỚNG DẪN + KỸ NĂNG */}
+                      <div>
+                        <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-4">Hướng dẫn nghề nghiệp</div>
+                        <div className="flex flex-col gap-2.5">
+                          <button onClick={() => handleNavigate('/jobs')} className="flex items-center gap-1 text-base text-slate-600 hover:text-black text-left group">
+                            <span>Định hướng nghề nghiệp</span>
+                            <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1" />
+                          </button>
+                          <button onClick={() => handleNavigate('/jobs')} className="flex items-center gap-1 text-base text-slate-600 hover:text-black text-left group">
+                            <span>Bí kíp tìm việc</span>
+                            <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Col 2: INSIGHTS & FEATURES */}
+                      <div>
+                        <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-4">Bài viết nổi bật</div>
+                        <div className="space-y-3">
+                          <div className="text-[13px] text-slate-600 hover:text-black cursor-pointer">
+                            <p className="font-semibold mb-1">Ngành Marketing là gì?</p>
+                            <p className="text-[12px] text-slate-500">Khám phá cơ hội việc làm...</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
           </nav>
         </div>
 
@@ -306,7 +341,7 @@ export default function HeaderMNP() {
           </Button>
 
           {user ? (
-            <DropdownMenu>
+            <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon">
                   <Avatar className="w-8 h-8">
@@ -317,7 +352,7 @@ export default function HeaderMNP() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={() => navigate('/candidate/profile')}>
+                <DropdownMenuItem onClick={() => handleNavigate('/candidate/profile')}>
                   <User className="w-4 h-4 mr-2" /> Hồ sơ
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => logout()}>
@@ -326,7 +361,7 @@ export default function HeaderMNP() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button onClick={() => navigate('/login')} className="bg-teal-600 hover:bg-teal-700">
+            <Button onClick={() => navigate('/login')} className="bg-black hover:bg-slate-800 text-white">
               Đăng nhập
             </Button>
           )}
@@ -334,4 +369,4 @@ export default function HeaderMNP() {
       </div>
     </header>
   );
-}
+});

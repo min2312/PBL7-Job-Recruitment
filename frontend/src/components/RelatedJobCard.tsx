@@ -1,7 +1,9 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Job, getCompanyById, getLocationById } from '@/data/mockData';
-import { MapPin, Heart } from 'lucide-react';
+import { MapPin, Heart, CheckCircle } from 'lucide-react';
 import { Card } from '@/components/ui/card';
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 
 interface RelatedJobCardProps {
   job: Job;
@@ -12,6 +14,69 @@ interface RelatedJobCardProps {
 export default function RelatedJobCard({ job, onMouseEnter, onMouseLeave }: RelatedJobCardProps) {
   const company = getCompanyById(job.companyId);
   const firstLocation = job.locationIds[0] ? getLocationById(job.locationIds[0]) : null;
+  const [isSaved, setIsSaved] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  // Check if job is saved on component mount
+  useEffect(() => {
+    if (user?.id) {
+      checkJobSaved();
+    }
+  }, [job.id, user?.id]);
+
+  const checkJobSaved = async () => {
+    try {
+      const response = await fetch(`/api/jobs/check-saved?jobId=${job.id}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include'
+      });
+      const data = await response.json();
+      if (data.errCode === 0) {
+        setIsSaved(data.isSaved);
+      }
+    } catch (error) {
+      console.error('Error checking saved status:', error);
+    }
+  };
+
+  const handleSaveJob = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!user?.id) {
+      window.location.href = '/login';
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const endpoint = isSaved ? '/api/jobs/unsave' : '/api/jobs/save';
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ jobId: job.id }),
+        credentials: 'include'
+      });
+      const data = await response.json();
+      
+      if (data.errCode === 0) {
+        setIsSaved(!isSaved);
+      } else {
+        console.error('Error saving job:', data.errMessage);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
     if (onMouseEnter) {
@@ -27,44 +92,68 @@ export default function RelatedJobCard({ job, onMouseEnter, onMouseLeave }: Rela
 
   return (
     <Card
-      className="p-4 border-2 border-slate-100 hover:border-slate-900 transition-all cursor-pointer"
+      className="group border-2 border-slate-200 hover:border-black p-3 hover:shadow-xl transition-all bg-white"
+      onClick={() => navigate(`/jobs/${job.id}`)}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      <div className="flex gap-4">
+      <div className="flex gap-3">
         {/* Logo - Left */}
-        <div className="w-24 h-24 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0 border border-slate-200 overflow-hidden">
-          <div className="w-20 h-20 bg-gradient-to-br from-slate-300 to-slate-400 rounded"></div>
+        <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center flex-shrink-0 border-2 border-black overflow-hidden">
+          <div className="w-12 h-12 bg-gradient-to-br from-slate-300 to-slate-400 rounded"></div>
         </div>
 
         {/* Content - Middle */}
         <div className="flex-1 min-w-0">
-          <Link to={`/jobs/${job.id}`} className="font-semibold text-slate-900 text-base line-clamp-2 hover:text-emerald-600 block">
-            {job.title}
-          </Link>
-          <p className="text-xs text-slate-600 mt-1 line-clamp-1 font-medium">{company?.name || 'Công ty'}</p>
-          
-          {/* Salary Badge */}
-          <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 text-xs font-bold px-2.5 py-1 rounded-full border border-emerald-200 mt-2">
-            💵 {job.salary}
-          </span>
+          {/* Title & Salary */}
+          <div className="flex items-start justify-between gap-3 mb-1">
+            <div className="flex-1">
+              <Link to={`/jobs/${job.id}`} className="font-bold text-slate-900 text-sm line-clamp-2 hover:text-slate-700 group-hover:underline block flex items-center">
+                {job.title}
+                <CheckCircle className="w-3.5 h-3.5 text-black ml-1.5 flex-shrink-0" />
+              </Link>
+            </div>
+            <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-900 font-bold text-xs rounded flex-shrink-0 whitespace-nowrap">
+              {job.salary}
+            </span>
+          </div>
 
-          {/* Location and Updated Time */}
-          <div className="flex items-center gap-4 mt-2 text-xs text-slate-600">
-            <span className="flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5 text-slate-500" />
+          {/* Company */}
+          <div className="mb-2">
+            <Link
+              to={`/companies/${company?.id ?? job.companyId}`}
+              onClick={(e) => e.stopPropagation()}
+              className="text-xs text-slate-600 font-medium flex items-center hover:text-slate-900 hover:underline"
+            >
+              {company?.name || 'Công ty'}
+              <CheckCircle className="w-3 h-3 text-black ml-1 flex-shrink-0" />
+            </Link>
+          </div>
+
+          {/* Location */}
+          <div className="flex items-center gap-4 mb-3 pb-2">
+            <span className="text-xs text-slate-700 font-medium flex items-center gap-1">
+              <MapPin className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
               {firstLocation?.name || 'Chưa xác định'}
             </span>
-            <span className="text-slate-500">Cập nhật 2 tuần trước</span>
           </div>
-        </div>
 
-        {/* Action Buttons - Right */}
-        <div className="flex flex-col items-end justify-between flex-shrink-0">
-          <div></div>
-          <button className="text-slate-900 hover:text-slate-700 transition-colors">
-            <Heart className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} />
-          </button>
+          {/* Heart Button */}
+          <div className="flex items-center justify-end gap-2">
+            <button 
+              onClick={() => navigate(`/jobs/${job.id}`)}
+              className="hidden group-hover:flex h-8 items-center justify-center px-3 bg-black text-white text-xs font-semibold rounded hover:bg-slate-800 transition-colors"
+            >
+              Ứng tuyển
+            </button>
+            <button 
+              onClick={handleSaveJob}
+              disabled={isLoading}
+              className={`w-8 h-8 flex items-center justify-center rounded-full border border-black hover:bg-slate-200 transition-colors ${isSaved ? 'bg-slate-900' : ''}`}
+            >
+              <Heart className={`w-4 h-4 ${isSaved ? 'fill-white text-white' : 'text-black'}`} />
+            </button>
+          </div>
         </div>
       </div>
     </Card>

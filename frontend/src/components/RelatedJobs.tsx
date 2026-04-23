@@ -1,6 +1,7 @@
 import { Job, jobs } from '@/data/mockData';
 import RelatedJobCard from './RelatedJobCard';
 import JobPreviewPopup from './JobPreviewPopup';
+import { getRelatedJobsForSingleJob } from '@/utils/jobSimilarity';
 import { useState, useRef, useEffect } from 'react';
 
 interface RelatedJobsProps {
@@ -25,25 +26,11 @@ export default function RelatedJobs({ currentJobId, currentJob }: RelatedJobsPro
   }, []);
 
   /**
-   * Logic hiện tại: Tính điểm dựa trên category, location, level
-   * Sau này: Thay bằng word2vec similarity
+   * Lấy công việc tương tự dựa trên utility function
+   * Logic: Tính điểm dựa trên category, location, level
+   * TODO: Sau này thay bằng word2vec similarity
    */
-  const relatedJobs = jobs
-    .filter(j => j.id !== currentJobId)
-    .map(j => {
-      let score = 0;
-      // Compare categories
-      if (j.categoryIds.some(cid => currentJob.categoryIds.includes(cid))) score += 2;
-      // Compare locations
-      if (j.locationIds.some(lid => currentJob.locationIds.includes(lid))) score += 1;
-      // Compare levels
-      if (j.level === currentJob.level) score += 1;
-      return { job: j, score };
-    })
-    .filter(r => r.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 4)
-    .map(r => r.job);
+  const relatedJobs = getRelatedJobsForSingleJob(currentJob, jobs);
 
   const handlePopupHover = (hovered: boolean) => {
     setPopupHovered(hovered);
@@ -68,9 +55,9 @@ export default function RelatedJobs({ currentJobId, currentJob }: RelatedJobsPro
 
   return (
     <div className="mt-12">
-      {/* Header with green line */}
-      <div className="flex items-center gap-3 mb-6 pb-4 border-b-2 border-emerald-600">
-        <div className="w-1 h-6 bg-emerald-600 rounded"></div>
+      {/* Header with black line */}
+      <div className="flex items-center gap-3 mb-6 pb-4 border-b-2 border-black">
+        <div className="w-1 h-6 bg-black rounded"></div>
         <h2 className="text-lg font-bold text-slate-900">Việc làm liên quan</h2>
       </div>
 

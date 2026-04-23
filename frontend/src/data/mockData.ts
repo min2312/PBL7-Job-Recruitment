@@ -15,6 +15,11 @@ export interface Company {
   name: string;
   logo: string;
   description?: string;
+  website?: string;
+  employees?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
 }
 
 export interface Job {
@@ -118,16 +123,116 @@ export const locations: Location[] = [
 ];
 
 export const companies: Company[] = [
-  { id: 1, name: 'CÔNG TY CỔ PHẦN TẬP ĐOÀN TLC VIỆT NAM', logo: 'https://cdn-new.topcv.vn/unsafe/80x/https://static.topcv.vn/company_logos/69159935ab9461763023157.png' },
-  { id: 2, name: 'CÔNG TY CỔ PHẦN QUỐC TẾ CUỘC SỐNG VIỆT', logo: 'https://cdn-new.topcv.vn/unsafe/80x/https://static.topcv.vn/company_logos/cong-ty-co-phan-quoc-te-cuoc-song-viet-63992dd6c32d7.jpg' },
-  { id: 3, name: 'CÔNG TY TNHH NHÔM KÍNH QUỐC ANH', logo: 'https://cdn-new.topcv.vn/unsafe/80x/https://static.topcv.vn/company_logos/eTcP2MYIUJyg4g1taIMSJlQsiufVXU0W_1743471985____29eac3ed1a097f1fa3d0f09ca478db7a.jpg' },
-  { id: 4, name: 'Công Ty TNHH Sản Xuất TM DV ITALIO', logo: 'https://cdn-new.topcv.vn/unsafe/80x/https://static.topcv.vn/company_logos/2bBxVApK6caFKGbqCCLyODWHeSzbcdys_1749194490____508e8f0770865cded62edc576f659b94.jpg' },
-  { id: 5, name: 'CÔNG TY TNHH MIRI HOLDINGS', logo: 'https://cdn-new.topcv.vn/unsafe/80x/https://static.topcv.vn/company_logos/hqewKltOzFD9u3pRNJDi21pVDk6I4bdM_1751951772____b67193a07ca26f50b803c369074569ca.png' },
-  { id: 8, name: 'CÔNG TY CỔ PHẦN CÔNG NGHỆ & SÁNG TẠO TRẺ TEKY', logo: 'https://cdn-new.topcv.vn/unsafe/80x/https://static.topcv.vn/company_logos/cong-ty-co-phan-cong-nghe-sang-tao-tre-teky-holdings-6297130b27e96.jpg' },
-  { id: 18, name: 'Công ty Cổ phần MISA', logo: 'https://cdn-new.topcv.vn/unsafe/80x/https://static.topcv.vn/company_logos/YVVFSY05ZUhqjlVHtBl2kOD1a189WFj0_1652947920____d78c5dd2ab820dcbb9a367b40e712067.jpg' },
-  { id: 47, name: 'Trung Tâm Anh Ngữ ILA', logo: 'https://cdn-new.topcv.vn/unsafe/80x/https://static.topcv.vn/company_logos/trung-tam-anh-ngu-ila-57bfa5cf4cf23_rs.jpg' },
-  { id: 53, name: 'SHBFinance', logo: 'https://cdn-new.topcv.vn/unsafe/80x/https://static.topcv.vn/company_logos/Yeayjqzb9trIIi8az0dQFohw4tHAs5Hw_1651662182____f1a9a5bf90ccc65572d96cbe20efe520.jfif' },
-  { id: 100, name: 'Ngân hàng TMCP Đông Nam Á - SEABANK', logo: 'https://cdn-new.topcv.vn/unsafe/80x/https://static.topcv.vn/company_logos/4XhudLFrcBny3dlsD9Mn7SetP50YWkv3_1711512611____54b244854e45defa1604a6104a045c24.png' },
+  { 
+    id: 1, 
+    name: 'CÔNG TY CỔ PHẦN TẬP ĐOÀN TLC VIỆT NAM', 
+    logo: 'https://cdn-new.topcv.vn/unsafe/80x/https://static.topcv.vn/company_logos/69159935ab9461763023157.png',
+    website: 'https://tlc.vn',
+    employees: '100-499 nhân viên',
+    address: 'Ninh Bình - KCN Châu Sơn',
+    phone: '0227.123456',
+    email: 'hr@tlc.vn',
+    description: 'Với mục tiêu kết nối nhân tài với cơ hội việc làm tốt nhất, chúng tôi đã phục vụ hàng ngàn ứng viên và nhà tuyển dụng. CÔNG TY CỔ PHẦN TẬP ĐOÀN TLC là nhà lãnh đạo trong ngành công nghiệp điện tử và sản xuất. Chúng tôi cung cấp các giải pháp tuyên dụng hàng đầu với đội ngũ chuyên gia giàu kinh nghiệm.'
+  },
+  { 
+    id: 2, 
+    name: 'CÔNG TY CỔ PHẦN QUỐC TẾ CUỘC SỐNG VIỆT', 
+    logo: 'https://cdn-new.topcv.vn/unsafe/80x/https://static.topcv.vn/company_logos/cong-ty-co-phan-quoc-te-cuoc-song-viet-63992dd6c32d7.jpg',
+    website: 'https://qlvn.com.vn',
+    employees: '50-99 nhân viên',
+    address: 'Hồ Chí Minh - Phường Linh Xuân',
+    phone: '0283.123456',
+    email: 'recruit@qlvn.com.vn',
+    description: 'Công ty chuyên về kinh doanh nông sản và xuất nhập khẩu. Chúng tôi cam kết mang lại các sản phẩm chất lượng cao cho khách hàng trong nước và quốc tế, với đội ngũ nhân viên chuyên nghiệp và tận tâm.'
+  },
+  { 
+    id: 3, 
+    name: 'CÔNG TY TNHH NHÔM KÍNH QUỐC ANH', 
+    logo: 'https://cdn-new.topcv.vn/unsafe/80x/https://static.topcv.vn/company_logos/eTcP2MYIUJyg4g1taIMSJlQsiufVXU0W_1743471985____29eac3ed1a097f1fa3d0f09ca478db7a.jpg',
+    website: 'https://quocanh.vn',
+    employees: '100-199 nhân viên',
+    address: 'Hồ Chí Minh - Quận 9',
+    phone: '0289.123456',
+    email: 'jobs@quocanh.vn',
+    description: 'Với kinh nghiệm hơn 10 năm trong ngành, chúng tôi cung cấp các giải pháp nhôm kính chất lượng cao, từ thiết kế, sản xuất đến thi công. Đội ngũ kỹ thuật viên lành nghề sẵn sàng phục vụ khách hàng.'
+  },
+  { 
+    id: 4, 
+    name: 'Công Ty TNHH Sản Xuất TM DV ITALIO', 
+    logo: 'https://cdn-new.topcv.vn/unsafe/80x/https://static.topcv.vn/company_logos/2bBxVApK6caFKGbqCCLyODWHeSzbcdys_1749194490____508e8f0770865cded62edc576f659b94.jpg',
+    website: 'https://italio.vn',
+    employees: '200-499 nhân viên',
+    address: 'Hà Nội - Nam Từ Liêm',
+    phone: '0243.123456',
+    email: 'hr@italio.vn',
+    description: 'ITALIO là công ty sản xuất và thương mại các sản phẩm công nghiệp chất lượng cao, phục vụ thị trường nội địa và xuất khẩu. Chúng tôi tích cực tuyên dụng những nhân viên giỏi để phát triển công ty.'
+  },
+  { 
+    id: 5, 
+    name: 'CÔNG TY TNHH MIRI HOLDINGS', 
+    logo: 'https://cdn-new.topcv.vn/unsafe/80x/https://static.topcv.vn/company_logos/hqewKltOzFD9u3pRNJDi21pVDk6I4bdM_1751951772____b67193a07ca26f50b803c369074569ca.png',
+    website: 'https://miriholdings.vn',
+    employees: '500+ nhân viên',
+    address: 'Hồ Chí Minh - Quận 1',
+    phone: '0288.123456',
+    email: 'careers@miriholdings.vn',
+    description: 'MIRI Holdings là tập đoàn đa ngành kinh doanh với các hoạt động trong lĩnh vực nhà hàng, khách sạn, du lịch và dịch vụ. Với môi trường làm việc chuyên nghiệp, chúng tôi tìm kiếm những nhân sự có tinh thần trách nhiệm cao.'
+  },
+  { 
+    id: 8, 
+    name: 'CÔNG TY CỔ PHẦN CÔNG NGHỆ & SÁNG TẠO TRẺ TEKY', 
+    logo: 'https://cdn-new.topcv.vn/unsafe/80x/https://static.topcv.vn/company_logos/cong-ty-co-phan-cong-nghe-sang-tao-tre-teky-holdings-6297130b27e96.jpg',
+    website: 'https://teky.vn',
+    employees: '100-299 nhân viên',
+    address: 'Hà Nội - Cầu Giấy',
+    phone: '0224.123456',
+    email: 'hr@teky.vn',
+    description: 'TEKY là một trong những công ty tiên phong trong lĩnh vực đào tạo công nghệ cho trẻ em tại Việt Nam. Chúng tôi tạo môi trường sáng tạo, khuyến khích đổi mới và phát triển kỹ năng của từng thành viên trong tập thể.'
+  },
+  { 
+    id: 18, 
+    name: 'Công ty Cổ phần MISA', 
+    logo: 'https://cdn-new.topcv.vn/unsafe/80x/https://static.topcv.vn/company_logos/YVVFSY05ZUhqjlVHtBl2kOD1a189WFj0_1652947920____d78c5dd2ab820dcbb9a367b40e712067.jpg',
+    website: 'https://misa.vn',
+    employees: '500+ nhân viên',
+    address: 'Hà Nội - Phạm Văn Bạch',
+    phone: '0243.654321',
+    email: 'careers@misa.vn',
+    description: 'MISA là công ty hàng đầu trong lĩnh vực phần mềm quản trị doanh nghiệp tại Việt Nam. Với công nghệ tiên tiến và đội ngũ chuyên gia giỏi, chúng tôi cung cấp các giải pháp ERP, CRM, HRM toàn diện cho doanh nghiệp. Chúng tôi luôn tìm kiếm những tài năng CNTT để gia nhập đội ngũ.'
+  },
+  { 
+    id: 47, 
+    name: 'Trung Tâm Anh Ngữ ILA', 
+    logo: 'https://cdn-new.topcv.vn/unsafe/80x/https://static.topcv.vn/company_logos/trung-tam-anh-ngu-ila-57bfa5cf4cf23_rs.jpg',
+    website: 'https://ilavietnam.vn',
+    employees: '50-99 nhân viên',
+    address: 'Hồ Chí Minh - Quận 1',
+    phone: '0283.654321',
+    email: 'jobs@ilavietnam.vn',
+    description: 'ILA là một trung tâm anh ngữ quốc tế với kinh nghiệm giáo dục tiếng Anh hơn 20 năm. Chúng tôi cung cấp các khóa học tiếng Anh đa dạng và chất lượng cao. Nếu bạn đam mê giáo dục và có kỹ năng giao tiếp tốt, hãy gia nhập đội ngũ của chúng tôi.'
+  },
+  { 
+    id: 53, 
+    name: 'SHBFinance', 
+    logo: 'https://cdn-new.topcv.vn/unsafe/80x/https://static.topcv.vn/company_logos/Yeayjqzb9trIIi8az0dQFohw4tHAs5Hw_1651662182____f1a9a5bf90ccc65572d96cbe20efe520.jfif',
+    website: 'https://shbfinance.vn',
+    employees: '100-299 nhân viên',
+    address: 'Hà Nội - Nhiều chi nhánh',
+    phone: '0243.987654',
+    email: 'hr@shbfinance.vn',
+    description: 'SHBFinance là công ty cung cấp các dịch vụ tài chính và tín dụng đỉnh cao. Chúng tôi mang lại các giải pháp tài chính toàn diện và dịch vụ khách hàng xuất sắc. Tham gia vào đội ngũ chuyên nghiệp và năng động của chúng tôi.'
+  },
+  { 
+    id: 100, 
+    name: 'Ngân hàng TMCP Đông Nam Á - SEABANK', 
+    logo: 'https://cdn-new.topcv.vn/unsafe/80x/https://static.topcv.vn/company_logos/4XhudLFrcBny3dlsD9Mn7SetP50YWkv3_1711512611____54b244854e45defa1604a6104a045c24.png',
+    website: 'https://seabank.com.vn',
+    employees: '1000+ nhân viên',
+    address: 'Hồ Chí Minh - Quận 3',
+    phone: '0288.987654',
+    email: 'careers@seabank.com.vn',
+    description: 'Ngân hàng TMCP Đông Nam Á (SeABank) là một trong những ngân hàng hàng đầu tại Việt Nam, cung cấp các dịch vụ ngân hàng toàn diện từ tài khoản tiết kiệm, cho vay, thanh toán đến quản lý tài sản. Chúng tôi cam kết xây dựng môi trường làm việc chuyên nghiệp, tạo cơ hội phát triển sự nghiệp cho mỗi nhân viên.'
+  },
 ];
 
 export const jobs: Job[] = [

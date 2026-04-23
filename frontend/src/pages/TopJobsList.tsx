@@ -122,10 +122,10 @@ export default function TopJobsList({ jobs }: TopJobsListProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h2 className="text-2xl font-bold text-slate-900">Việc làm tốt nhất</h2>
-          <div className="flex items-center gap-2 text-sm">
+          {/* <div className="flex items-center gap-2 text-sm">
             <div className="w-6 h-6 bg-slate-200 rounded-full animate-pulse"></div>
             <span className="text-slate-600">Cố Pháp TOPPYAI</span>
-          </div>
+          </div> */}
         </div>
         <div className="flex gap-2">
           <button className="p-1.5 border-2 border-slate-900 rounded-full transition-all text-slate-900 hover:bg-slate-900 hover:text-white">
@@ -209,13 +209,13 @@ export default function TopJobsList({ jobs }: TopJobsListProps) {
         </div>
 
         {/* Info Banner */}
-        <div className="bg-slate-50 border border-slate-300 rounded-lg p-4 flex items-center gap-3">
+        {/* <div className="bg-slate-50 border border-slate-300 rounded-lg p-4 flex items-center gap-3">
           <div className="w-5 h-5 bg-slate-400 rounded-full flex items-center justify-center text-white text-xs font-bold">i</div>
           <p className="text-sm text-slate-700">
             Dị chuột vào tiêu đề để xem thêm thông tin chi tiết
           </p>
           <button className="ml-auto text-slate-400 hover:text-slate-600">✕</button>
-        </div>
+        </div> */}
       </div>
 
       {/* Jobs Grid */}
