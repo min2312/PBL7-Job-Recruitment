@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { users } from '@/data/mockData';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -170,6 +170,13 @@ export default function LoginPage() {
                 </Button>
               ))}
             </div>
+          </div>
+
+          <div className="mt-4 pt-4 border-t border-border text-center">
+            <p className="text-xs text-muted-foreground mb-2">Chưa có tài khoản?</p>
+            <Link to="/register" className="text-sm font-semibold text-slate-900 hover:underline">
+              Đăng ký ngay
+            </Link>
           </div>
         </form>
       </div>

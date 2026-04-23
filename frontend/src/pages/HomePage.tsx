@@ -1,4 +1,5 @@
 import { useNavigate, Routes, Route } from 'react-router-dom';
+import { usePageLoad } from '@/contexts/PageLoadContext';
 import { jobs } from '@/data/mockData';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -45,7 +46,7 @@ function CandidateBanner({ navigate }: { navigate: any }) {
         this.x = Math.random() * W;
         this.y = cold ? Math.random() * H : -10;
         this.vx = (Math.random() - 0.5) * 0.4;
-        this.vy = Math.random() * 0.3 + 0.05;
+        this.vy = Math.random() * 0.5 + 0.1;
         this.size = Math.random() * 3 + 1.2;
         this.color = COLORS[Math.floor(Math.random() * COLORS.length)];
         this.alpha = Math.random() * 0.5 + 0.25;
@@ -63,7 +64,7 @@ function CandidateBanner({ navigate }: { navigate: any }) {
           this.vy += (dy / dist) * force * 0.25;
         }
         this.vx *= 0.97; this.vy *= 0.97;
-        this.vy += 0.012; // gravity
+        this.vy += 0.02; // gravity
         this.x += this.vx; this.y += this.vy;
         this.angle += this.angleV;
         if (this.y > H + 10 || this.x < -20 || this.x > W + 20) this.reset(false);
@@ -132,10 +133,7 @@ function CandidateBanner({ navigate }: { navigate: any }) {
         <div className="flex gap-4">
           <Button
             className="bg-black hover:bg-slate-900 text-white font-semibold px-6 py-2 rounded-lg flex items-center gap-2"
-            onClick={() => {
-              const jobSearchSection = document.querySelector('main');
-              jobSearchSection?.scrollIntoView({ behavior: 'smooth' });
-            }}
+            onClick={() => navigate('/job-search')}
           >
             <Search className="w-4 h-4" />
             Tìm kiếm công việc
@@ -276,9 +274,10 @@ function CandidateJobsList() {
 
 export default function CandidateDashboard() {
   const navigate = useNavigate();
+  const { isLoading } = usePageLoad();
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className={`min-h-screen bg-slate-50 flex flex-col ${isLoading ? 'animate-page-load' : ''}`}>
       {/* Header */}
       <HeaderMNP />
 

@@ -1,192 +1,36 @@
-import { useNavigate, Link } from 'react-router-dom';
-import { useEffect, useState, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Heart, Search, MapPin, ChevronDown, Laptop } from 'lucide-react';
+import { Heart, Laptop, CheckCircle } from 'lucide-react';
 import JobNeedsBanner from '@/components/JobNeedsBanner';
+import { jobs, getCompanyById, getLocationById } from '@/data/mockData';
+import { getRelatedJobsForMultipleJobs } from '@/utils/jobSimilarity';
 
 export default function SavedJobsPage() {
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedLocations, setSelectedLocations] = useState<Set<number>>(new Set());
-  const [showLocationDropdown, setShowLocationDropdown] = useState(false);
-  const locationRef = useRef<HTMLDivElement>(null);
+  const location = useLocation();
 
-  // Mock saved jobs (empty for now)
-  const savedJobs: any[] = [];
+  // Mock saved jobs - use first 2 jobs as example
+  const savedJobs = jobs.slice(0, 2).map(job => ({
+    ...job,
+    savedDate: '17/04/2026 - 12:13'
+  }));
 
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, []);
-
-  const locations = [
-    { id: 1, name: 'Hà Nội' },
-    { id: 2, name: 'TP Hồ Chí Minh' },
-    { id: 3, name: 'Đà Nẵng' },
-    { id: 4, name: 'Hải Phòng' },
-    { id: 5, name: 'Cần Thơ' },
-    { id: 6, name: 'Cộng hòa' },
-  ];
-
-  // Close dropdowns when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (locationRef.current && !locationRef.current.contains(event.target as Node)) {
-        setShowLocationDropdown(false);
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
+    // Trigger any data refresh logic here when page is loaded/reloaded
+  }, [location.pathname]);
 
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Job Needs Banner */}
       <JobNeedsBanner onUpdateClick={() => navigate('/login')} />
 
-      {/* Search Banner */}
-      <div className="bg-white px-6 py-4 border-b border-slate-200">
-        <div className="container max-w-6xl mx-auto">
-          <div className="flex gap-2 items-center flex-wrap">
-            {/* Search Input */}
-            <div className="relative flex-1 min-w-[280px]">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-500" />
-              <input 
-                type="text" 
-                placeholder="Vị trí tuyển dụng"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-3 py-2.5 rounded text-sm border border-slate-900 focus:outline-none"
-              />
-            </div>
-            
-            {/* Location Dropdown */}
-            <div className="relative" ref={locationRef}>
-              <button 
-                onClick={() => setShowLocationDropdown(!showLocationDropdown)}
-                className="px-4 py-2.5 bg-white text-slate-700 rounded font-medium text-sm hover:bg-slate-100 flex items-center gap-1.5 w-60 border border-slate-900"
-              >
-                <MapPin className="w-4 h-4 flex-shrink-0" />
-                <span className="truncate text-sm">
-                  {selectedLocations.size > 0 
-                    ? (() => {
-                        const selectedLocationIds = Array.from(selectedLocations);
-                        const firstLocation = locations.find(l => l.id === selectedLocationIds[0]);
-                        return selectedLocations.size === 1 
-                          ? firstLocation?.name 
-                          : `${firstLocation?.name} +${selectedLocations.size - 1}`;
-                      })()
-                    : 'Địa điểm'
-                  }
-                </span>
-                {selectedLocations.size > 0 && (
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setSelectedLocations(new Set());
-                      setShowLocationDropdown(false);
-                    }}
-                    className="text-slate-400 hover:text-slate-900 text-sm leading-none flex-shrink-0"
-                  >
-                    ✕
-                  </button>
-                )}
-                <ChevronDown className="w-4 h-4 flex-shrink-0 ml-auto" />
-              </button>
-              {showLocationDropdown && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowLocationDropdown(false)} />
-                  <div className="absolute top-full right-0 mt-2 z-50 bg-white rounded-lg shadow-2xl overflow-hidden flex flex-col"
-                    style={{ width: '400px', maxHeight: '480px' }}>
-                    
-                    {/* Header */}
-                    <div className="px-5 py-3 flex justify-between items-center bg-white border-b border-slate-200">
-                      <h3 className="font-semibold text-slate-900 text-sm flex-1">Chọn Địa điểm</h3>
-                      <button onClick={() => setShowLocationDropdown(false)} className="text-slate-400 hover:text-slate-900 text-lg leading-none ml-3 flex-shrink-0">✕</button>
-                    </div>
-                    
-                    {/* Content - Location List */}
-                    <div className="overflow-y-auto" style={{ height: '300px' }}>
-                      {locations.map(loc => (
-                        <label key={loc.id} className="flex items-center gap-2.5 px-3 py-2 hover:bg-slate-50 rounded text-sm font-semibold break-words group cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={selectedLocations.has(loc.id)}
-                            onChange={(e) => {
-                              const newSet = new Set(selectedLocations);
-                              if (e.target.checked) newSet.add(loc.id);
-                              else newSet.delete(loc.id);
-                              setSelectedLocations(newSet);
-                            }}
-                            className="w-3.5 h-3.5 rounded border-slate-300 cursor-pointer flex-shrink-0"
-                          />
-                          <span className="break-words flex-1">{loc.name}</span>
-                          {selectedLocations.has(loc.id) && (
-                            <button
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                const newSet = new Set(selectedLocations);
-                                newSet.delete(loc.id);
-                                setSelectedLocations(newSet);
-                              }}
-                              className="text-slate-400 hover:text-slate-900 text-sm leading-none flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              ✕
-                            </button>
-                          )}
-                        </label>
-                      ))}
-                    </div>
-
-                    {/* Footer */}
-                    <div className="px-5 py-2.5 bg-white border-t flex justify-between items-center">
-                      <div className="flex gap-2 items-center">
-                        <button
-                          onClick={() => setSelectedLocations(new Set())}
-                          className="px-3 py-1.5 text-slate-500 hover:text-slate-700 text-xs"
-                        >
-                          Bỏ chọn tất cả
-                        </button>
-                        <button
-                          onClick={() => setShowLocationDropdown(false)}
-                          className="px-4 py-1.5 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50"
-                        >
-                          Hủy
-                        </button>
-                        <button
-                          onClick={() => setShowLocationDropdown(false)}
-                          className="px-5 py-1.5 bg-slate-900 text-white hover:bg-slate-800 rounded-lg text-xs font-bold"
-                        >
-                          Chọn
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-            
-            <button className="px-5 py-2.5 bg-slate-900 text-white hover:bg-slate-800 rounded font-medium text-sm whitespace-nowrap">
-              Tìm kiếm
-            </button>
-          </div>
-        </div>
-      </div>
-
       <div className="container max-w-6xl mx-auto py-12">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm mb-8">
-          <Link to="/" className="text-slate-900 hover:underline font-medium">Trang chủ</Link>
-          <span className="text-slate-400">›</span>
-          <span className="text-slate-600">Việc làm đã lưu</span>
-        </div>
-
-        <h1 className="text-3xl font-bold text-slate-900 mb-8">Việc làm đã lưu</h1>
+        {savedJobs.length === 0 && (
+          <h1 className="text-3xl font-bold text-slate-900 mb-8">Việc làm đã lưu</h1>
+        )}
 
         {savedJobs.length === 0 ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -227,7 +71,7 @@ export default function SavedJobsPage() {
                 {/* Action Button */}
                 <Button 
                   size="lg"
-                  className="bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-3 rounded-full"
+                  className="bg-black hover:bg-slate-800 text-white font-bold px-8 py-3 rounded-full"
                   onClick={() => navigate('/')}
                 >
                   Tìm việc ngay →
@@ -237,45 +81,45 @@ export default function SavedJobsPage() {
 
             {/* Promotional Section - Right */}
             <div className="lg:col-span-1">
-              <Card className="p-6 border-slate-200 bg-gradient-to-br from-teal-50 to-teal-100 overflow-hidden">
+              <Card className="p-6 border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100 overflow-hidden">
                 {/* Decorative dots */}
-                <div className="absolute top-0 right-0 w-32 h-32 bg-teal-200 rounded-full opacity-20 -mr-16 -mt-16"></div>
+                <div className="absolute top-0 right-0 w-32 h-32 bg-slate-200 rounded-full opacity-20 -mr-16 -mt-16"></div>
                 
                 <div className="relative z-10">
                   {/* Title */}
-                  <h3 className="text-xl font-bold text-teal-900 mb-2">CV "Hỏi" Trên Tay</h3>
-                  <p className="text-sm text-teal-800 mb-6">Apply Ngay Việc Hot</p>
+                  <h3 className="text-xl font-bold text-slate-900 mb-2">CV "Hỏi" Trên Tay</h3>
+                  <p className="text-sm text-slate-800 mb-6">Apply Ngay Việc Hot</p>
 
                   {/* Description */}
-                  <p className="text-xs text-teal-700 mb-4 leading-relaxed">
+                  <p className="text-xs text-slate-700 mb-4 leading-relaxed">
                     Nền tảng tạo CV online hàng đầu Việt Nam
                   </p>
 
                   {/* Features */}
                   <div className="space-y-3 mb-6">
                     <div className="flex items-start gap-2">
-                      <div className="w-5 h-5 bg-teal-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <div className="w-5 h-5 bg-black rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
                         <span className="text-white text-xs font-bold">✓</span>
                       </div>
-                      <span className="text-xs text-teal-900 font-medium">25 mẫu CV chuyên nghiệp</span>
+                      <span className="text-xs text-slate-900 font-medium">25 mẫu CV chuyên nghiệp</span>
                     </div>
                     <div className="flex items-start gap-2">
-                      <div className="w-5 h-5 bg-teal-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <div className="w-5 h-5 bg-black rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
                         <span className="text-white text-xs font-bold">✓</span>
                       </div>
-                      <span className="text-xs text-teal-900 font-medium">Chuẩn theo ngành nghề</span>
+                      <span className="text-xs text-slate-900 font-medium">Chuẩn theo ngành nghề</span>
                     </div>
                     <div className="flex items-start gap-2">
-                      <div className="w-5 h-5 bg-teal-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <div className="w-5 h-5 bg-black rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
                         <span className="text-white text-xs font-bold">✓</span>
                       </div>
-                      <span className="text-xs text-teal-900 font-medium">Xuất PDF, doc dễ dàng</span>
+                      <span className="text-xs text-slate-900 font-medium">Xuất PDF, doc dễ dàng</span>
                     </div>
                   </div>
 
                   {/* CTA Button */}
                   <Button 
-                    className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm py-2"
+                    className="w-full bg-black hover:bg-slate-800 text-white font-bold text-sm py-2"
                   >
                     Xem ngay
                   </Button>
@@ -285,11 +129,11 @@ export default function SavedJobsPage() {
               {/* Info Cards */}
               <div className="mt-4 space-y-3">
                 <div className="bg-white rounded-lg p-4 border border-slate-200 flex items-center gap-3">
-                  <Laptop className="w-5 h-5 text-teal-600 flex-shrink-0" />
+                  <Laptop className="w-5 h-5 text-black flex-shrink-0" />
                   <span className="text-xs text-slate-700">Gợi ý công việc</span>
                 </div>
                 <div className="bg-white rounded-lg p-4 border border-slate-200 flex items-center gap-3">
-                  <Heart className="w-5 h-5 text-teal-600 flex-shrink-0" />
+                  <Heart className="w-5 h-5 text-black flex-shrink-0" />
                   <span className="text-xs text-slate-700">0 Việc đã lưu</span>
                 </div>
               </div>
@@ -297,10 +141,146 @@ export default function SavedJobsPage() {
           </div>
         ) : (
           // Show saved jobs when they exist
-          <div className="grid grid-cols-1 gap-4">
-            <p className="text-slate-600">Showing {savedJobs.length} saved jobs</p>
-            {/* Jobs list will go here */}
-          </div>
+          <>
+            {/* Saved Jobs Section */}
+            <div className="mb-12">
+              <h2 className="text-2xl font-bold text-slate-900 mb-6">
+                Danh sách {savedJobs.length} việc làm đã lưu
+              </h2>
+              
+              <div className="space-y-4">
+                {savedJobs.map((job) => {
+                  const company = getCompanyById(job.companyId);
+                  const firstLocation = job.locationIds[0] ? getLocationById(job.locationIds[0]) : null;
+                  
+                  return (
+                    <Card key={job.id} className="border-2 border-slate-200 hover:border-black p-5 hover:shadow-xl transition-all bg-slate-100">
+                      <div className="flex gap-4">
+                        {/* Company Logo */}
+                        <div className="flex-shrink-0">
+                          <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center border-4 border-black flex-shrink-0">
+                            <div className="w-16 h-16 bg-gradient-to-br from-gray-600 to-slate-700 rounded-lg"></div>
+                          </div>
+                        </div>
+
+                        {/* Job Details */}
+                        <div className="flex-1">
+                          {/* Header: Title, Company, Salary */}
+                          <div className="flex items-start justify-between gap-4 mb-3">
+                            <div className="flex-1">
+                              <h3 className="text-base font-bold text-slate-900 mb-1">
+                                {job.title}
+                                {job.title.includes('Content Marketing') && <CheckCircle className="w-4 h-4 text-black inline ml-2" />}
+                                {job.title.includes('Developer') && <CheckCircle className="w-4 h-4 text-black inline ml-2" />}
+                              </h3>
+                              <p className="text-xs text-slate-500 font-medium">{company?.name}</p>
+                            </div>
+                            <span className="inline-block px-3 py-1 bg-slate-100 text-slate-900 font-bold text-sm rounded flex-shrink-0 whitespace-nowrap">
+                              {job.salary}
+                            </span>
+                          </div>
+
+                          {/* Location & Experience */}
+                          <div className="flex items-center gap-6 mb-4 pb-3">
+                            <span className="text-xs text-slate-700 font-medium">
+                              {firstLocation?.name || 'Chưa xác định'}
+                            </span>
+                            <span className="text-xs text-slate-700 font-medium">
+                              {job.experience}
+                            </span>
+                          </div>
+
+                          {/* Footer: Saved Date & Action Buttons */}
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-slate-500">
+                              Đã lưu: {(job as any).savedDate}
+                            </span>
+                            <div className="flex items-center gap-3">
+                              <button className="w-8 h-8 flex items-center justify-center rounded-full border border-black hover:bg-slate-200 transition-colors">
+                                <Heart className="w-4 h-4 text-black fill-black" />
+                              </button>
+                              <span className="text-xs text-slate-700 font-medium">Cập nhật 12 phút trước</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Similar Jobs Section */}
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900 mb-6">
+                Việc làm tương tự việc bạn đã lưu
+              </h2>
+              
+              <div className="space-y-4">
+                {getRelatedJobsForMultipleJobs(savedJobs, jobs).map((job) => {
+                  const company = getCompanyById(job.companyId);
+                  const firstLocation = job.locationIds[0] ? getLocationById(job.locationIds[0]) : null;
+                  
+                  return (
+                    <Card key={job.id} className="border-2 border-slate-200 hover:border-black p-3 hover:shadow-xl transition-all bg-white">
+                      <div className="flex gap-3">
+                        {/* Company Logo */}
+                        <div className="flex-shrink-0">
+                          <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center border-2 border-black flex-shrink-0">
+                            <div className="w-12 h-12 bg-gradient-to-br from-orange-400 to-orange-600 rounded-lg"></div>
+                          </div>
+                        </div>
+
+                        {/* Job Details */}
+                        <div className="flex-1">
+                          {/* Header: Title & Salary */}
+                          <div className="flex items-start justify-between gap-3 mb-1">
+                            <div className="flex-1">
+                              <h3 className="text-sm font-bold text-slate-900 mb-0.5 flex items-center">
+                                {job.title}
+                                <CheckCircle className="w-3.5 h-3.5 text-black ml-1.5 flex-shrink-0" />
+                              </h3>
+                            </div>
+                            <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-900 font-bold text-xs rounded flex-shrink-0 whitespace-nowrap">
+                              {job.salary}
+                            </span>
+                          </div>
+
+                          {/* Company with checkmark */}
+                          <div className="mb-2">
+                            <p className="text-xs text-slate-600 font-medium flex items-center">
+                              {company?.name}
+                              <CheckCircle className="w-3 h-3 text-black ml-1 flex-shrink-0" />
+                            </p>
+                          </div>
+
+                          {/* Location & Experience */}
+                          <div className="flex items-center gap-4 mb-3 pb-2">
+                            <span className="text-xs text-slate-700 font-medium">
+                              {firstLocation?.name || 'Chưa xác định'}
+                            </span>
+                            <span className="text-xs text-slate-700 font-medium">
+                              {job.experience}
+                            </span>
+                          </div>
+
+                          {/* Footer: Action Buttons */}
+                          <div className="flex items-center justify-end">
+                            <div className="flex items-center gap-2">
+                              <button className="w-7 h-7 flex items-center justify-center rounded-full border border-black hover:bg-slate-200 transition-colors">
+                                <Heart className="w-3.5 h-3.5 text-black" />
+                              </button>
+                              <span className="text-xs text-slate-700 font-medium">Cập nhật 12 phút trước</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          </>
         )}
       </div>
     </div>
