@@ -15,9 +15,9 @@ interface JobCardProps {
 }
 
 export default function JobCard({ job, onMouseEnter, onMouseLeave, variant = 'grid' }: JobCardProps) {
-  const company = getCompanyById(job.companyId);
-  const firstCategory = job.categoryIds[0] ? getCategoryById(job.categoryIds[0]) : null;
-  const firstLocation = job.locationIds[0] ? getLocationById(job.locationIds[0]) : null;
+  const company = (job as any).Company ?? getCompanyById(job.companyId);
+  const firstCategory = (job as any).categories?.[0] ?? (job.categoryIds[0] ? getCategoryById(job.categoryIds[0]) : null);
+  const firstLocation = (job as any).locations?.[0] ?? (job.locationIds[0] ? getLocationById(job.locationIds[0]) : null);
   const [isSaved, setIsSaved] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
@@ -94,18 +94,22 @@ export default function JobCard({ job, onMouseEnter, onMouseLeave, variant = 'gr
     return (
       <Card
         className="p-4 border-2 border-slate-200 hover:border-black hover:shadow-lg transition-all cursor-pointer group h-[140px] flex flex-col overflow-hidden"
-        onClick={() => navigate(`/jobs/${job.id}`)}
+        onClick={() => navigate(`/jobs/${job.id}`, { state: { job } })}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={onMouseLeave}
       >
         <div className="flex gap-3 mb-3 flex-shrink-0">
-          <div className="w-14 h-14 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0 border border-slate-200">
-            <div className="w-10 h-10 bg-gradient-to-br from-slate-300 to-slate-400 rounded-lg"></div>
+          <div className="w-14 h-14 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0 border border-slate-200 overflow-hidden">
+            {company?.logo ? (
+              <img src={company.logo} alt={company?.name || 'company'} className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+            ) : (
+              <div className="w-10 h-10 bg-gradient-to-br from-slate-300 to-slate-400 rounded-lg"></div>
+            )}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1">
-                <Link to={`/jobs/${job.id}`} className="font-semibold text-slate-900 text-sm line-clamp-2 hover:text-slate-700 group-hover:underline block">
+                <Link to={`/jobs/${job.id}`} state={{ job }} className="font-semibold text-slate-900 text-sm line-clamp-2 hover:text-slate-700 group-hover:underline block">
                   {job.title}
                 </Link>
                 <Link
@@ -139,7 +143,7 @@ export default function JobCard({ job, onMouseEnter, onMouseLeave, variant = 'gr
           </span>
           <span className="flex items-center gap-1 text-xs text-slate-600">
             <Clock className="w-4 h-4 flex-shrink-0 text-slate-500" />
-            1 năm
+            {job.experience || 'Chưa xác định'}
           </span>
         </div>
       </Card>
@@ -148,7 +152,7 @@ export default function JobCard({ job, onMouseEnter, onMouseLeave, variant = 'gr
 
   // Default variant (list/detailed)
   return (
-    <div className="block group" onClick={() => navigate(`/jobs/${job.id}`)}>
+    <div className="block group" onClick={() => navigate(`/jobs/${job.id}`, { state: { job } })}>
       <div className="relative bg-card rounded-lg border border-border p-5 transition-all duration-300 hover:shadow-lg hover:border-primary/30 hover:-translate-y-0.5">
         <button
           className="absolute top-4 right-4 text-muted-foreground hover:text-primary transition"
@@ -174,6 +178,7 @@ export default function JobCard({ job, onMouseEnter, onMouseLeave, variant = 'gr
           <div className="flex-1 min-w-0">
             <Link
               to={`/jobs/${job.id}`}
+              state={{ job }}
               className="font-heading font-semibold text-foreground group-hover:text-primary transition line-clamp-1 group-hover:underline"
             >
               {job.title}

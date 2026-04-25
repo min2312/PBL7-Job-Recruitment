@@ -3,7 +3,7 @@ require("dotenv").config();
 
 const nonSecurePaths = [
 	"/api/login",
-	"/api/create-new-user",
+	"/api/register",
 	"/api/logout",
 	"/api/refresh-token",
 	"/api/admin/login",

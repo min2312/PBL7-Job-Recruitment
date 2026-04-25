@@ -2,6 +2,7 @@ import express from "express";
 import userController from "../controllers/userController";
 import adminController from "../controllers/adminController";
 import * as neo4jController from "../controllers/neo4jController";
+import jobController from "../controllers/jobController";
 import { checkUserJWT, CreateJWT } from "../middleware/JWT_Action";
 import checkExpiredSubscriptions from "../middleware/checkExpiredSubscriptions";
 import passport from "passport";
@@ -34,7 +35,7 @@ let initWebRoutes = (app) => {
 	// 	uploadCloud.single("image"),
 	// 	userController.HandleUpdateProfile,
 	// );
-	router.post("/api/create-new-user", userController.HandleCreateNewUser);
+	router.post("/api/register", userController.HandleCreateNewUser);
 
 	// router.post(
 	// 	"/api/create-new-post",
@@ -71,6 +72,8 @@ let initWebRoutes = (app) => {
 	// router.delete("/api/admin/delete-post", adminController.HandleDeletePost);
 	// router.get("/api/admin/statistics", adminController.HandleGetStatistics);
 
+	// JOB
+	router.get("/api/jobs/random", jobController.getRandomJobsByLocation);
 	// Neo4j analytics endpoints
 	router.get("/api/neo4j/heatmap", neo4jController.HandleGetJobHeatmap); //nhu cầu tuyển dụng theo ngành và địa điểm
 	router.get(

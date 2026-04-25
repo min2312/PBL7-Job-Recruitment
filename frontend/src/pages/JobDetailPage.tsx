@@ -1,4 +1,4 @@
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { jobs, getCompanyById, getCategoryById, getLocationById, categories, locations, Category } from '@/data/mockData';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,17 +9,19 @@ import RelatedJobs from '@/components/RelatedJobs';
 import JobNeedsBanner from '@/components/JobNeedsBanner';
 import SearchBanner from '@/components/SearchBanner';
 
-export default function JobDetailPage() {
+export default function JobDetailPage({ job: jobProp }: { job?: any }) {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const [isSaved, setIsSaved] = useState(false);
-  const job = jobs.find(j => j.id === Number(id));
+  const stateJob = (location.state as any)?.job;
+  const job = jobProp ?? stateJob ?? jobs.find(j => j.id === Number(id));
 
   // Scroll to top when job changes
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [id]);
+  }, [id, jobProp, stateJob]);
 
   if (!job) {
     return (
@@ -30,9 +32,13 @@ export default function JobDetailPage() {
     );
   }
 
-  const company = getCompanyById(job.companyId);
-  const categoryNames = job.categoryIds.map(id => getCategoryById(id)?.name).filter(Boolean);
-  const locationNames = job.locationIds.map(id => getLocationById(id)?.name).filter(Boolean);
+  const company = (job as any).Company ?? getCompanyById(job.companyId);
+  const categoryNames = job.categoryIds?.map((id: number) => getCategoryById(id)?.name).filter(Boolean) || [];
+  const locationNames = job.locationIds?.map((id: number) => getLocationById(id)?.name).filter(Boolean) || [];
+  // For header/badges prefer locationIds -> locationNames; detailed section shows workLocation and workTime
+  const displayLocation = (locationNames.length ? locationNames.join(', ') : 'Chưa xác định');
+  const detailedLocation = job.workLocation || (locationNames.length ? locationNames.join(', ') : 'Chưa xác định');
+  const displayWorkTime = job.workTime || job.employmentType || 'Chưa xác định';
 
   const relatedJobs = jobs
     .filter(j => j.id !== job.id)
@@ -128,15 +134,9 @@ export default function JobDetailPage() {
                   </div>
                   <div>
                     <p className="text-xs text-slate-500">Kinh nghiệm</p>
-                    <p className="font-semibold text-slate-900">2 năm</p>
+                    <p className="font-semibold text-slate-900">{job.experience || 'Chưa xác định'}</p>
                   </div>
                 </div>
-              </div>
-
-              {/* Links & Deadline */}
-              <div className="space-y-2 mb-6 pb-6 border-b border-slate-200">
-                <a href="#" className="text-slate-900 text-sm font-medium hover:underline">Xem mức lương thị trường cho vị trí này »</a>
-                <p className="text-sm text-slate-600">Hạn nộp hồ sơ: <span className="font-semibold">15/05/2026</span> (Còn 35 ngày)</p>
               </div>
 
               {/* Action Buttons */}
@@ -181,7 +181,6 @@ export default function JobDetailPage() {
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-bold text-slate-900">Yêu cầu:</h3>
-                    <a href="#" className="text-slate-900 font-medium hover:underline text-sm">Xem chi tiết Yêu cầu</a>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <span className="inline-block bg-slate-100 text-slate-700 px-3 py-1.5 rounded-full font-medium text-sm">1 năm kinh nghiệm</span>
@@ -190,42 +189,19 @@ export default function JobDetailPage() {
                   </div>
                 </div>
 
-                {/* Quyền lợi */}
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-bold text-slate-900">Quyền lợi:</h3>
-                    <a href="#" className="text-slate-900 font-medium hover:underline text-sm">Xem chi tiết Quyền lợi</a>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <span className="inline-block bg-slate-100 text-slate-700 px-3 py-1.5 rounded-full font-medium text-sm">Nghi thứ 7</span>
-                    <span className="inline-block bg-slate-100 text-slate-700 px-3 py-1.5 rounded-full font-medium text-sm">Bảo hiểm xã hội</span>
-                    <span className="inline-block bg-slate-100 text-slate-700 px-3 py-1.5 rounded-full font-medium text-sm">Bảo hiểm sức khỏe</span>
-                  </div>
-                </div>
-
-                {/* Chuyên môn */}
-                <div>
-                  <h3 className="font-bold text-slate-900 mb-3">Chuyên môn:</h3>
-                  <div className="flex flex-wrap gap-2">
-                    <span className="inline-block bg-slate-100 text-slate-700 px-3 py-1.5 rounded-full font-medium text-sm">Kinh doanh phụ tùng ô tô/xe máy/xe điện</span>
-                    <span className="inline-block bg-slate-100 text-slate-700 px-3 py-1.5 rounded-full font-medium text-sm">Marketing / Quảng cáo</span>
-                    <span className="inline-block bg-slate-100 text-slate-700 px-3 py-1.5 rounded-full font-medium text-sm">B2B</span>
-                    <span className="inline-block bg-slate-100 text-slate-700 px-3 py-1.5 rounded-full font-medium text-sm">B2C</span>
-                    <span className="inline-block bg-slate-100 text-slate-700 px-3 py-1.5 rounded-full font-medium text-sm">Direct Sales</span>
-                    <span className="inline-block bg-slate-100 text-slate-700 px-3 py-1.5 rounded-full font-medium text-sm">Online Sales</span>
-                  </div>
-                </div>
-
                 {/* Mô tả công việc */}
                 <div>
                   <h3 className="font-bold text-slate-900 mb-3">Mô tả công việc</h3>
-                  <ul className="list-disc list-inside space-y-2 text-slate-700 text-sm">
-                    <li>Tư vấn khách hàng hàng trực tiếp tại công ty và từ các kênh online của công ty</li>
-                    <li>Tiếp nhận nhu cầu, chăm sóc khách hàng, giải đáp thắc mắc về sản phẩm</li>
-                    <li>Hỗ trợ khách hàng trong quá trình mua hàng, chốt đơn và hậu mãi</li>
-                    <li>Phối hợp với phòng Marketing triển khai các hoạt động bán hàng và chăm sóc khách hàng</li>
-                    <li>Thực hiện các công việc khác theo sự phân công của quản lý</li>
-                  </ul>
+                  {job.description ? (
+                    <p className="text-slate-700 text-sm">{job.description}</p>
+                  ) : (
+                    <ul className="list-disc list-inside space-y-2 text-slate-700 text-sm">
+                      <li>Tư vấn khách hàng hàng trực tiếp tại công ty và từ các kênh online của công ty</li>
+                      <li>Tiếp nhận nhu cầu, chăm sóc khách hàng, giải đáp thắc mắc về sản phẩm</li>
+                      <li>Hỗ trợ khách hàng trong quá trình mua hàng, chốt đơn và hậu mãi</li>
+                      <li>Phối hợp với phòng Marketing triển khai các hoạt động bán hàng và chăm sóc khách hàng</li>
+                    </ul>
+                  )}
                 </div>
 
                 {/* Thu nhập */}
@@ -278,25 +254,19 @@ export default function JobDetailPage() {
                 {/* Địa điểm làm việc */}
                 <div>
                   <h3 className="font-bold text-slate-900 mb-3">Địa điểm làm việc</h3>
-                  <p className="text-slate-700 text-sm mb-2">- Hà Nội: 30 Lê Hồng Phong, Hà Đông, Phương Hà Đông (quận Hà Đông cũ)</p>
+                  <p className="text-slate-700 text-sm mb-2">{job.workLocation || displayLocation}</p>
                 </div>
 
                 {/* Thời gian làm việc */}
                 <div>
                   <h3 className="font-bold text-slate-900 mb-3">Thời gian làm việc</h3>
-                  <p className="text-slate-700 text-sm">Thứ 2 - Thứ 6 (từ 08:00 đến 17:00)</p>
+                  <p className="text-slate-700 text-sm">{displayWorkTime}</p>
                 </div>
 
                 {/* Cách thức ứng tuyển */}
                 <div>
                   <h3 className="font-bold text-slate-900 mb-3">Cách thức ứng tuyển</h3>
                   <p className="text-slate-700 text-sm">Ứng viên nộp hồ sơ trực tuyến bằng cách bấm <span className="font-semibold">Ứng tuyển ngay dưới đây</span>.</p>
-                </div>
-
-                {/* Hạn nộp hồ sơ */}
-                <div>
-                  <h3 className="font-bold text-slate-900 mb-3">Hạn nộp hồ sơ</h3>
-                  <p className="text-slate-700 text-sm">Hạn nộp hồ sơ: 15/05/2026</p>
                 </div>
 
                 {/* Action Buttons */}
@@ -356,7 +326,11 @@ export default function JobDetailPage() {
                   <h3 className="font-bold text-slate-900 text-base">{company?.name || 'Công ty'}</h3>
                 </div>
                 <div className="w-10 h-10 bg-slate-100 rounded flex items-center justify-center flex-shrink-0">
+                  {company.logo ? (
+                    <img src={company.logo} alt={company.name} className="w-14 h-14 object-contain" />
+                  ) : (
                   <Building2 className="w-5 h-5 text-slate-400" />
+                  )}
                 </div>
               </div>
               <a href="#" className="text-teal-600 text-xs font-medium hover:underline inline-block">
@@ -380,8 +354,8 @@ export default function JobDetailPage() {
                 <div className="flex items-start gap-2">
                   <MapPin className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-xs text-slate-500">Địa điểm:</p>
-                    <p className="text-sm font-medium text-slate-900">{locationNames.join(', ')}</p>
+                    <p className="text-xs text-slate-500">Địa điểm</p>
+                    <p className="font-semibold text-slate-900">{displayLocation}</p>
                   </div>
                 </div>
               </div>
@@ -503,16 +477,16 @@ export default function JobDetailPage() {
                     <li className="flex gap-2">
                       <span className="text-slate-900 font-bold flex-shrink-0">•</span>
                       <span>Kiểm tra thông tin về công ty, việc làm trước khi ứng tuyển</span>
-                    </li>
-                    <li className="flex gap-2">
-                      <span className="text-slate-900 font-bold flex-shrink-0">•</span>
-                      <span>Báo cáo tin tuyển dụng với TopCV thông qua nút "<span className="font-semibold">Báo cáo tin tuyển dụng</span>" để được hỗ trợ và giúp các ứng viên khác tránh rơi vào bẫy</span>
-                    </li>
-                    <li className="flex gap-2">
-                      <span className="text-slate-900 font-bold flex-shrink-0">•</span>
-                      <span>Hoặc liên hệ với TopCV thông qua kênh hỗ trợ ứng viên của TopCV:</span>
-                    </li>
-                    <li className="flex gap-2">
+                    <div>
+                      <h3 className="font-bold text-slate-900 mb-3">Địa điểm làm việc</h3>
+                      <p className="text-slate-700 text-sm mb-2 whitespace-pre-line">{job.workLocation || detailedLocation}</p>
+                    </div>
+
+                    {/* Thời gian làm việc */}
+                    <div>
+                      <h3 className="font-bold text-slate-900 mb-3">Thời gian làm việc</h3>
+                      <p className="text-slate-700 text-sm whitespace-pre-line">{displayWorkTime}</p>
+                    </div>
                       <span className="font-semibold flex-shrink-0">Email:</span>
                       <a href="mailto:hotro@topcv.vn" className="text-teal-600 hover:underline">hotro@topcv.vn</a>
                     </li>

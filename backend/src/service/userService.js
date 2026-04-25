@@ -136,6 +136,18 @@ let CreateNewUser = (data) => {
 					errMessage: "Your email has exist",
 				});
 			} else {
+				if(data.role === "EMPLOYER"){
+					let checkCompany = await db.Company.findOne({
+						where: { name: data.companyName },
+					});
+					if(checkCompany){
+						resolve({
+							errCode: 1,
+							errMessage: "Company has exist",
+						});
+						return;
+					}
+				}
 				let hashPasswordFromBcrypt = await hashUserPassword(data.password);
 				let new_user = await db.User.create({
 					//(value my sql): (value name-html)
@@ -145,10 +157,19 @@ let CreateNewUser = (data) => {
 					phone: data.phone,
 					role: data.role,
 				});
+				new_user = new_user.get({ plain: true });
+				delete new_user.password;
+				let new_company = null;
+				if(data.role === "EMPLOYER"){
+					new_company = await db.Company.create({
+						name: data.companyName,
+					});
+				}
 				resolve({
 					errCode: 0,
 					message: "Create success",
 					user: new_user,
+					company: new_company,
 				});
 			}
 		} catch (e) {

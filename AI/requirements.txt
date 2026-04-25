@@ -10,3 +10,4 @@ matplotlib
 python-dotenv
 sqlalchemy
 pymysql
+neo4j

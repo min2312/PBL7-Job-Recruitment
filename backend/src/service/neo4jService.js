@@ -1,11 +1,19 @@
 import neo4j from "neo4j-driver";
-import { driver } from "../config/connectNeo4j";
+import {
+	waitForNeo4j,
+	getReadSession as createReadSession,
+	getWriteSession as createWriteSession,
+} from "../config/connectNeo4j";
 
-const getSession = () =>
-	driver.session({ defaultAccessMode: neo4j.session.READ });
+const getSession = async () => {
+	await waitForNeo4j();
+	return createReadSession();
+};
 
-const getWriteSession = () =>
-	driver.session({ defaultAccessMode: neo4j.session.WRITE });
+const getWriteSession = async () => {
+	await waitForNeo4j();
+	return createWriteSession();
+};
 
 export const parseSalary = (salaryRaw) => {
 	if (!salaryRaw) return { min: null, max: null, formatted: null };
@@ -39,7 +47,7 @@ export const parseSalary = (salaryRaw) => {
 };
 
 export const buildHeatmap = async (days = 30) => {
-	const session = getSession();
+	const session = await getSession();
 	try {
 		const result = await session.run(
 			`MATCH (c:Company)-[:POSTED]->(j:Job)-[:BELONGS_TO]->(cat:Category),
@@ -71,7 +79,7 @@ export const getMarketDemandSummary = async ({
 	location,
 	sinceDays = 30,
 }) => {
-	const session = getSession();
+	const session = await getSession();
 	try {
 		if (!category || !location) {
 			throw new Error("category and location are required parameters");
@@ -133,7 +141,7 @@ export const getMarketDemandSummary = async ({
 };
 
 export const buildCompetition = async () => {
-	const session = getSession();
+	const session = await getSession();
 	try {
 		const result = await session.run(
 			`MATCH (u:User)-[:APPLIED_FOR]->(j:Job)-[:BELONGS_TO]->(cat:Category)
@@ -163,7 +171,7 @@ export const buildCompetition = async () => {
 };
 
 export const buildHiringCriteria = async (categoryName, limit = 10) => {
-	const session = getSession();
+	const session = await getSession();
 	try {
 		const query = `
       MATCH (j:Job)-[:BELONGS_TO]->(cat:Category)
@@ -198,7 +206,7 @@ export const buildSalaryTrend = async ({
 	experience,
 	sinceDays = 90,
 }) => {
-	const session = getSession();
+	const session = await getSession();
 	try {
 		const filters = [];
 		const params = { sinceDays: neo4j.int(sinceDays) };
@@ -277,7 +285,7 @@ const normalizeExperienceYears = (experience) => {
 };
 
 export const buildTrainingDataset = async () => {
-	const session = getSession();
+	const session = await getSession();
 	try {
 		const salaryAgg = await session.run(`
       MATCH (j:Job)-[:BELONGS_TO]->(cat:Category), (j)-[:LOCATED_IN]->(loc:Location)
@@ -378,7 +386,7 @@ export const buildTrainingDataset = async () => {
 };
 
 export const backfillSalaryParsedFields = async () => {
-	const session = getWriteSession();
+	const session = await getWriteSession();
 	try {
 		const select = await session.run(`
       MATCH (j:Job)

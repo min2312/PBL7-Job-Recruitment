@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Briefcase, Facebook, Linkedin, Twitter, Youtube } from 'lucide-react';
 
 export default function Footer() {
@@ -15,6 +15,11 @@ export default function Footer() {
     'Việc làm Nhân viên Marketing', 'Việc làm Content Marketing', 'Việc làm Kế toán',
   ];
 
+  const location = useLocation();
+
+  if(location && location.pathname === '/register' || location.pathname === '/login') {
+    return null;
+  }
   return (
     <footer className="bg-white">
       {/* Job Links Section - Full Width */}

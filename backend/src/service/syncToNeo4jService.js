@@ -1,12 +1,14 @@
 import db from "../models/index";
 import neo4j from "neo4j-driver";
-import { driver } from "../config/connectNeo4j";
+import { waitForNeo4j, getWriteSession } from "../config/connectNeo4j";
 
-const getSession = () =>
-	driver.session({ defaultAccessMode: neo4j.session.WRITE });
+const getSession = async () => {
+	await waitForNeo4j();
+	return getWriteSession();
+};
 
 export const syncAllToNeo4j = async () => {
-	const session = getSession();
+	const session = await getSession();
 	let tx;
 	try {
 		// 1. Company

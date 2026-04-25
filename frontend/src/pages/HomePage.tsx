@@ -1,6 +1,5 @@
 import { useNavigate, Routes, Route } from 'react-router-dom';
 import { usePageLoad } from '@/contexts/PageLoadContext';
-import { jobs } from '@/data/mockData';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -157,11 +156,14 @@ function CandidateJobsList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [categoryIndex, setCategoryIndex] = useState(0);
+  
 
   // Scroll to top when component mounts
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
+
+    // Scroll to top when component mounts
+    useEffect(() => {
+      window.scrollTo(0, 0);
+    }, []);
 
   const handlePrevCategory = () => {
     setCategoryIndex((prev) => (prev === 0 ? 4 : prev - 1));
@@ -171,20 +173,7 @@ function CandidateJobsList() {
     setCategoryIndex((prev) => (prev === 4 ? 0 : prev + 1));
   };
 
-  // Filter jobs based on search and category
-  const filteredJobs = jobs.filter(job => {
-    const matchSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchSearch;
-  });
-
-  const jobsByCategory = {
-    all: filteredJobs,
-    tech: filteredJobs.filter(j => j.categoryIds.includes(1)),
-    marketing: filteredJobs.filter(j => j.categoryIds.includes(2)),
-    hr: filteredJobs.filter(j => j.categoryIds.includes(3)),
-  };
-
-  const displayedJobs = jobsByCategory[selectedCategory as keyof typeof jobsByCategory] || filteredJobs;
+  // No local job data here — `TopJobsList` will fetch from backend
 
   return (
     <>
@@ -265,7 +254,7 @@ function CandidateJobsList() {
 
       {/* Job Listings - Below */}
       <div className="space-y-4 min-h-[600px]">
-        <TopJobsList jobs={jobs} />
+        <TopJobsList />
       </div>
     </div>
     </>

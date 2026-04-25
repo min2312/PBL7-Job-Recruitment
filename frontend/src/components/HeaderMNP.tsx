@@ -29,7 +29,7 @@ export default memo(function HeaderMNP() {
   const companyBtnRef = useRef<HTMLDivElement>(null);
   const careerBtnRef = useRef<HTMLDivElement>(null);
   const toolBtnRef = useRef<HTMLDivElement>(null);
-
+  
   // Close all dropdowns when location changes
   useEffect(() => {
     setJobMenuOpen(false);
@@ -103,6 +103,10 @@ export default memo(function HeaderMNP() {
       navigate(path);
     }
   };
+
+  if (location.pathname === '/login' || location.pathname === '/register') {
+    return null;
+  }
 
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
@@ -361,9 +365,14 @@ export default memo(function HeaderMNP() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button onClick={() => navigate('/login')} className="bg-black hover:bg-slate-800 text-white">
-              Đăng nhập
-            </Button>
+            <>
+              <Button onClick={() => navigate('/login')} className="bg-black hover:bg-slate-800 text-white">
+                Đăng nhập
+              </Button>
+              <Button onClick={() => navigate('/register')} className="bg-white hover:bg-slate-200 text-black">
+                Đăng ký
+              </Button>
+            </>
           )}
         </div>
       </div>

@@ -108,8 +108,6 @@ const fetchAccountWithRefresh = async (scope: AuthScope) => {
     return normalizeAuthUser(extractAuthPayload(response.data));
   } catch (error) {
     if (isUnauthorized(error)) {
-      const cookiesAccessed = document.cookie;
-      console.log('Attempting token refresh due to unauthorized error. Cookies:', cookiesAccessed);  
       const refreshed = await refreshSession(scope);
       if (refreshed) {
         try {
