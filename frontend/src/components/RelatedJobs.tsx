@@ -1,8 +1,9 @@
-import { Job, jobs } from '@/data/mockData';
+import { Job } from '@/data/mockData';
 import RelatedJobCard from './RelatedJobCard';
 import JobPreviewPopup from './JobPreviewPopup';
-import { getRelatedJobsForSingleJob } from '@/utils/jobSimilarity';
+import axiosClient from '@/services/axiosClient';
 import { useState, useRef, useEffect } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 
 interface RelatedJobsProps {
   currentJobId: number;
@@ -10,13 +11,18 @@ interface RelatedJobsProps {
 }
 
 export default function RelatedJobs({ currentJobId, currentJob }: RelatedJobsProps) {
+  const [relatedJobs, setRelatedJobs] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const { user } = useAuth();
   const [hoveredJobId, setHoveredJobId] = useState<number | null>(null);
-  const [previewPosition, setPreviewPosition] = useState<{ top: number; left: number } | null>(null);
+  const [previewPosition, setPreviewPosition] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
   const [popupHovered, setPopupHovered] = useState(false);
   const gridRef = useRef<HTMLDivElement>(null);
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (hideTimeoutRef.current) {
@@ -25,12 +31,38 @@ export default function RelatedJobs({ currentJobId, currentJob }: RelatedJobsPro
     };
   }, []);
 
-  /**
-   * Lấy công việc tương tự dựa trên utility function
-   * Logic: Tính điểm dựa trên category, location, level
-   * TODO: Sau này thay bằng word2vec similarity
-   */
-  const relatedJobs = getRelatedJobsForSingleJob(currentJob, jobs);
+  useEffect(() => {
+    const fetchRelatedJobs = async () => {
+      if (!currentJobId) return;
+      setIsLoading(true);
+      try {
+        // Find jobs in the same category
+        const categoryId = currentJob.categories?.[0]?.id || (currentJob as any).categoryIds?.[0];
+        
+        const params: any = {
+          limit: 5,
+        };
+        if (user?.id) params.userId = user.id;
+        
+        if (categoryId) {
+          params.categoryId = categoryId;
+        }
+
+        const res = await axiosClient.get('/api/jobs/search', { params });
+        if (res.data.errCode === 0 && res.data.jobs) {
+          // Filter out the current job
+          const filtered = (res.data.jobs.jobs || []).filter((j: any) => j.id !== currentJobId);
+          setRelatedJobs(filtered.slice(0, 4));
+        }
+      } catch (err) {
+        console.error("Failed to fetch related jobs", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchRelatedJobs();
+  }, [currentJobId, currentJob, user]);
 
   const handlePopupHover = (hovered: boolean) => {
     setPopupHovered(hovered);

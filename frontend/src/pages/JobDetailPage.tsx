@@ -1,5 +1,4 @@
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
-import { jobs, getCompanyById, getCategoryById, getLocationById, categories, locations, Category } from '@/data/mockData';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { MapPin, Clock, GraduationCap, Briefcase, Users, Calendar, Share2, Building2, FileText, Heart, Send, DollarSign, Facebook, Linkedin, Twitter, Copy, ChevronDown, Search, Menu, Laptop, Gift, Package } from 'lucide-react';
@@ -8,20 +7,60 @@ import { useAuth } from '@/hooks/useAuth';
 import RelatedJobs from '@/components/RelatedJobs';
 import JobNeedsBanner from '@/components/JobNeedsBanner';
 import SearchBanner from '@/components/SearchBanner';
+import { toast } from 'react-toastify';
+import axiosClient from '@/services/axiosClient';
 
 export default function JobDetailPage({ job: jobProp }: { job?: any }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const [isSaved, setIsSaved] = useState(false);
+  
   const stateJob = (location.state as any)?.job;
-  const job = jobProp ?? stateJob ?? jobs.find(j => j.id === Number(id));
+  const [job, setJob] = useState<any>(jobProp ?? stateJob);
+  const [isLoadingJob, setIsLoadingJob] = useState(!job);
+  const [isSaved, setIsSaved] = useState(job?.isSaved || false);
+
+  useEffect(() => {
+    if (!job && id) {
+      const fetchJob = async () => {
+        setIsLoadingJob(true);
+        try {
+          const res = await axiosClient.get(`/api/jobs/${id}`, {
+            params: { userId: user?.id }
+          });
+          if (res.data.errCode === 0) {
+            setJob(res.data.data);
+            setIsSaved(res.data.data.isSaved || false);
+          }
+        } catch (err) {
+          console.error("Failed to fetch job", err);
+        } finally {
+          setIsLoadingJob(false);
+        }
+      };
+      fetchJob();
+    }
+  }, [id, user]);
+
+  useEffect(() => {
+    if (job) {
+      setIsSaved(job.isSaved || false);
+    }
+  }, [job]);
 
   // Scroll to top when job changes
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [id, jobProp, stateJob]);
+  if (isLoadingJob) {
+    return (
+      <div className="container py-20 text-center">
+        <div className="w-8 h-8 border-4 border-slate-200 border-t-emerald-600 rounded-full animate-spin mx-auto mb-4"></div>
+        <p className="text-muted-foreground text-lg">Đang tải thông tin việc làm...</p>
+      </div>
+    );
+  }
 
   if (!job) {
     return (
@@ -32,27 +71,45 @@ export default function JobDetailPage({ job: jobProp }: { job?: any }) {
     );
   }
 
-  const company = (job as any).Company ?? getCompanyById(job.companyId);
-  const categoryNames = job.categoryIds?.map((id: number) => getCategoryById(id)?.name).filter(Boolean) || [];
-  const locationNames = job.locationIds?.map((id: number) => getLocationById(id)?.name).filter(Boolean) || [];
-  // For header/badges prefer locationIds -> locationNames; detailed section shows workLocation and workTime
-  const displayLocation = (locationNames.length ? locationNames.join(', ') : 'Chưa xác định');
-  const detailedLocation = job.workLocation || (locationNames.length ? locationNames.join(', ') : 'Chưa xác định');
+  const HandleSave = async () =>{
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    try{
+      const response = await axiosClient.post('/api/jobs/save', {
+        userId: user.id,
+        jobId: job.id,
+      });
+      const data = response.data;
+      if (data.errCode === 0) {
+        setIsSaved(!isSaved);
+        toast.success(isSaved ? 'Job removed from saved list' : 'Job saved successfully');
+      } else {
+        toast.error('Error saving job: ' + data.errMessage);
+      }
+    } catch (error) {
+      toast.error('Error saving job');
+      console.error('Error:', error);
+    }
+  }
+
+  const company = (job as any).Company || job.Company;
+  const categoriesList = job?.categories || [];
+  const locationsList = job?.locations || [];
+  
+  const categoryNames = categoriesList.map((c: any) => c.name);
+  const locationNames = locationsList.map((l: any) => l.name);
+  
+  const displayCategories = categoryNames.join(', ') || 'Chưa xác định';
+  const displayLocation = locationNames.join(', ') || 'Chưa xác định';
+  const detailedLocation = job.workLocation || displayLocation;
   const displayWorkTime = job.workTime || job.employmentType || 'Chưa xác định';
 
-  const relatedJobs = jobs
-    .filter(j => j.id !== job.id)
-    .map(j => {
-      let score = 0;
-      if (j.categoryIds.some(cid => job.categoryIds.includes(cid))) score += 2;
-      if (j.locationIds.some(lid => job.locationIds.includes(lid))) score += 1;
-      if (j.level === job.level) score += 1;
-      return { job: j, score };
-    })
-    .filter(r => r.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 4)
-    .map(r => r.job);
+  const jobCategoryIds = job.categoryIds ?? [];
+  const jobLocationIds = job.locationIds ?? [];
+
+
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -95,7 +152,7 @@ export default function JobDetailPage({ job: jobProp }: { job?: any }) {
         <div className="flex items-center gap-2 text-sm mb-6">
           <Link to="/" className="text-slate-900 hover:underline font-medium">Trang chủ</Link>
           <span className="text-slate-400">›</span>
-          <Link to="/jobs" className="text-slate-900 hover:underline font-medium">Tìm việc làm {categoryNames[0]}</Link>
+          <Link to="/jobs" className="text-slate-900 hover:underline font-medium">Tìm việc làm {categoryNames[0] || 'mới nhất'}</Link>
           <span className="text-slate-400">›</span>
           <span className="text-slate-600">{job.title}</span>
         </div>
@@ -125,7 +182,7 @@ export default function JobDetailPage({ job: jobProp }: { job?: any }) {
                   </div>
                   <div>
                     <p className="text-xs text-slate-500">Địa điểm</p>
-                    <p className="font-semibold text-slate-900">{locationNames.join(', ')}</p>
+                    <p className="font-semibold text-slate-900">{locationNames.join(', ') || displayLocation || 'Chưa xác định'}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -159,7 +216,7 @@ export default function JobDetailPage({ job: jobProp }: { job?: any }) {
                   size="lg" 
                   variant="outline" 
                   className="border-2 border-slate-300 text-slate-900 hover:border-slate-900 hover:bg-slate-50 rounded-lg px-6"
-                  onClick={() => setIsSaved(!isSaved)}
+                  onClick={() => HandleSave()}
                 >
                   <Heart className={`w-5 h-5 ${isSaved ? 'fill-slate-900 text-slate-900' : ''}`} />
                   Lưu tin
@@ -180,20 +237,24 @@ export default function JobDetailPage({ job: jobProp }: { job?: any }) {
                 {/* Yêu cầu */}
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-bold text-slate-900">Yêu cầu:</h3>
+                    <h3 className="font-bold text-slate-900">Yêu cầu ứng viên:</h3>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    <span className="inline-block bg-slate-100 text-slate-700 px-3 py-1.5 rounded-full font-medium text-sm">1 năm kinh nghiệm</span>
-                    <span className="inline-block bg-slate-100 text-slate-700 px-3 py-1.5 rounded-full font-medium text-sm">Cao Đẳng trở lên</span>
-                    <span className="inline-block bg-slate-100 text-slate-700 px-3 py-1.5 rounded-full font-medium text-sm">Tuổi 20 - 30</span>
-                  </div>
+                  {job.requirement ? (
+                    <p className="text-slate-700 text-sm whitespace-pre-line">{job.requirement}</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      <span className="inline-block bg-slate-100 text-slate-700 px-3 py-1.5 rounded-full font-medium text-sm">1 năm kinh nghiệm</span>
+                      <span className="inline-block bg-slate-100 text-slate-700 px-3 py-1.5 rounded-full font-medium text-sm">Cao Đẳng trở lên</span>
+                      <span className="inline-block bg-slate-100 text-slate-700 px-3 py-1.5 rounded-full font-medium text-sm">Tuổi 20 - 30</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Mô tả công việc */}
                 <div>
                   <h3 className="font-bold text-slate-900 mb-3">Mô tả công việc</h3>
                   {job.description ? (
-                    <p className="text-slate-700 text-sm">{job.description}</p>
+                    <p className="text-slate-700 text-sm whitespace-pre-line">{job.description}</p>
                   ) : (
                     <ul className="list-disc list-inside space-y-2 text-slate-700 text-sm">
                       <li>Tư vấn khách hàng hàng trực tiếp tại công ty và từ các kênh online của công ty</li>
@@ -243,11 +304,15 @@ export default function JobDetailPage({ job: jobProp }: { job?: any }) {
                   </div>
                   <div>
                     <h3 className="font-bold text-slate-900 mb-2">Quyền lợi</h3>
-                    <ul className="space-y-1 text-slate-700 text-sm">
-                      <li>Bảo hiểm xã hội, Bảo hiểm sức khỏe, Team building, Du lịch hàng năm</li>
-                      <li>Thưởng lễ, thưởng lễ - Tết - thưởng năm, quà sinh nhật, tiệc chúc mừng và các chế độ phúc lợi hiếu - hỷ</li>
-                      <li>Du lịch tối thiểu 2 lần/năm, teambuilding, picnic và nhiều hoạt động gắn kết ý nghĩa</li>
-                    </ul>
+                    {job.benefit ? (
+                      <p className="text-slate-700 text-sm whitespace-pre-line">{job.benefit}</p>
+                    ) : (
+                      <ul className="space-y-1 text-slate-700 text-sm">
+                        <li>Bảo hiểm xã hội, Bảo hiểm sức khỏe, Team building, Du lịch hàng năm</li>
+                        <li>Thưởng lễ, thưởng lễ - Tết - thưởng năm, quà sinh nhật, tiệc chúc mừng và các chế độ phúc lợi hiếu - hỷ</li>
+                        <li>Du lịch tối thiểu 2 lần/năm, teambuilding, picnic và nhiều hoạt động gắn kết ý nghĩa</li>
+                      </ul>
+                    )}
                   </div>
                 </div>
 
@@ -289,7 +354,7 @@ export default function JobDetailPage({ job: jobProp }: { job?: any }) {
                     size="lg" 
                     variant="outline" 
                     className="border-2 border-slate-300 text-slate-900 hover:border-slate-900 hover:bg-slate-50 rounded-lg px-6"
-                    onClick={() => setIsSaved(!isSaved)}
+                    onClick={() => HandleSave()}
                   >
                     <Heart className={`w-5 h-5 ${isSaved ? 'fill-slate-900 text-slate-900' : ''}`} />
                     Lưu tin
@@ -348,7 +413,7 @@ export default function JobDetailPage({ job: jobProp }: { job?: any }) {
                   <Briefcase className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
                   <div>
                     <p className="text-xs text-slate-500">Lĩnh vực:</p>
-                    <p className="text-sm font-medium text-slate-900">Xây dựng</p>
+                    <p className="text-sm font-medium text-slate-900">{categoryNames.join(', ') || 'Chưa xác định'}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-2">
@@ -371,7 +436,7 @@ export default function JobDetailPage({ job: jobProp }: { job?: any }) {
                   </div>
                   <div>
                     <p className="text-xs text-slate-500">Cấp bậc</p>
-                    <p className="text-sm font-medium text-slate-900">Nhân viên</p>
+                    <p className="text-sm font-medium text-slate-900">{job.level || "Chưa xác định"}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-2">
@@ -380,7 +445,7 @@ export default function JobDetailPage({ job: jobProp }: { job?: any }) {
                   </div>
                   <div>
                     <p className="text-xs text-slate-500">Học vấn</p>
-                    <p className="text-sm font-medium text-slate-900">Cao Đẳng trở lên</p>
+                    <p className="text-sm font-medium text-slate-900">{job.education || "Chưa xác định"}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-2">
@@ -389,7 +454,7 @@ export default function JobDetailPage({ job: jobProp }: { job?: any }) {
                   </div>
                   <div>
                     <p className="text-xs text-slate-500">Số lượng</p>
-                    <p className="text-sm font-medium text-slate-900">1 người</p>
+                      <p className="text-sm font-medium text-slate-900">{job.quantity ? `${job.quantity} người` : "Chưa xác định"}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-2">
@@ -398,7 +463,7 @@ export default function JobDetailPage({ job: jobProp }: { job?: any }) {
                   </div>
                   <div>
                     <p className="text-xs text-slate-500">Hình thức</p>
-                    <p className="text-sm font-medium text-slate-900">Toàn thời gian</p>
+                    <p className="text-sm font-medium text-slate-900">{job.employmentType || "Chưa xác định"}</p>
                   </div>
                 </div>
               </div>
@@ -479,13 +544,13 @@ export default function JobDetailPage({ job: jobProp }: { job?: any }) {
                       <span>Kiểm tra thông tin về công ty, việc làm trước khi ứng tuyển</span>
                     <div>
                       <h3 className="font-bold text-slate-900 mb-3">Địa điểm làm việc</h3>
-                      <p className="text-slate-700 text-sm mb-2 whitespace-pre-line">{job.workLocation || detailedLocation}</p>
+                      <p className="text-slate-700 text-sm mb-2 whitespace-pre-line">{displayLocation ||job.workLocation || detailedLocation || "Chưa xác định"}</p>
                     </div>
 
                     {/* Thời gian làm việc */}
                     <div>
                       <h3 className="font-bold text-slate-900 mb-3">Thời gian làm việc</h3>
-                      <p className="text-slate-700 text-sm whitespace-pre-line">{displayWorkTime}</p>
+                      <p className="text-slate-700 text-sm whitespace-pre-line">{displayWorkTime || "Chưa xác định"}</p>
                     </div>
                       <span className="font-semibold flex-shrink-0">Email:</span>
                       <a href="mailto:hotro@topcv.vn" className="text-teal-600 hover:underline">hotro@topcv.vn</a>

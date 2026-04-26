@@ -94,14 +94,9 @@ export const HandleGetMarketDemand = async (req, res) => {
 export const HandleGetHiringCriteria = async (req, res) => {
 	try {
 		const categoryName = req.query.category || "";
-		if (!categoryName) {
-			return res.status(400).json({
-				errCode: 1,
-				errMessage: "category query parameter is required",
-			});
-		}
+		const locationName = req.query.location || "";
 
-		const rows = await neo4jService.buildHiringCriteria(categoryName, 20);
+		const rows = await neo4jService.buildHiringCriteria(categoryName, locationName, 20);
 		const top = rows[0] || null;
 		let message =
 			"Không đủ dữ liệu để xây dựng bức tranh tiêu chuẩn tuyển dụng";
@@ -109,7 +104,12 @@ export const HandleGetHiringCriteria = async (req, res) => {
 		if (top && top.experience && top.education) {
 			const total = rows.reduce((sum, r) => sum + r.count, 0);
 			const percent = total > 0 ? ((top.count / total) * 100).toFixed(0) : 0;
-			message = `Đối với vị trí '${top.level || "Trưởng/Phó phòng"}' ngành '${categoryName}', ${percent}% các công ty yêu cầu kinh nghiệm '${top.experience}' và bằng '${top.education}'.`;
+			
+			let locationText = locationName ? ` tại '${locationName}'` : "";
+			let categoryText = categoryName ? ` ngành '${categoryName}'` : "";
+			let contextText = (!categoryName && !locationName) ? " trên toàn thị trường" : `${categoryText}${locationText}`;
+			
+			message = `Đối với vị trí '${top.level || "Trưởng/Phó phòng"}'${contextText}, ${percent}% các công ty yêu cầu kinh nghiệm '${top.experience}' và bằng '${top.education}'.`;
 		}
 
 		return res
@@ -159,6 +159,28 @@ export const HandleGetSalaryTrend = async (req, res) => {
 	}
 };
 
+export const HandleGetSalaryByIndustry = async (req, res) => {
+	try {
+		const categoryName = req.query.category || "";
+		const locationName = req.query.location || "";
+		
+		const data = await neo4jService.buildSalaryByIndustry(categoryName, locationName);
+		
+		let locationText = locationName ? ` tại '${locationName}'` : "";
+		let categoryText = categoryName ? `ngành '${categoryName}'` : "các nhóm ngành có nhu cầu tuyển dụng cao nhất";
+		let message = `Thống kê phổ lương trung bình của ${categoryText}${locationText}.`;
+		
+		return res.status(200).json({ errCode: 0, errMessage: "OK", data: { rows: data, message } });
+	} catch (error) {
+		console.error(error);
+		return res.status(500).json({
+			errCode: -1,
+			errMessage: "Error from server",
+			error: error.message,
+		});
+	}
+};
+
 export const HandleBuildTrainingDataset = async (req, res) => {
 	try {
 		const rows = await neo4jService.buildTrainingDataset();
@@ -177,6 +199,44 @@ export const HandleBackfillSalary = async (req, res) => {
 	try {
 		const result = await neo4jService.backfillSalaryParsedFields();
 		return res.status(200).json({ errCode: 0, errMessage: "OK", data: result });
+	} catch (error) {
+		console.error(error);
+		return res.status(500).json({
+			errCode: -1,
+			errMessage: "Error from server",
+			error: error.message,
+		});
+	}
+};
+
+export const HandleGetCategoriesPaginated = async (req, res) => {
+	try {
+		const page = Number(req.query.page) || 1;
+		const limit = Number(req.query.limit) || 6;
+		const data = await neo4jService.getCategoriesWithJobCount(page, limit);
+		return res.status(200).json({
+			errCode: 0,
+			errMessage: "OK",
+			data,
+		});
+	} catch (error) {
+		console.error(error);
+		return res.status(500).json({
+			errCode: -1,
+			errMessage: "Error from server",
+			error: error.message,
+		});
+	}
+};
+
+export const HandleGetMarketSummary = async (req, res) => {
+	try {
+		const data = await neo4jService.getMarketSummary();
+		return res.status(200).json({
+			errCode: 0,
+			errMessage: "OK",
+			data,
+		});
 	} catch (error) {
 		console.error(error);
 		return res.status(500).json({

@@ -37,6 +37,7 @@ export interface Job {
   benefit: string;
   workLocation: string;
   workTime: string;
+  isSaved?: boolean; 
   createdAt: string;
   categoryIds: number[];
   locationIds: number[];

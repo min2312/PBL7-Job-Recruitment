@@ -5,16 +5,26 @@ import {
 	Bookmark,
 	ChevronLeft,
 	ChevronRight,
+	ChevronDown,
 	MapPin,
 	DollarSign,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import axiosClient from "@/services/axiosClient";
+import { useAuth } from "@/hooks/useAuth";
 import JobCard from "@/components/JobCard";
 import JobPreviewPopup from "@/components/JobPreviewPopup";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 
 export default function TopJobsList() {
 	const navigate = useNavigate();
+	const { user } = useAuth();
 	const [selectedLocation, setSelectedLocation] =
 		useState<string>("Ngẫu Nhiên");
 	const [selectedSalary, setSelectedSalary] = useState<string>("Tất cả");
@@ -108,6 +118,7 @@ export default function TopJobsList() {
 				limit: pageSize,
 				page,
 			};
+			if (user?.id) params.userId = user.id;
 			if (selectedSalary && selectedSalary !== "Tất cả")
 				params.salary = selectedSalary;
 			if (selectedExperience && selectedExperience !== "Tất cả")
@@ -118,7 +129,6 @@ export default function TopJobsList() {
 			const data = resp.data?.jobs || {};
 			const serverJobs = data.jobs || [];
 			const dt = data || null;
-			console.log("serverJobs", serverJobs);
 			// Normalize to frontend shape and include Company
 			const normalized = serverJobs.map((j: any) => ({
 				id: j.id ?? j.job_id,
@@ -128,6 +138,7 @@ export default function TopJobsList() {
 				Company: j.Company || j.company || null,
 				salary: j.salary ?? j.salary_range ?? "",
 				level: j.level ?? "",
+				quantity: j.quantity ?? j.number_of_positions ?? "",
 				experience: j.experience ?? "",
 				education: j.education ?? "",
 				employmentType: j.employment_type ?? j.employmentType,
@@ -142,6 +153,7 @@ export default function TopJobsList() {
 				locations: j.locations || [],
 				locationIds: (j.locations || []).map((l: any) => l.id) || [],
 				createdAt: j.createdAt ?? j.created_at,
+				isSaved: j.isSaved,
 			}));
 
 			setJobs(normalized);
@@ -164,8 +176,7 @@ export default function TopJobsList() {
 		// when filters change, reset seed so server generates a new order and returns a seed
 		setSeed(null);
 		fetchJobs(1, false);
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [selectedLocation, selectedSalary, selectedExperience]);
+	}, [selectedLocation, selectedSalary, selectedExperience, user]);
 
 	const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -238,18 +249,19 @@ export default function TopJobsList() {
 					<label className="text-sm font-medium text-slate-700 whitespace-nowrap">
 						Lọc theo:
 					</label>
-					<div className="relative w-48">
-						<select
-							value={filterType}
-							onChange={(e) => setFilterType(e.target.value)}
-							className="px-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-700 w-full appearance-none cursor-pointer bg-white font-medium"
-						>
-							{filterOptions.map((option) => (
-								<option key={option.value} value={option.value}>
-									{option.label}
-								</option>
-							))}
-						</select>
+					<div className="w-48">
+						<Select value={filterType} onValueChange={setFilterType}>
+							<SelectTrigger className="w-full px-4 py-2 h-auto border-2 border-slate-200 rounded-xl text-sm font-bold text-slate-900 bg-white hover:border-slate-400 transition-colors focus:ring-0 focus:ring-offset-0 focus:border-slate-900">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent className="rounded-xl border-slate-200 shadow-lg">
+								{filterOptions.map((option) => (
+									<SelectItem key={option.value} value={option.value} className="font-medium cursor-pointer focus:bg-slate-100">
+										{option.label}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
 					</div>
 
 					<div

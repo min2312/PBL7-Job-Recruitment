@@ -3,6 +3,9 @@ import userController from "../controllers/userController";
 import adminController from "../controllers/adminController";
 import * as neo4jController from "../controllers/neo4jController";
 import jobController from "../controllers/jobController";
+import companyController from "../controllers/companyController";
+import locationController from "../controllers/locationController";
+import categoryController from "../controllers/categoryController";
 import { checkUserJWT, CreateJWT } from "../middleware/JWT_Action";
 import checkExpiredSubscriptions from "../middleware/checkExpiredSubscriptions";
 import passport from "passport";
@@ -17,7 +20,7 @@ import {
 import * as syncToNeo4jController from "../controllers/syncToNeo4jController";
 let router = express.Router();
 
-let initWebRoutes = (app) => {	
+let initWebRoutes = (app) => {
 	router.all("*", checkUserJWT);
 	// router.all("*", checkExpiredSubscriptions); // Chạy SAU khi đã có req.user
 	router.post("/api/login", userController.HandleLogin);
@@ -27,7 +30,10 @@ let initWebRoutes = (app) => {
 	router.get("/api/account", userController.getUserAccount);
 	router.get("/api/admin/account", adminController.getAdminAccount);
 	router.post("/api/refresh-token", userController.HandleRefreshToken);
-	router.post("/api/admin/refresh-token", adminController.HandleRefreshAdminToken);
+	router.post(
+		"/api/admin/refresh-token",
+		adminController.HandleRefreshAdminToken,
+	);
 	// router.get("/api/get-all-user", userController.HandleGetAllUser);
 	// router.put("/api/edit-user", userController.HandleEditUser);
 	// router.put(
@@ -72,8 +78,20 @@ let initWebRoutes = (app) => {
 	// router.delete("/api/admin/delete-post", adminController.HandleDeletePost);
 	// router.get("/api/admin/statistics", adminController.HandleGetStatistics);
 
+	//COMPANY
+	router.get("/api/companies", companyController.getAllCompanies);
+	router.get("/api/companies/:id", companyController.getCompanyById);
 	// JOB
 	router.get("/api/jobs/random", jobController.getRandomJobsByLocation);
+	router.get("/api/jobs/search", jobController.searchJobs);
+	router.get("/api/jobs/saved", jobController.getSavedJobs);
+	router.get("/api/jobs/company/:id", jobController.getJobByCompanyId);
+	router.get("/api/jobs/:id", jobController.getJobById);
+	router.post("/api/jobs/save", jobController.saveOrUnsaveJob);
+	// CATEGORY
+	router.get("/api/categories", categoryController.getAllCategories);
+	// LOCATION
+	router.get("/api/locations", locationController.getAllLocations);
 	// Neo4j analytics endpoints
 	router.get("/api/neo4j/heatmap", neo4jController.HandleGetJobHeatmap); //nhu cầu tuyển dụng theo ngành và địa điểm
 	router.get(
@@ -90,12 +108,24 @@ let initWebRoutes = (app) => {
 	);
 	router.get("/api/neo4j/salary-trend", neo4jController.HandleGetSalaryTrend); //xu hướng lương theo thời gian
 	router.get(
+		"/api/neo4j/salary-by-industry",
+		neo4jController.HandleGetSalaryByIndustry,
+	); //phổ lương theo nhóm ngành
+	router.get(
 		"/api/neo4j/training-dataset",
 		neo4jController.HandleBuildTrainingDataset,
 	); //tập dữ liệu dùng cho train XGBoost
 	router.post(
 		"/api/neo4j/salary-backfill", //backfill dữ liệu lương đã có trong SQL sang Neo4j
 		neo4jController.HandleBackfillSalary,
+	);
+	router.get(
+		"/api/neo4j/categories-paginated", //phân trang danh sách ngành (HomePage)
+		neo4jController.HandleGetCategoriesPaginated,
+	);
+	router.get(
+		"/api/neo4j/market-summary", //thông tin tổng quan thị trường (HomePage)
+		neo4jController.HandleGetMarketSummary,
 	);
 
 	// Neo4j sync endpoint

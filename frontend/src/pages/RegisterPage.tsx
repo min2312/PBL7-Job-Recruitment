@@ -73,7 +73,6 @@ export default function RegisterPage() {
         ...(activeTab === 'employer' && { companyName, taxId }),
       };
       const registeredUser = await axiosClient.post("/api/register", newUser);
-      console.log('Registered user response:', registeredUser);
       if(registeredUser.data.errCode === 0){
         toast.success('Đăng ký thành công!');
         navigate('/login', { replace: true });

@@ -1,4 +1,4 @@
-import { Job, getCompanyById, getLocationById } from "@/data/mockData";
+import { Job } from "@/data/mockData";
 import { Button } from "@/components/ui/button";
 import { DollarSign, MapPin, Clock } from "lucide-react";
 import { useState } from "react";
@@ -16,11 +16,10 @@ export default function JobPreviewPopup({
 	onPopupHover,
 }: JobPreviewPopupProps) {
 	const navigate = useNavigate();
-	const [isSaved, setIsSaved] = useState(false);
-	const company = (job as any).Company ?? getCompanyById(job.companyId);
-	const headerLocationName = job.locationIds ? getLocationById(job.locationIds[0])?.name ?? 'Chưa xác định' : 'Chưa xác định';
+	const company = (job as any).Company;
+	const firstLocation = (job as any).locations?.[0];
+	const headerLocationName = firstLocation?.name ?? null;
 	const detailedLocation = job.workLocation || headerLocationName;
-	console.log("JobPreviewPopup rendered with job:", job);
 	return (
 		<div
 			className="fixed z-50 bg-white rounded-lg border border-slate-300 shadow-2xl p-6 w-96 animate-in fade-in max-h-[380px] overflow-y-auto"
@@ -65,7 +64,7 @@ export default function JobPreviewPopup({
 							<DollarSign className="w-4 h-4 text-emerald-600" />
 						</div>
 						<p className="text-sm font-semibold text-slate-900 line-clamp-2">
-							{job.salary}
+							{job.salary || "chưa xác định"}
 						</p>
 					</div>
 					<div className="text-center">
@@ -73,7 +72,7 @@ export default function JobPreviewPopup({
 							<MapPin className="w-4 h-4 text-slate-600" />
 						</div>
 						<p className="text-sm font-semibold text-slate-900">
-							{headerLocationName}
+							{headerLocationName || firstLocation?.name || "Chưa xác định"}
 						</p>
 					</div>
 					<div className="text-center">
@@ -206,7 +205,7 @@ export default function JobPreviewPopup({
 						</h4>
 						<p className="text-xs text-slate-600 flex items-center gap-1">
 							<MapPin className="w-3 h-3 text-slate-500 flex-shrink-0" />
-							<span className="whitespace-pre-line">{job.workLocation || headerLocationName}</span>
+							<span className="whitespace-pre-line">{job.workLocation || detailedLocation || "Chưa xác định"}</span>
 						</p>
 					</div>
 					<div>
