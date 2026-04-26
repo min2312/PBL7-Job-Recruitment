@@ -1,41 +1,19 @@
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { companies, jobs } from '@/data/mockData';
+import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { MapPin, Briefcase, Users, Globe, Heart, Share2, Phone, Mail, ArrowLeft, Plus, Search, Copy, Facebook, Twitter, Linkedin } from 'lucide-react';
+import { MapPin, Briefcase, Users, Globe, Heart, Share2, Phone, Mail, ArrowLeft, Plus, Search, Copy, Facebook, Twitter, Linkedin, ChevronDown } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import JobCard from '@/components/JobCard';
 import JobNeedsBanner from '@/components/JobNeedsBanner';
 import { useAuth } from '@/hooks/useAuth';
+import axiosClient from '@/services/axiosClient';
+import { SearchableSelect } from '@/components/ui/searchable-select';
+import { toast } from 'react-toastify';
 
 // JobSaveButton component for reusable save functionality
-function JobSaveButton({ jobId }: { jobId: number }) {
-  const [isSaved, setIsSaved] = useState(false);
+function JobSaveButton({ jobId, isSaved }: { jobId: number; isSaved: boolean }) {
+  const [isSavedState, setIsSavedState] = useState(isSaved);
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
-
-  useEffect(() => {
-    if (user?.id) {
-      checkJobSaved();
-    }
-  }, [jobId, user?.id]);
-
-  const checkJobSaved = async () => {
-    try {
-      const response = await fetch(`/api/jobs/check-saved?jobId=${jobId}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include'
-      });
-      const data = await response.json();
-      if (data.errCode === 0) {
-        setIsSaved(data.isSaved);
-      }
-    } catch (error) {
-      console.error('Error checking saved status:', error);
-    }
-  };
 
   const handleSaveJob = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
@@ -48,24 +26,22 @@ function JobSaveButton({ jobId }: { jobId: number }) {
 
     setIsLoading(true);
     try {
-      const endpoint = isSaved ? '/api/jobs/unsave' : '/api/jobs/save';
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ jobId: jobId }),
-        credentials: 'include'
+      const response = await axiosClient.post('/api/jobs/save', {
+        userId: user.id,
+        jobId: jobId
       });
-      const data = await response.json();
+      const data = response.data;
       
       if (data.errCode === 0) {
-        setIsSaved(!isSaved);
+        setIsSavedState(!isSavedState);
+        toast.success(isSavedState ? 'Job removed from saved list' : 'Job saved successfully');
       } else {
         console.error('Error saving job:', data.errMessage);
+        toast.error('Error saving job: ' + data.errMessage);
       }
     } catch (error) {
       console.error('Error:', error);
+      toast.error('An error occurred while saving the job.');
     } finally {
       setIsLoading(false);
     }
@@ -77,34 +53,94 @@ function JobSaveButton({ jobId }: { jobId: number }) {
       disabled={isLoading}
       className={`w-8 h-8 flex items-center justify-center rounded-full border border-black hover:bg-slate-200 transition-colors flex-shrink-0 ${isSaved ? 'bg-slate-900' : ''}`}
     >
-      <Heart className={`w-4 h-4 ${isSaved ? 'fill-white text-white' : 'text-black'}`} />
+      <Heart className={`w-4 h-4 ${isSavedState ? 'fill-white text-white' : 'text-black'}`} />
     </button>
   );
 }
 
 export default function CompanyDetailPage() {
   const { id } = useParams();
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isSaved, setIsSaved] = useState(false);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
-  const companyId = Number(id);
+  const [company, setCompany] = useState<any>(location.state?.company || null);
+  const [companyJobs, setCompanyJobs] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentJobPage, setCurrentJobPage] = useState(1);
+  const [totalJobPages, setTotalJobPages] = useState(1);
+  const [jobSearchQuery, setJobSearchQuery] = useState('');
+  const [jobLocation, setJobLocation] = useState('Tất cả tỉnh/thành phố');
+  const [submittedJobSearch, setSubmittedJobSearch] = useState('');
+  const [submittedJobLocation, setSubmittedJobLocation] = useState('Tất cả tỉnh/thành phố');
+  const [locations, setLocations] = useState<any[]>([]);
 
-  // Memoize company data
-  const company = useMemo(
-    () => companies.find(c => c.id === companyId),
-    [companyId]
-  ) as any;
-  
-  // Memoize company jobs
-  const companyJobs = useMemo(
-    () => jobs.filter(j => j.companyId === companyId),
-    [companyId]
+  useEffect(() => {
+    const fetchLocations = async () => {
+      try {
+        const response = await axiosClient.get('/api/locations');
+        if (response.data.errCode === 0) {
+          setLocations(response.data.data);
+        }
+      } catch (error) {
+        console.error('Error fetching locations:', error);
+      }
+    };
+    fetchLocations();
+  }, []);
+
+  const locationOptions = useMemo(
+    () => [
+      { value: "Tất cả tỉnh/thành phố", label: "Tất cả tỉnh/thành phố" },
+      ...locations.map((loc) => ({ value: loc.name, label: loc.name })),
+    ],
+    [locations],
   );
+ 
+  useEffect(() => {
+    const fetchCompanyData = async () => {
+      setIsLoading(true);
+      try {
+        if (!company) {
+          const compRes = await axiosClient.get(`/api/companies/${id}`);
+          if (compRes.data.errCode === 0) {
+            setCompany(compRes.data.data);
+          }
+        }
+
+        const jobsRes = await axiosClient.get(`/api/jobs/company/${id}`, {
+          params: { page: currentJobPage, limit: 10, search: submittedJobSearch, location: submittedJobLocation, userId: user?.id }
+        });
+        const jobsData = jobsRes.data;
+        if (jobsData.errCode === 0 && jobsData.data && jobsData.data.jobs) {
+          setCompanyJobs(jobsData.data.jobs);
+          setTotalJobPages(Math.ceil(jobsData.data.total / 10) || 1);
+        } else if (jobsData.errCode === 0 && Array.isArray(jobsData.data)) {
+          setCompanyJobs(jobsData.data);
+          setTotalJobPages(Math.ceil(jobsData.data.length / 10) || 1);
+        }
+      } catch (error) {
+        console.error('Error fetching company details:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    if (id) fetchCompanyData();
+  }, [id, currentJobPage, submittedJobSearch, submittedJobLocation, user]);
 
   // Scroll to top when company id changes
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [id]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <p className="text-lg text-slate-500">Đang tải thông tin công ty...</p>
+      </div>
+    );
+  }
 
   if (!company) {
     return (
@@ -284,40 +320,48 @@ export default function CompanyDetailPage() {
                 Tuyển dụng
               </div>
               <div className="bg-slate-50 rounded-b-lg p-6 border border-slate-200">
+                {/* Search Bar */}
+                <div className="mb-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-white p-3 rounded-xl border-2 border-slate-200 shadow-sm">
+                  {/* Search Input */}
+                  <div className="flex-1 flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg border border-transparent focus-within:border-slate-900 focus-within:bg-white transition-all group">
+                    <Search className="w-5 h-5 text-slate-400 group-focus-within:text-slate-900 transition-colors" />
+                    <input
+                      type="text"
+                      placeholder="Tên công việc, vị trí ứng tuyển..."
+                      value={jobSearchQuery}
+                      onChange={(e) => setJobSearchQuery(e.target.value)}
+                      className="flex-1 outline-none text-sm text-slate-700 placeholder-slate-400 bg-transparent font-medium"
+                    />
+                  </div>
+
+                  {/* Location Select */}
+                  <SearchableSelect
+                    value={jobLocation}
+                    onValueChange={setJobLocation}
+                    options={locationOptions}
+                    placeholder="Tất cả tỉnh/thành phố"
+                    searchPlaceholder="Tìm tỉnh/thành phố..."
+                    icon={<MapPin className="w-4 h-4" />}
+                  />
+
+                  {/* Search Button */}
+                  <button 
+                    onClick={() => {
+                      setCurrentJobPage(1);
+                      setSubmittedJobSearch(jobSearchQuery);
+                      setSubmittedJobLocation(jobLocation);
+                    }}
+                    className="px-8 py-2.5 bg-black text-white rounded-lg font-bold text-sm hover:bg-slate-800 transition-all shadow-md whitespace-nowrap"
+                  >
+                    Tìm kiếm
+                  </button>
+                </div>
+
                 {companyJobs.length > 0 ? (
                   <>
-                    {/* Search Bar */}
-                    <div className="mb-6 flex items-center gap-3">
-                      {/* Search Input */}
-                      <div className="flex-1 flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-slate-200">
-                        <Search className="w-5 h-5 text-slate-400" />
-                        <input
-                          type="text"
-                          placeholder="Tên công việc, vị trị ứng tuyển..."
-                          className="flex-1 outline-none text-sm text-slate-700 placeholder-slate-400 bg-transparent"
-                        />
-                      </div>
-
-                      {/* Location Select */}
-                      <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-slate-200 min-w-max">
-                        <MapPin className="w-5 h-5 text-slate-400" />
-                        <select className="outline-none text-sm text-slate-900 bg-transparent font-medium">
-                          <option>Tất cả tỉnh/thành phố</option>
-                          <option>Hà Nội</option>
-                          <option>Hồ Chí Minh</option>
-                        </select>
-                        {/* <span className="text-slate-400 text-xs">▼</span> */}
-                      </div>
-
-                      {/* Search Button */}
-                      <button className="px-6 py-2 bg-black text-white rounded-lg font-semibold text-sm hover:bg-slate-800 transition-colors whitespace-nowrap">
-                        Tìm kiếm
-                      </button>
-                    </div>
-
                     {/* Job Cards */}
                     <div className="space-y-3">
-                      {companyJobs.slice(0, 3).map(job => (
+                      {companyJobs.map(job => (
                         <div
                           key={job.id}
                           className="bg-white rounded-lg p-4 border border-slate-200 hover:border-slate-300 hover:bg-slate-100 transition-all group cursor-pointer"
@@ -342,13 +386,14 @@ export default function CompanyDetailPage() {
                             <div className="flex-1 min-w-0">
                               {/* Job Title with Salary */}
                               <div className="flex items-start justify-between gap-2 mb-1">
-                                <Link
-                                  to={`/jobs/${job.id}`}
+                                <div
                                   className="font-bold text-slate-900 text-sm line-clamp-1 hover:text-slate-700 group-hover:underline"
                                 >
-                                  {job.title} ✓
-                                </Link>
-                                <span className="text-sm font-bold text-black whitespace-nowrap">8 - 10 triệu</span>
+                                  {job.title}
+                                </div>
+                                <span className="text-sm font-bold text-black whitespace-nowrap">
+                                  {job.salary || 'Thoả thuận'}
+                                </span>
                               </div>
 
                               {/* Company Name */}
@@ -360,28 +405,58 @@ export default function CompanyDetailPage() {
                               {/* Tags */}
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="inline-block px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-medium">
-                                  {company.address || 'Hà Nội'} (mới)
+                                  {job.locations?.map((location: any) => location.name).join(', ') || 'Chưa xác định'}
                                 </span>
-                                <span className="inline-block px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-medium">
-                                  Còn {Math.floor(Math.random() * 15) + 10} ngày để ứng tuyển
-                                </span>
+                                {job.experience && (
+                                  <span className="inline-block px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-medium">
+                                    {job.experience}
+                                  </span>
+                                )}
                               </div>
                             </div>
 
                             {/* Action Buttons */}
                             <div className="flex-shrink-0 flex items-center gap-2">
                               <button 
-                                onClick={() => navigate(`/jobs/${job.id}`)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/jobs/${job.id}`);
+                                }}
                                 className="px-4 py-2 bg-black text-white rounded-lg font-semibold text-sm hover:bg-slate-800 transition-colors whitespace-nowrap"
                               >
                                 Ứng tuyển
                               </button>
-                              <JobSaveButton jobId={job.id} />
+                              <JobSaveButton jobId={job.id} isSaved = {job.isSaved} />
                             </div>
                           </div>
                         </div>
                       ))}
                     </div>
+
+                    {/* Pagination */}
+                    {totalJobPages > 1 && (
+                      <div className="flex items-center justify-center gap-4 mt-8 pt-6 border-t border-slate-200">
+                        <Button
+                          variant="outline"
+                          onClick={() => setCurrentJobPage(prev => Math.max(1, prev - 1))}
+                          disabled={currentJobPage === 1}
+                          className="px-4 py-2"
+                        >
+                          ← Trước
+                        </Button>
+                        <span className="text-sm font-semibold text-slate-700">
+                          {currentJobPage}/{totalJobPages}
+                        </span>
+                        <Button
+                          variant="outline"
+                          onClick={() => setCurrentJobPage(prev => Math.min(totalJobPages, prev + 1))}
+                          disabled={currentJobPage === totalJobPages}
+                          className="px-4 py-2"
+                        >
+                          Tiếp →
+                        </Button>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <div className="bg-white rounded-lg p-8 text-center">

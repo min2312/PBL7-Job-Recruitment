@@ -2,8 +2,9 @@ import { useNavigate, Routes, Route } from 'react-router-dom';
 import { usePageLoad } from '@/contexts/PageLoadContext';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Briefcase, TrendingUp, MapPin } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
+import axiosClient from '@/services/axiosClient';
 import TopJobsList from '@/pages/TopJobsList';
 import CandidateProfile from '@/pages/CandidateProfile';
 import HeaderMNP from '@/components/HeaderMNP';
@@ -152,111 +153,185 @@ function CandidateBanner({ navigate }: { navigate: any }) {
 
 function CandidateJobsList() {
   const navigate = useNavigate();
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [categoryIndex, setCategoryIndex] = useState(0);
-  
+  const [categories, setCategories] = useState<any[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [marketSummary, setMarketSummary] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    fetchMarketSummary();
+  }, []);
 
-    // Scroll to top when component mounts
-    useEffect(() => {
-      window.scrollTo(0, 0);
-    }, []);
+  useEffect(() => {
+    fetchCategories(currentPage);
+  }, [currentPage]);
+
+  const fetchCategories = async (page: number) => {
+    try {
+      setLoading(true);
+      const res = await axiosClient.get(`/api/neo4j/categories-paginated?page=${page}&limit=6`);
+      if (res.data.errCode === 0) {
+        setCategories(res.data.data.categories);
+        setTotalPages(Math.ceil(res.data.data.total / 6));
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchMarketSummary = async () => {
+    try {
+      const res = await axiosClient.get('/api/neo4j/market-summary');
+      if (res.data.errCode === 0) {
+        setMarketSummary(res.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching market summary:', error);
+    }
+  };
 
   const handlePrevCategory = () => {
-    setCategoryIndex((prev) => (prev === 0 ? 4 : prev - 1));
+    setCurrentPage((prev) => (prev > 1 ? prev - 1 : totalPages));
   };
 
   const handleNextCategory = () => {
-    setCategoryIndex((prev) => (prev === 4 ? 0 : prev + 1));
+    setCurrentPage((prev) => (prev < totalPages ? prev + 1 : 1));
   };
-
-  // No local job data here — `TopJobsList` will fetch from backend
 
   return (
     <>
-      {/* Main Content */}
       <div className="flex-1 max-w-full mx-auto w-full py-6 px-48 space-y-6">
-        {/* Top Section: Categories & Top Industries */}
         <div className="grid grid-cols-10 gap-6 min-h-[400px]">
-          {/* Sidebar - Left */}
+          {/* Sidebar - Left (Thống kê thị trường) */}
           <aside className="col-span-3 flex flex-col gap-4">
-            {/* Categories */}
-            <Card className="p-4 border-slate-200">
-              <h3 className="font-semibold text-slate-900 mb-4">Danh mục</h3>
-              <div className="space-y-2 mb-4">
-                {/* Placeholder items for backend integration */}
-                <div className="h-8 bg-slate-100 rounded animate-pulse"></div>
-                <div className="h-8 bg-slate-100 rounded animate-pulse"></div>
-                <div className="h-8 bg-slate-100 rounded animate-pulse"></div>
-                <div className="h-8 bg-slate-100 rounded animate-pulse"></div>
-                <div className="h-8 bg-slate-100 rounded animate-pulse"></div>
-                <div className="h-8 bg-slate-100 rounded animate-pulse"></div>
-              </div>
+            <Card className="p-5 border-slate-200 bg-gradient-to-br from-white to-slate-50">
+              <h3 className="font-bold text-slate-900 mb-5 flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-teal-600" />
+                Thống kê thị trường
+              </h3>
               
-              {/* Pagination Control */}
-              <div className="border-t border-slate-200 pt-4 flex items-center justify-between">
-                <span className="text-sm text-slate-500 font-medium">{categoryIndex + 1}/5</span>
-                <div className="flex gap-2">
-                  <button
-                    onClick={handlePrevCategory}
-                    className="p-1.5 border-2 border-black rounded-full transition-all text-black hover:bg-black hover:text-white"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={handleNextCategory}
-                    className="p-1.5 border-2 border-black rounded-full transition-all text-black hover:bg-black hover:text-white"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
+              <div className="space-y-6">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-blue-50 rounded-lg">
+                    <Briefcase className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">Tổng việc làm</p>
+                    <p className="text-xl font-bold text-slate-900">
+                      {marketSummary?.totalJobs?.toLocaleString() || '...'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-teal-50 rounded-lg">
+                    <TrendingUp className="w-5 h-5 text-teal-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">Ngành hot nhất</p>
+                    <p className="text-sm font-bold text-slate-900 line-clamp-1">
+                      {marketSummary?.topCategory?.name || '...'}
+                    </p>
+                    <p className="text-xs text-slate-400">{marketSummary?.topCategory?.count || 0} việc làm</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-orange-50 rounded-lg">
+                    <MapPin className="w-5 h-5 text-orange-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">Khu vực sôi động</p>
+                    <p className="text-sm font-bold text-slate-900">
+                      {marketSummary?.topLocation?.name || '...'}
+                    </p>
+                    <p className="text-xs text-slate-400">{marketSummary?.topLocation?.count || 0} việc làm</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-8 p-4 bg-black rounded-xl text-white">
+                <p className="text-xs opacity-80 mb-1">Dữ liệu được cập nhật từ</p>
+                <p className="text-sm font-bold">Hệ Thống Dữ Liệu MNP</p>
+                <div className="mt-3 h-1 w-full bg-slate-800 rounded-full overflow-hidden">
+                  <div className="h-full bg-teal-400 w-2/3"></div>
                 </div>
               </div>
             </Card>
-
-            
           </aside>
 
           {/* Top Industries - Right */}
           <div className="col-span-7">
-            <Card className="p-6 border-slate-200">
+            <Card className="p-6 border-slate-200 h-full flex flex-col">
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="font-bold text-slate-900 text-lg">Top ngành nghề nổi bật</h3>
-                  <p className="text-sm text-slate-500 mt-1">Bạn muốn tìm việc mới? Xem danh sách việc làm <a href="#" className="text-teal-600 hover:underline">tại đây</a></p>
+                  <p className="text-sm text-slate-500 mt-1">
+                    Khám phá cơ hội việc làm theo từng lĩnh vực chuyên môn.
+                  </p>
                 </div>
-                <div className="flex gap-2">
-                  <button className="p-1.5 border-2 border-black rounded-full transition-all text-black hover:bg-black hover:text-white">
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <button className="p-1.5 border-2 border-black rounded-full transition-all text-black hover:bg-black hover:text-white">
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
+                <div className="flex items-center gap-4">
+                  <span className="text-sm text-slate-500 font-medium">
+                    Trang {currentPage}/{totalPages}
+                  </span>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={handlePrevCategory}
+                      className="p-1.5 border-2 border-black rounded-full transition-all text-black hover:bg-black hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={handleNextCategory}
+                      className="p-1.5 border-2 border-black rounded-full transition-all text-black hover:bg-black hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              {/* Industries Grid - 6 items (3x2) */}
-              <div className="grid grid-cols-3 gap-4">
-                {/* Placeholder - Will be replaced with backend data */}
-                {[1, 2, 3, 4, 5, 6].map(i => (
-                  <div key={i} className="bg-slate-50 rounded-lg p-4 text-center hover:shadow-md transition-shadow cursor-pointer">
-                    <div className="w-16 h-16 bg-slate-200 rounded-lg mx-auto mb-3 animate-pulse"></div>
-                    <h4 className="text-sm font-medium text-slate-900 line-clamp-2 mb-2">Ngành {i}</h4>
-                    <p className="text-xs text-slate-400 font-semibold">0 việc làm</p>
-                  </div>
-                ))}
+              <div className="grid grid-cols-3 gap-4 flex-1">
+                {loading ? (
+                  [1, 2, 3, 4, 5, 6].map(i => (
+                    <div key={i} className="bg-slate-50 rounded-lg p-4 text-center animate-pulse">
+                      <div className="w-16 h-16 bg-slate-200 rounded-lg mx-auto mb-3"></div>
+                      <div className="h-4 bg-slate-200 rounded w-3/4 mx-auto mb-2"></div>
+                      <div className="h-3 bg-slate-200 rounded w-1/2 mx-auto"></div>
+                    </div>
+                  ))
+                ) : (
+                  categories.map((cat, index) => (
+                    <div 
+                      key={index} 
+                      className="bg-slate-50 rounded-xl p-5 text-center hover:shadow-lg transition-all cursor-pointer border border-transparent hover:border-teal-100 group"
+                      onClick={() => navigate(`/job-search?categoryId=${cat.id}`)}
+                    >
+                      <div className="w-14 h-14 bg-white shadow-sm rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                        <Briefcase className="w-6 h-6 text-teal-600" />
+                      </div>
+                      <h4 className="text-sm font-bold text-slate-900 line-clamp-2 mb-2 group-hover:text-teal-700 transition-colors">
+                        {cat.name}
+                      </h4>
+                      <p className="text-xs text-teal-600 font-bold bg-teal-50 inline-block px-3 py-1 rounded-full">
+                        {cat.jobCount} việc làm
+                      </p>
+                    </div>
+                  ))
+                )}
               </div>
             </Card>
           </div>
         </div>
 
-      {/* Job Listings - Below */}
-      <div className="space-y-4 min-h-[600px]">
-        <TopJobsList />
+        <div className="space-y-4 min-h-[600px]">
+          <TopJobsList />
+        </div>
       </div>
-    </div>
     </>
   );
 }

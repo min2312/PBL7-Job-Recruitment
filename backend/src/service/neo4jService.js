@@ -170,20 +170,36 @@ export const buildCompetition = async () => {
 	}
 };
 
-export const buildHiringCriteria = async (categoryName, limit = 10) => {
+export const buildHiringCriteria = async (categoryName, locationName, limit = 10) => {
 	const session = await getSession();
 	try {
-		const query = `
-      MATCH (j:Job)-[:BELONGS_TO]->(cat:Category)
-      WHERE cat.name = $categoryName
+		let matchParts = ["(j:Job)"];
+		let whereParts = [];
+		let params = { limit: neo4j.int(limit) };
+
+		if (categoryName) {
+			matchParts.push("(j)-[:BELONGS_TO]->(cat:Category)");
+			whereParts.push(`cat.name = $categoryName`);
+			params.categoryName = categoryName;
+		}
+		if (locationName) {
+			matchParts.push("(j)-[:LOCATED_IN]->(loc:Location)");
+			whereParts.push(`loc.name = $locationName`);
+			params.locationName = locationName;
+		}
+
+		let query = `MATCH ${matchParts.join(", ")}`;
+		if (whereParts.length > 0) {
+			query += ` WHERE ${whereParts.join(" AND ")}`;
+		}
+
+		query += `
       WITH j.level AS level, j.experience AS experience, j.education AS education, count(*) AS count
       ORDER BY count DESC
       LIMIT $limit
       RETURN level, experience, education, count`;
-		const result = await session.run(query, {
-			categoryName,
-			limit: neo4j.int(limit),
-		});
+
+		const result = await session.run(query, params);
 
 		const rows = result.records.map((rec) => ({
 			level: rec.get("level"),
@@ -250,6 +266,47 @@ export const buildSalaryTrend = async ({
 			avgMax: Number(avgMax.toFixed(2)),
 			sampleSize: parsed.length,
 		};
+	} finally {
+		await session.close();
+	}
+};
+
+export const buildSalaryByIndustry = async (categoryName, locationName) => {
+	const session = await getSession();
+	try {
+		let matchParts = ["(j:Job)-[:BELONGS_TO]->(cat:Category)"];
+		let whereParts = [`j.salary_min IS NOT NULL`, `j.salary_max IS NOT NULL`];
+		let params = {};
+
+		if (categoryName) {
+			whereParts.push(`cat.name = $categoryName`);
+			params.categoryName = categoryName;
+		}
+		if (locationName) {
+			matchParts.push("(j)-[:LOCATED_IN]->(loc:Location)");
+			whereParts.push(`loc.name = $locationName`);
+			params.locationName = locationName;
+		}
+
+		let query = `MATCH ${matchParts.join(", ")} WHERE ${whereParts.join(" AND ")}
+      WITH cat.name AS category, avg(toFloat(j.salary_min)) AS min, avg(toFloat(j.salary_max)) AS max
+      RETURN category, min, max, (min + max) / 2 AS avg
+      ORDER BY avg DESC
+    `;
+    
+    // If we filter by a specific category, we just want that category (or those matching).
+    // Otherwise we limit to top 8 to show the overview chart.
+    if (!categoryName && !locationName) {
+      query += ` LIMIT 8`;
+    }
+
+		const result = await session.run(query, params);
+		return result.records.map((rec) => ({
+			category: rec.get("category"),
+			min: Number(rec.get("min").toFixed(1)),
+			max: Number(rec.get("max").toFixed(1)),
+			avg: Number(rec.get("avg").toFixed(1)),
+		}));
 	} finally {
 		await session.close();
 	}
@@ -421,6 +478,92 @@ export const backfillSalaryParsedFields = async () => {
 		}
 
 		return { updated: updates.length };
+	} finally {
+		await session.close();
+	}
+};
+
+export const getCategoriesWithJobCount = async (page = 1, limit = 6) => {
+	const session = await getSession();
+	try {
+		const skip = (page - 1) * limit;
+		const query = `
+      MATCH (cat:Category)
+      OPTIONAL MATCH (j:Job)-[:BELONGS_TO]->(cat)
+      WITH cat, count(j) AS jobCount
+      RETURN cat.id AS id, cat.name AS name, jobCount
+      ORDER BY jobCount DESC
+      SKIP $skip LIMIT $limit
+    `;
+		const result = await session.run(query, {
+			skip: neo4j.int(skip),
+			limit: neo4j.int(limit),
+		});
+
+		const categories = result.records.map((rec) => ({
+			id: rec.get("id").toNumber ? rec.get("id").toNumber() : rec.get("id"),
+			name: rec.get("name"),
+			jobCount: rec.get("jobCount").toNumber
+				? rec.get("jobCount").toNumber()
+				: rec.get("jobCount"),
+		}));
+
+		const countResult = await session.run(
+			"MATCH (cat:Category) RETURN count(cat) AS total",
+		);
+		const total = countResult.records[0].get("total").toNumber
+			? countResult.records[0].get("total").toNumber()
+			: countResult.records[0].get("total");
+
+		return { categories, total, page, limit };
+	} finally {
+		await session.close();
+	}
+};
+
+export const getMarketSummary = async () => {
+	const session = await getSession();
+	try {
+		// Total jobs
+		const jobsResult = await session.run("MATCH (j:Job) RETURN count(j) AS totalJobs");
+		const recJob = jobsResult.records[0];
+		const totalJobs = recJob.get("totalJobs").toNumber
+			? recJob.get("totalJobs").toNumber()
+			: recJob.get("totalJobs");
+
+		// Top industry
+		const topCatResult = await session.run(`
+      MATCH (j:Job)-[:BELONGS_TO]->(cat:Category)
+      RETURN cat.name AS name, count(j) AS jobCount
+      ORDER BY jobCount DESC
+      LIMIT 1
+    `);
+		const topCategory = topCatResult.records[0]
+			? {
+					name: topCatResult.records[0].get("name"),
+					count: topCatResult.records[0].get("jobCount").toNumber
+						? topCatResult.records[0].get("jobCount").toNumber()
+						: topCatResult.records[0].get("jobCount"),
+				}
+			: null;
+
+		// Top location
+		const topLocResult = await session.run(`
+      MATCH (j:Job)-[:LOCATED_IN]->(loc:Location)
+      RETURN loc.name AS name, count(j) AS jobCount
+      ORDER BY jobCount DESC
+      LIMIT 1
+    `);
+		const topLocation = topLocResult.records[0]
+			? {
+					name: topLocResult.records[0].get("name"),
+					count: topLocResult.records[0].get("jobCount").toNumber
+						? topLocResult.records[0].get("jobCount").toNumber()
+						: topLocResult.records[0].get("jobCount"),
+				}
+			: null;
+
+		return { totalJobs, topCategory, topLocation };
 	} finally {
 		await session.close();
 	}

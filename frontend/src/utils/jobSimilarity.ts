@@ -11,10 +11,14 @@ export function calculateJobSimilarity(jobA: Job, jobB: Job): number {
   let score = 0;
 
   // Compare categories
-  if (jobA.categoryIds.some(cid => jobB.categoryIds.includes(cid))) score += 2;
+  const aCategoryIds = jobA.categoryIds ?? [];
+  const bCategoryIds = jobB.categoryIds ?? [];
+  if (aCategoryIds.length > 0 && bCategoryIds.length > 0 && aCategoryIds.some((cid) => bCategoryIds.includes(cid))) score += 2;
 
   // Compare locations
-  if (jobA.locationIds.some(lid => jobB.locationIds.includes(lid))) score += 1;
+  const aLocationIds = jobA.locationIds ?? [];
+  const bLocationIds = jobB.locationIds ?? [];
+  if (aLocationIds.length > 0 && bLocationIds.length > 0 && aLocationIds.some((lid) => bLocationIds.includes(lid))) score += 1;
 
   // Compare levels
   if (jobA.level === jobB.level) score += 1;

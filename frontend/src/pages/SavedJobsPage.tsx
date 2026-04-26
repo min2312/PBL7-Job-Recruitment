@@ -1,285 +1,119 @@
-import { useNavigate, useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Heart, Laptop, CheckCircle } from 'lucide-react';
+import { Heart, Search } from 'lucide-react';
 import JobNeedsBanner from '@/components/JobNeedsBanner';
-import { jobs, getCompanyById, getLocationById } from '@/data/mockData';
-import { getRelatedJobsForMultipleJobs } from '@/utils/jobSimilarity';
+import JobCard from '@/components/JobCard';
+import NumberedPagination from '@/components/NumberedPagination';
+import { useAuth } from '@/hooks/useAuth';
+import axiosClient from '@/services/axiosClient';
 
 export default function SavedJobsPage() {
   const navigate = useNavigate();
-  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { user } = useAuth();
+  
+  const [savedJobs, setSavedJobs] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  const currentPage = parseInt(searchParams.get('page') || '1');
+  const pageSize = 10;
 
-  // Mock saved jobs - use first 2 jobs as example
-  const savedJobs = jobs.slice(0, 2).map(job => ({
-    ...job,
-    savedDate: '17/04/2026 - 12:13'
-  }));
+  const fetchSavedJobs = async () => {
+    if (!user) {
+      setIsLoading(false);
+      return;
+    }
+    try {
+      setIsLoading(true);
+      const res = await axiosClient.get('/api/jobs/saved', {
+        params: { 
+          userId: user.id,
+          page: currentPage,
+          limit: pageSize
+        }
+      });
+      if (res.data.errCode === 0) {
+        setSavedJobs(res.data.data.jobs);
+        setTotal(res.data.data.total);
+      }
+    } catch (error) {
+      console.error('Error fetching saved jobs:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     window.scrollTo(0, 0);
-    // Trigger any data refresh logic here when page is loaded/reloaded
-  }, [location.pathname]);
+    fetchSavedJobs();
+  }, [user, currentPage]);
+
+  const handlePageChange = (page: number) => {
+    setSearchParams({ page: page.toString() });
+  };
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Job Needs Banner */}
+    <div className="min-h-screen bg-slate-50 pb-12">
       <JobNeedsBanner onUpdateClick={() => navigate('/login')} />
 
-      <div className="container max-w-6xl mx-auto py-12">
-        {savedJobs.length === 0 && (
-          <h1 className="text-3xl font-bold text-slate-900 mb-8">Việc làm đã lưu</h1>
-        )}
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mt-12">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">Việc làm đã lưu</h1>
+            <p className="text-slate-500 mt-1">Danh sách các công việc bạn đã lưu lại để ứng tuyển sau</p>
+          </div>
+          <div className="bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm text-sm font-bold text-slate-700">
+            {savedJobs.length} Việc làm
+          </div>
+        </div>
 
-        {savedJobs.length === 0 ? (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Empty State - Left */}
-            <div className="lg:col-span-2">
-              <Card className="p-12 border-slate-200 flex flex-col items-center justify-center min-h-[400px]">
-                {/* Empty Icon */}
-                <div className="mb-6">
-                  <div className="w-40 h-40 mx-auto relative">
-                    {/* Simple empty basket illustration */}
-                    <svg viewBox="0 0 200 200" className="w-full h-full">
-                      {/* Basket */}
-                      <path 
-                        d="M 60 80 L 40 140 Q 40 160 60 160 L 140 160 Q 160 160 160 140 L 140 80" 
-                        stroke="#cbd5e1" strokeWidth="3" fill="none"
-                      />
-                      {/* Handle */}
-                      <path 
-                        d="M 70 80 Q 100 40 130 80" 
-                        stroke="#cbd5e1" strokeWidth="3" fill="none"
-                      />
-                      {/* Basket lines */}
-                      <line x1="60" y1="100" x2="140" y2="100" stroke="#cbd5e1" strokeWidth="2" />
-                      <line x1="60" y1="120" x2="140" y2="120" stroke="#cbd5e1" strokeWidth="2" />
-                      
-                      {/* Cute face */}
-                      <circle cx="85" cy="115" r="2" fill="#cbd5e1" />
-                      <circle cx="115" cy="115" r="2" fill="#cbd5e1" />
-                      <path d="M 90 130 Q 100 135 110 130" stroke="#cbd5e1" strokeWidth="2" fill="none" strokeLinecap="round" />
-                    </svg>
-                  </div>
-                </div>
-
-                {/* Empty Message */}
-                <h2 className="text-2xl font-bold text-slate-900 mb-3 text-center">Bạn chưa lưu công việc nào!</h2>
-                <p className="text-slate-600 text-center mb-8 max-w-sm">Hãy lưu những công việc mà bạn quan tâm để dễ dàng theo dõi và ứng tuyển sau này.</p>
-
-                {/* Action Button */}
-                <Button 
-                  size="lg"
-                  className="bg-black hover:bg-slate-800 text-white font-bold px-8 py-3 rounded-full"
-                  onClick={() => navigate('/')}
-                >
-                  Tìm việc ngay →
-                </Button>
-              </Card>
+        {isLoading ? (
+          <div className="py-20 flex flex-col items-center justify-center bg-white rounded-xl border border-slate-200 shadow-sm">
+            <div className="w-8 h-8 border-4 border-slate-200 border-t-black rounded-full animate-spin mb-4"></div>
+            <p className="font-medium text-slate-500">Đang tải danh sách...</p>
+          </div>
+        ) : savedJobs.length === 0 ? (
+          <div className="py-24 text-center bg-white rounded-2xl border border-slate-200 shadow-sm px-6">
+            <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Heart className="w-10 h-10 text-slate-300" />
             </div>
-
-            {/* Promotional Section - Right */}
-            <div className="lg:col-span-1">
-              <Card className="p-6 border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100 overflow-hidden">
-                {/* Decorative dots */}
-                <div className="absolute top-0 right-0 w-32 h-32 bg-slate-200 rounded-full opacity-20 -mr-16 -mt-16"></div>
-                
-                <div className="relative z-10">
-                  {/* Title */}
-                  <h3 className="text-xl font-bold text-slate-900 mb-2">CV "Hỏi" Trên Tay</h3>
-                  <p className="text-sm text-slate-800 mb-6">Apply Ngay Việc Hot</p>
-
-                  {/* Description */}
-                  <p className="text-xs text-slate-700 mb-4 leading-relaxed">
-                    Nền tảng tạo CV online hàng đầu Việt Nam
-                  </p>
-
-                  {/* Features */}
-                  <div className="space-y-3 mb-6">
-                    <div className="flex items-start gap-2">
-                      <div className="w-5 h-5 bg-black rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span className="text-white text-xs font-bold">✓</span>
-                      </div>
-                      <span className="text-xs text-slate-900 font-medium">25 mẫu CV chuyên nghiệp</span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <div className="w-5 h-5 bg-black rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span className="text-white text-xs font-bold">✓</span>
-                      </div>
-                      <span className="text-xs text-slate-900 font-medium">Chuẩn theo ngành nghề</span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <div className="w-5 h-5 bg-black rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span className="text-white text-xs font-bold">✓</span>
-                      </div>
-                      <span className="text-xs text-slate-900 font-medium">Xuất PDF, doc dễ dàng</span>
-                    </div>
-                  </div>
-
-                  {/* CTA Button */}
-                  <Button 
-                    className="w-full bg-black hover:bg-slate-800 text-white font-bold text-sm py-2"
-                  >
-                    Xem ngay
-                  </Button>
-                </div>
-              </Card>
-
-              {/* Info Cards */}
-              <div className="mt-4 space-y-3">
-                <div className="bg-white rounded-lg p-4 border border-slate-200 flex items-center gap-3">
-                  <Laptop className="w-5 h-5 text-black flex-shrink-0" />
-                  <span className="text-xs text-slate-700">Gợi ý công việc</span>
-                </div>
-                <div className="bg-white rounded-lg p-4 border border-slate-200 flex items-center gap-3">
-                  <Heart className="w-5 h-5 text-black flex-shrink-0" />
-                  <span className="text-xs text-slate-700">0 Việc đã lưu</span>
-                </div>
-              </div>
-            </div>
+            <h2 className="text-xl font-bold text-slate-900 mb-2">Bạn chưa lưu việc làm nào</h2>
+            <p className="text-slate-500 mb-8 max-w-sm mx-auto">
+              Lưu lại các việc làm hấp dẫn để dễ dàng theo dõi và ứng tuyển bất cứ lúc nào.
+            </p>
+            <Button 
+              className="bg-black hover:bg-slate-800 text-white rounded-xl px-8 py-6 font-bold"
+              onClick={() => navigate('/job-search')}
+            >
+              Tìm kiếm việc làm ngay
+            </Button>
           </div>
         ) : (
-          // Show saved jobs when they exist
           <>
-            {/* Saved Jobs Section */}
-            <div className="mb-12">
-              <h2 className="text-2xl font-bold text-slate-900 mb-6">
-                Danh sách {savedJobs.length} việc làm đã lưu
-              </h2>
-              
-              <div className="space-y-4">
-                {savedJobs.map((job) => {
-                  const company = getCompanyById(job.companyId);
-                  const firstLocation = job.locationIds[0] ? getLocationById(job.locationIds[0]) : null;
-                  
-                  return (
-                    <Card key={job.id} className="border-2 border-slate-200 hover:border-black p-5 hover:shadow-xl transition-all bg-slate-100">
-                      <div className="flex gap-4">
-                        {/* Company Logo */}
-                        <div className="flex-shrink-0">
-                          <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center border-4 border-black flex-shrink-0">
-                            <div className="w-16 h-16 bg-gradient-to-br from-gray-600 to-slate-700 rounded-lg"></div>
-                          </div>
-                        </div>
-
-                        {/* Job Details */}
-                        <div className="flex-1">
-                          {/* Header: Title, Company, Salary */}
-                          <div className="flex items-start justify-between gap-4 mb-3">
-                            <div className="flex-1">
-                              <h3 className="text-base font-bold text-slate-900 mb-1">
-                                {job.title}
-                                {job.title.includes('Content Marketing') && <CheckCircle className="w-4 h-4 text-black inline ml-2" />}
-                                {job.title.includes('Developer') && <CheckCircle className="w-4 h-4 text-black inline ml-2" />}
-                              </h3>
-                              <p className="text-xs text-slate-500 font-medium">{company?.name}</p>
-                            </div>
-                            <span className="inline-block px-3 py-1 bg-slate-100 text-slate-900 font-bold text-sm rounded flex-shrink-0 whitespace-nowrap">
-                              {job.salary}
-                            </span>
-                          </div>
-
-                          {/* Location & Experience */}
-                          <div className="flex items-center gap-6 mb-4 pb-3">
-                            <span className="text-xs text-slate-700 font-medium">
-                              {firstLocation?.name || 'Chưa xác định'}
-                            </span>
-                            <span className="text-xs text-slate-700 font-medium">
-                              {job.experience}
-                            </span>
-                          </div>
-
-                          {/* Footer: Saved Date & Action Buttons */}
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-slate-500">
-                              Đã lưu: {(job as any).savedDate}
-                            </span>
-                            <div className="flex items-center gap-3">
-                              <button className="w-8 h-8 flex items-center justify-center rounded-full border border-black hover:bg-slate-200 transition-colors">
-                                <Heart className="w-4 h-4 text-black fill-black" />
-                              </button>
-                              <span className="text-xs text-slate-700 font-medium">Cập nhật 12 phút trước</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
-                  );
-                })}
-              </div>
+            <div className="space-y-4">
+              {savedJobs.map((job) => (
+                <JobCard 
+                  key={job.id} 
+                  job={job} 
+                  variant="list" 
+                  onSaveToggle={fetchSavedJobs}
+                />
+              ))}
             </div>
 
-            {/* Similar Jobs Section */}
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900 mb-6">
-                Việc làm tương tự việc bạn đã lưu
-              </h2>
-              
-              <div className="space-y-4">
-                {getRelatedJobsForMultipleJobs(savedJobs, jobs).map((job) => {
-                  const company = getCompanyById(job.companyId);
-                  const firstLocation = job.locationIds[0] ? getLocationById(job.locationIds[0]) : null;
-                  
-                  return (
-                    <Card key={job.id} className="border-2 border-slate-200 hover:border-black p-3 hover:shadow-xl transition-all bg-white">
-                      <div className="flex gap-3">
-                        {/* Company Logo */}
-                        <div className="flex-shrink-0">
-                          <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center border-2 border-black flex-shrink-0">
-                            <div className="w-12 h-12 bg-gradient-to-br from-orange-400 to-orange-600 rounded-lg"></div>
-                          </div>
-                        </div>
-
-                        {/* Job Details */}
-                        <div className="flex-1">
-                          {/* Header: Title & Salary */}
-                          <div className="flex items-start justify-between gap-3 mb-1">
-                            <div className="flex-1">
-                              <h3 className="text-sm font-bold text-slate-900 mb-0.5 flex items-center">
-                                {job.title}
-                                <CheckCircle className="w-3.5 h-3.5 text-black ml-1.5 flex-shrink-0" />
-                              </h3>
-                            </div>
-                            <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-900 font-bold text-xs rounded flex-shrink-0 whitespace-nowrap">
-                              {job.salary}
-                            </span>
-                          </div>
-
-                          {/* Company with checkmark */}
-                          <div className="mb-2">
-                            <p className="text-xs text-slate-600 font-medium flex items-center">
-                              {company?.name}
-                              <CheckCircle className="w-3 h-3 text-black ml-1 flex-shrink-0" />
-                            </p>
-                          </div>
-
-                          {/* Location & Experience */}
-                          <div className="flex items-center gap-4 mb-3 pb-2">
-                            <span className="text-xs text-slate-700 font-medium">
-                              {firstLocation?.name || 'Chưa xác định'}
-                            </span>
-                            <span className="text-xs text-slate-700 font-medium">
-                              {job.experience}
-                            </span>
-                          </div>
-
-                          {/* Footer: Action Buttons */}
-                          <div className="flex items-center justify-end">
-                            <div className="flex items-center gap-2">
-                              <button className="w-7 h-7 flex items-center justify-center rounded-full border border-black hover:bg-slate-200 transition-colors">
-                                <Heart className="w-3.5 h-3.5 text-black" />
-                              </button>
-                              <span className="text-xs text-slate-700 font-medium">Cập nhật 12 phút trước</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
-                  );
-                })}
+            {totalPages > 1 && (
+              <div className="mt-10 flex justify-center">
+                <NumberedPagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={handlePageChange}
+                />
               </div>
-            </div>
+            )}
           </>
         )}
       </div>

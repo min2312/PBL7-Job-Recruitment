@@ -54,7 +54,6 @@ export default function EmployerJobCreate() {
       companyId: 1,
       createdAt: new Date().toLocaleDateString('vi-VN'),
     };
-    console.log('New Job:', newJob);
     // TODO: Call API to create job
     navigate(`/employer/jobs`);
   };

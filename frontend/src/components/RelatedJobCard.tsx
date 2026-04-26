@@ -1,9 +1,11 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Job, getCompanyById, getLocationById } from '@/data/mockData';
+import { Job } from '@/data/mockData';
 import { MapPin, Heart, CheckCircle } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import axiosClient from '@/services/axiosClient';
+import { toast } from 'react-toastify';
 
 interface RelatedJobCardProps {
   job: Job;
@@ -12,8 +14,8 @@ interface RelatedJobCardProps {
 }
 
 export default function RelatedJobCard({ job, onMouseEnter, onMouseLeave }: RelatedJobCardProps) {
-  const company = getCompanyById(job.companyId);
-  const firstLocation = job.locationIds[0] ? getLocationById(job.locationIds[0]) : null;
+  const company = (job as any).Company;
+  const firstLocation = (job as any).locations?.[0];
   const [isSaved, setIsSaved] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
@@ -21,28 +23,8 @@ export default function RelatedJobCard({ job, onMouseEnter, onMouseLeave }: Rela
 
   // Check if job is saved on component mount
   useEffect(() => {
-    if (user?.id) {
-      checkJobSaved();
-    }
-  }, [job.id, user?.id]);
-
-  const checkJobSaved = async () => {
-    try {
-      const response = await fetch(`/api/jobs/check-saved?jobId=${job.id}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include'
-      });
-      const data = await response.json();
-      if (data.errCode === 0) {
-        setIsSaved(data.isSaved);
-      }
-    } catch (error) {
-      console.error('Error checking saved status:', error);
-    }
-  };
+    setIsSaved(job.isSaved || false);
+  }, [job.isSaved]);
 
   const handleSaveJob = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
@@ -55,23 +37,20 @@ export default function RelatedJobCard({ job, onMouseEnter, onMouseLeave }: Rela
 
     setIsLoading(true);
     try {
-      const endpoint = isSaved ? '/api/jobs/unsave' : '/api/jobs/save';
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ jobId: job.id }),
-        credentials: 'include'
+      const response = await axiosClient.post('/api/jobs/save', {
+        userId: user.id,
+        jobId: job.id,
       });
-      const data = await response.json();
-      
+      const data = response.data;
+
       if (data.errCode === 0) {
         setIsSaved(!isSaved);
+        toast.success(isSaved ? 'Job removed from saved list' : 'Job saved successfully');
       } else {
-        console.error('Error saving job:', data.errMessage);
+        toast.error('Error saving job: ' + data.errMessage);
       }
     } catch (error) {
+      toast.error('An error occurred while saving the job.');
       console.error('Error:', error);
     } finally {
       setIsLoading(false);
@@ -100,7 +79,18 @@ export default function RelatedJobCard({ job, onMouseEnter, onMouseLeave }: Rela
       <div className="flex gap-3">
         {/* Logo - Left */}
         <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center flex-shrink-0 border-2 border-black overflow-hidden">
-          <div className="w-12 h-12 bg-gradient-to-br from-slate-300 to-slate-400 rounded"></div>
+          {company?.logo ? (
+            <img 
+              src={company.logo} 
+              alt={company.name} 
+              className="w-full h-full object-contain p-1"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = 'https://via.placeholder.com/64?text=Logo';
+              }}
+            />
+          ) : (
+            <div className="w-12 h-12 bg-gradient-to-br from-slate-300 to-slate-400 rounded"></div>
+          )}
         </div>
 
         {/* Content - Middle */}

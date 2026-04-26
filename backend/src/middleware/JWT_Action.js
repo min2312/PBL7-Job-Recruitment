@@ -8,6 +8,18 @@ const nonSecurePaths = [
 	"/api/refresh-token",
 	"/api/admin/login",
 	"/api/admin/refresh-token",
+	//JOB
+	"/api/jobs/random",
+	"/api/jobs/:id",
+	"/api/jobs/company/:id",	
+	"/api/jobs/search",
+	//COMPANY
+	"/api/companies",
+	//LOCATION
+	"/api/locations",
+	//CATEGORY
+	"/api/categories",
+	//OTHER
 	"/api/createTime",
 	"/payment",
 	"/payment/ZaloPay",
@@ -20,6 +32,15 @@ const nonSecurePaths = [
 	"/api/reset-otp/send",
 	"/api/reset-otp/verify",
 	"/api/reset-password",
+	//NEO4J	
+	"/api/neo4j/heatmap",
+	"/api/neo4j/competition",
+	"/api/neo4j/market-demand",
+	"/api/neo4j/hiring-criteria",
+	"/api/neo4j/salary-trend",
+	"/api/neo4j/salary-by-industry",
+	"/api/neo4j/categories-paginated",
+	"/api/neo4j/market-summary",
 ];
 
 const createSignedToken = (payload, secretKey, expiresIn) => {
@@ -79,7 +100,22 @@ const checkUserJWT = (req, res, next) => {
 	const isNgrokRequest =
 		req.headers["x-forwarded-host"] &&
 		req.headers["x-forwarded-host"].includes("ngrok.io");
-	if (nonSecurePaths.includes(req.path) || isNgrokRequest) {
+
+	// Support simple pattern matching for non-secure paths that contain route params like "/api/jobs/company/:id"
+	const isNonSecurePath = (path) => {
+		if (!path) return false;
+		for (const p of nonSecurePaths) {
+			if (p.includes(":")) {
+				const re = new RegExp("^" + p.replace(/:[^/]+/g, "[^/]+") + "$");
+				if (re.test(path)) return true;
+			} else if (p === path) {
+				return true;
+			}
+		}
+		return false;
+	};
+
+	if (isNonSecurePath(req.path) || isNgrokRequest) {
 		return next();
 	}
 	let cookies = req.cookies;

@@ -1,0 +1,3 @@
+# AI Assistant Rules
+
+- Luôn luôn sử dụng `axiosClient` (được import từ `@/services/axiosClient`) thay vì dùng `fetch` hoặc `axios` mặc định cho các lệnh gọi API.
