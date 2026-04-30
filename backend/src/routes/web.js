@@ -6,11 +6,12 @@ import jobController from "../controllers/jobController";
 import companyController from "../controllers/companyController";
 import locationController from "../controllers/locationController";
 import categoryController from "../controllers/categoryController";
+import applicationController from "../controllers/applicationController";
 import { checkUserJWT, CreateJWT } from "../middleware/JWT_Action";
 import checkExpiredSubscriptions from "../middleware/checkExpiredSubscriptions";
 import passport from "passport";
 // import apiController from "../controllers/apiController";
-import { uploadCloud, uploadMedia } from "../middleware/Cloudinary_Multer";
+import { uploadUserFiles, uploadApplicationFiles } from "../middleware/Cloudinary_Multer";
 // import socialController from "../controllers/socialController.js";
 import {
 	sendResetOTP,
@@ -24,6 +25,7 @@ let initWebRoutes = (app) => {
 	router.all("*", checkUserJWT);
 	// router.all("*", checkExpiredSubscriptions); // Chạy SAU khi đã có req.user
 	router.post("/api/login", userController.HandleLogin);
+	router.post("/api/firebase-login", userController.HandleFirebaseLogin);
 	router.post("/api/admin/login", adminController.HandleLoginAdmin);
 	router.post("/api/logout", userController.HandleLogOut);
 	router.post("/api/admin/logout", adminController.HandleLogOut);
@@ -34,13 +36,17 @@ let initWebRoutes = (app) => {
 		"/api/admin/refresh-token",
 		adminController.HandleRefreshAdminToken,
 	);
-	// router.get("/api/get-all-user", userController.HandleGetAllUser);
-	// router.put("/api/edit-user", userController.HandleEditUser);
-	// router.put(
-	// 	"/api/update-profile",
-	// 	uploadCloud.single("image"),
-	// 	userController.HandleUpdateProfile,
-	// );
+	router.get("/api/get-all-user", userController.HandleGetAllUser);
+	router.put(
+		"/api/edit-user",
+		uploadUserFiles,
+		userController.HandleEditUser
+	);
+	router.put(
+		"/api/update-profile",
+		uploadUserFiles,
+		userController.HandleEditUser
+	);
 	router.post("/api/register", userController.HandleCreateNewUser);
 
 	// router.post(
@@ -88,6 +94,18 @@ let initWebRoutes = (app) => {
 	router.get("/api/jobs/company/:id", jobController.getJobByCompanyId);
 	router.get("/api/jobs/:id", jobController.getJobById);
 	router.post("/api/jobs/save", jobController.saveOrUnsaveJob);
+	router.post(
+		"/api/jobs/create",
+		jobController.HandleCreateJob
+	);
+	router.get("/api/employer/jobs", jobController.HandleGetEmployerJobs);
+	router.post(
+		"/api/jobs/apply",
+		uploadApplicationFiles,
+		applicationController.HandleApplyJob
+	);
+	router.get("/api/my-applications", applicationController.HandleGetMyApplications);
+	router.get("/api/employer/applications", applicationController.HandleGetEmployerApplications);
 	// CATEGORY
 	router.get("/api/categories", categoryController.getAllCategories);
 	// LOCATION
@@ -132,6 +150,10 @@ let initWebRoutes = (app) => {
 	router.post(
 		"/api/neo4j/sync-all",
 		syncToNeo4jController.HandleSyncAllToNeo4j,
+	);
+	router.post(
+		"/api/neo4j/sync-new",
+		syncToNeo4jController.HandleSyncRecentToNeo4j,
 	);
 
 	// router.get(

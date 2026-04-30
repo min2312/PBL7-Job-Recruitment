@@ -2,40 +2,57 @@ const cloudinary = require("cloudinary").v2;
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
 const multer = require("multer");
 require("dotenv").config();
+
+// Configure Cloudinary
 cloudinary.config({
 	cloud_name: process.env.CLOUDINARY_NAME,
 	api_key: process.env.CLOUDINARY_KEY,
 	api_secret: process.env.CLOUDINARY_SECRET,
 });
 
-const storage = new CloudinaryStorage({
+// Storage for Cloudinary (Images)
+const imageStorage = new CloudinaryStorage({
 	cloudinary,
 	params: async (req, file) => {
-		const isVideo = (file.mimetype || "").startsWith("video/");
-		const allowedFormats = isVideo
-			? ["mp4", "webm", "mov"]
-			: ["jpg", "png", "jpeg", "webp", "jfif"];
 		return {
-			folder: "SocialMedia",
-			resource_type: isVideo ? "video" : "image",
-			allowed_formats: allowedFormats,
+			folder: "Job-Recruitment",
+			resource_type: "image",
+			allowed_formats: ["jpg", "png", "jpeg", "webp"],
 		};
 	},
 });
 
-// Default uploader (images and small files)
-const uploadCloud = multer({
-	storage,
-	limits: { fileSize: 10 * 1024 * 1024 },
-}); // 10MB per file
+// Multer instances
+const uploadImage = multer({ storage: imageStorage });
 
-// Media uploader (supports larger video files)
-const uploadMedia = multer({
-	storage,
-	limits: { fileSize: 500 * 1024 * 1024 }, // up to ~500MB for videos
+// Generic Memory Storage for files that need custom processing (like Azure)
+const memoryStorage = multer.memoryStorage();
+const uploadMemory = multer({ 
+    storage: memoryStorage,
+    limits: { fileSize: 20 * 1024 * 1024 } // 20MB limit for CVs
 });
 
+// Combined middleware for User Profile (Photo + CV)
+// This will parse the multipart form. Fields: 'profilePicture' and 'cv_file'
+const uploadUserFiles = uploadMemory.fields([
+    { name: 'profilePicture', maxCount: 1 },
+    { name: 'cv_file', maxCount: 1 }
+]);
+
+// Combined middleware for Company (Logo)
+const uploadCompanyFiles = uploadMemory.fields([
+    { name: 'logo', maxCount: 1 }
+]);
+
+// Middleware for Application (CV)
+const uploadApplicationFiles = uploadMemory.fields([
+    { name: 'cv_file', maxCount: 1 }
+]);
+
 module.exports = {
-	uploadCloud,
-	uploadMedia,
+	cloudinary,
+    uploadUserFiles,
+    uploadCompanyFiles,
+    uploadApplicationFiles,
+    uploadImage, // backward compatibility if needed
 };

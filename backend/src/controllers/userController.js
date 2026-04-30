@@ -45,6 +45,38 @@ let HandleLogin = async (req, res) => {
 	});
 };
 
+let HandleFirebaseLogin = async (req, res) => {
+	let idToken = req.body.idToken;
+	if (!idToken) {
+		return res.status(400).json({
+			errcode: 1,
+			message: "Missing idToken parameter!",
+		});
+	}
+
+	let userdata = await userService.HandleFirebaseLogin(idToken);
+	if (
+		userdata &&
+		userdata.DT &&
+		userdata.DT.access_token &&
+		userdata.DT.refresh_token
+	) {
+		clearAuthCookies(res, "admin");
+		setAuthCookies(
+			res,
+			"user",
+			userdata.DT.access_token,
+			userdata.DT.refresh_token,
+		);
+	}
+	return res.status(200).json({
+		errcode: userdata.errCode,
+		message: userdata.errMessage,
+		user: userdata.user ? userdata.user : {},
+		DT: userdata.DT,
+	});
+};
+
 let HandleGetAllUser = async (req, res) => {
 	let id = req.query.id;
 	if (!id) {
@@ -67,7 +99,8 @@ let HandleCreateNewUser = async (req, res) => {
 };
 let HandleEditUser = async (req, res) => {
 	let data = req.body;
-	let message = await userService.updateUser(data);
+	let files = req.files; // From multer fields
+	let message = await userService.updateUser(data, files);
 	if (message && message.DT && message.DT.access_token) {
 		setAccessCookie(res, "user", message.DT.access_token);
 	}
@@ -150,6 +183,9 @@ const getUserAccount = async (req, res) => {
 			email: req.user.email,
 			name: req.user.name,
 			role: req.user.role,
+			description: req.user.description,
+			cv_file: req.user.cv_file,
+			company: req.user.company,
 			bio: req.user.bio,
 			isPremium: req.user.isPremium,
 			profilePicture: req.user.profilePicture,
@@ -241,6 +277,7 @@ let HandleDeleteUser = async (req, res) => {
 
 module.exports = {
 	HandleLogin: HandleLogin,
+	HandleFirebaseLogin: HandleFirebaseLogin,
 	HandleGetAllUser: HandleGetAllUser,
 	HandleCreateNewUser: HandleCreateNewUser,
 	HandleEditUser: HandleEditUser,

@@ -40,6 +40,11 @@ module.exports = (sequelize, DataTypes) => {
 			education: { type: DataTypes.STRING, allowNull: true },
 			gender: { type: DataTypes.STRING, allowNull: true },
 			age: { type: DataTypes.STRING, allowNull: true },
+			jobUrl: {
+				type: DataTypes.STRING,
+				allowNull: true,
+				field: "job_url",
+			},
 			employmentType: {
 				type: DataTypes.STRING,
 				allowNull: true,
@@ -60,6 +65,11 @@ module.exports = (sequelize, DataTypes) => {
 				type: DataTypes.TEXT,
 				allowNull: true,
 				field: "work_time",
+			},
+			status: {
+				type: DataTypes.ENUM("open", "closed"),
+				allowNull: false,
+				defaultValue: "open",
 			},
 		},
 		{

@@ -221,25 +221,25 @@ export default function CompanyDetailPage() {
                 {/* Key Info Grid */}
                 <div className="flex items-center gap-8 flex-wrap">
                   {/* Website */}
-                  {company.website && (
+                  {company.website_url && (
                     <div className="flex items-center gap-2">
                       <Globe className="w-5 h-5 text-white" />
                       <a
-                        href={company.website}
+                        href={company.website_url}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-sm text-white hover:underline font-medium"
                       >
-                        {company.website.replace('https://', '').replace('http://', '')}
+                        {company.website_url.replace('https://', '').replace('http://', '')}
                       </a>
                     </div>
                   )}
 
                   {/* Employees */}
-                  {company.employees && (
+                  {company.company_scale && (
                     <div className="flex items-center gap-2">
                       <Briefcase className="w-5 h-5 text-white" />
-                      <span className="text-sm text-white font-medium">{company.employees}</span>
+                      <span className="text-sm text-white font-medium">{company.company_scale}</span>
                     </div>
                   )}
 
@@ -477,13 +477,13 @@ export default function CompanyDetailPage() {
               </div>
               <div className="bg-slate-50 rounded-b-lg p-6 border border-slate-200">
                 {/* Địa chỉ công ty */}
-                {company.address && (
+                {company.company_address && (
                   <div className="mb-6">
                     <div className="flex items-start gap-3 mb-4">
                       <MapPin className="w-5 h-5 text-teal-600 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0">
                         <p className="text-xs text-slate-500 font-semibold mb-1">Địa chỉ công ty</p>
-                        <p className="text-sm text-slate-700">{company.address}</p>
+                        <p className="text-sm text-slate-700">{company.company_address}</p>
                       </div>
                     </div>
                   </div>
@@ -494,11 +494,26 @@ export default function CompanyDetailPage() {
                   <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
                     🗺️ Xem bản đồ
                   </h4>
-                  <div className="w-full h-48 bg-slate-200 rounded-lg flex items-center justify-center border border-slate-300">
-                    <span className="text-slate-500">Bản đồ công ty</span>
+                  <div className="w-full h-64 bg-slate-200 rounded-lg overflow-hidden border border-slate-300 shadow-inner">
+                    {company.company_address ? (
+                      <iframe
+                        width="100%"
+                        height="100%"
+                        frameBorder="0"
+                        style={{ border: 0 }}
+                        src={`https://www.google.com/maps?q=${encodeURIComponent(company.company_address)}&output=embed`}
+                        allowFullScreen
+                        title="Company Location"
+                        loading="lazy"
+                      ></iframe>
+                    ) : (
+                      <div className="flex items-center justify-center h-full">
+                        <span className="text-slate-500 italic">Địa chỉ đang được cập nhật...</span>
+                      </div>
+                    )}
                   </div>
                   <a
-                    href={`https://maps.google.com/?q=${encodeURIComponent(company.address || '')}`}
+                    href={`https://maps.google.com/?q=${encodeURIComponent(company.company_address || '')}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-teal-600 font-semibold text-sm mt-2 inline-block hover:underline"

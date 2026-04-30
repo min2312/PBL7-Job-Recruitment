@@ -350,7 +350,7 @@ export default function CandidateDashboard() {
 
       <Routes>
         <Route index element={<CandidateJobsList />} />
-        <Route path="profile" element={<CandidateProfile embedded />} />
+        <Route path="profile" element={<CandidateProfile/>} />
       </Routes>
     </div>
   );

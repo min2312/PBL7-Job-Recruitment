@@ -10,6 +10,7 @@ module.exports = (sequelize, DataTypes) => {
 				otherKey: "jobId",
 				as: "saved_jobs",
 			});
+			User.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
 		}
 	}
 
@@ -17,6 +18,10 @@ module.exports = (sequelize, DataTypes) => {
 		{
 			email: { type: DataTypes.STRING, unique: true, allowNull: false },
 			password: { type: DataTypes.STRING, allowNull: false },
+			companyId: { type: DataTypes.INTEGER, allowNull: true },
+			profilePicture: { type: DataTypes.STRING, allowNull: true },
+			description: { type: DataTypes.TEXT, allowNull: true },
+			cv_file: { type: DataTypes.STRING, allowNull: true },
 			role: {
 				type: DataTypes.ENUM("CANDIDATE", "EMPLOYER"),
 				allowNull: false,

@@ -1,6 +1,8 @@
 import axios from 'axios';
 
 import { User } from '@/data/mockData';
+import { auth, googleProvider } from '../config/firebase';
+import { signInWithPopup } from 'firebase/auth';
 
 export type AuthScope = 'user' | 'admin';
 
@@ -84,6 +86,25 @@ export async function loginWithScope(scope: AuthScope, credentials: { email: str
   const responseCode = responseData.errCode ?? responseData.errcode ?? 0;
   if (responseCode !== 0) {
     const error = new Error(responseData.message || responseData.errMessage || 'Đăng nhập thất bại') as Error & {
+      response?: typeof response;
+    };
+    error.response = response;
+    throw error;
+  }
+
+  return normalizeAuthUser(extractAuthPayload(responseData));
+}
+
+export async function loginWithFirebase() {
+  const result = await signInWithPopup(auth, googleProvider);
+  const idToken = await result.user.getIdToken();
+  
+  const response = await authHttpClient.post('/api/firebase-login', { idToken });
+  const responseData = response.data as AuthResponseRecord;
+  const responseCode = responseData.errCode ?? responseData.errcode ?? 0;
+  
+  if (responseCode !== 0) {
+    const error = new Error(responseData.message || responseData.errMessage || 'Đăng nhập Google thất bại') as Error & {
       response?: typeof response;
     };
     error.response = response;

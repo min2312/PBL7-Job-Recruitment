@@ -341,12 +341,19 @@ const normalizeExperienceYears = (experience) => {
 	return 0;
 };
 
-export const buildTrainingDataset = async () => {
+export const buildTrainingDataset = async (days = null) => {
 	const session = await getSession();
 	try {
+		let whereClause = "WHERE j.salary_min IS NOT NULL AND j.salary_max IS NOT NULL";
+		const params = {};
+		if (days) {
+			whereClause += " AND j.createdAt >= datetime() - duration({days: $days})";
+			params.days = neo4j.int(days);
+		}
+
 		const salaryAgg = await session.run(`
       MATCH (j:Job)-[:BELONGS_TO]->(cat:Category), (j)-[:LOCATED_IN]->(loc:Location)
-      WHERE j.salary_min IS NOT NULL AND j.salary_max IS NOT NULL
+      ${whereClause}
       WITH cat.name AS category, loc.name AS location,
            coalesce(j.level,'Nhân viên') AS level,
            coalesce(j.education,'Không rõ') AS education,
@@ -356,7 +363,7 @@ export const buildTrainingDataset = async () => {
            count(*) AS jobsCount
       RETURN category, location, level, education, experience, avgMin, avgMax, (avgMin + avgMax) / 2 AS target_salary, jobsCount
       ORDER BY category, location, level, education, experience
-    `);
+    `, params);
 
 		const competitionRows = await session.run(`
       MATCH (u:User)-[:APPLIED_FOR]->(j:Job)-[:BELONGS_TO]->(cat:Category)

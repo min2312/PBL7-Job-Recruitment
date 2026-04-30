@@ -30,10 +30,14 @@ EDU_MAPPING = {
     'Đại Học trở lên': 5
 }
 
-def fetch_data():
-    print(f"1. Đang gọi API lấy dữ liệu...")
+def fetch_data(days=None):
+    url = API_URL
+    if days:
+        url = f"{API_URL}?days={days}"
+    
+    print(f"1. Đang gọi API lấy dữ liệu ({'Tất cả' if not days else f'Mới trong {days} ngày'})...")
     try:
-        response = requests.get(API_URL)
+        response = requests.get(url)
         response.raise_for_status()
         json_data = response.json()
         if json_data['errCode'] == 0:
@@ -46,9 +50,9 @@ def fetch_data():
         with open('dataset.json', 'r', encoding='utf-8') as f:
             return pd.DataFrame(json.load(f)['data'])
 
-def train_pipeline():
+def train_pipeline(days=None):
     os.makedirs(MODEL_DIR, exist_ok=True)
-    df = fetch_data()
+    df = fetch_data(days)
     print(f"-> Đã tải thành công {len(df)} dòng dữ liệu.")
 
     # Ép kiểu chữ thành số điểm (Score) ngay từ đầu để dễ bề dọn rác
@@ -57,19 +61,14 @@ def train_pipeline():
 
     # ==========================================
     # BƯỚC 1: DỌN RÁC (RUTHLESS CLEANING)
-    # Đây là cách làm Pure ML chuẩn: Sạch data trước khi học!
     # ==========================================
     df['target_salary'] = df['target_salary'].replace([0, None], np.nan)
     
-    # Ép NaN cho những tin tuyển dụng ngáo giá (Intern > 6tr, Không exp > 12tr)
     df.loc[(df['level_score'] == 1) & (df['target_salary'] > 6), 'target_salary'] = np.nan
     df.loc[(df['experience_years'] == 0) & (df['target_salary'] > 12), 'target_salary'] = np.nan
 
-    # Nội suy (Imputation) bằng mức trần thực tế (Domain Knowledge Fallback)
-    # Thay vì lấp bằng trung bình 15tr của thị trường, ta ép mốc thực tế để AI học
     fallback_medians = {1: 3.5, 2: 12.0, 3: 18.0, 4: 25.0, 5: 35.0, 6: 50.0, 7: 80.0}
     
-    # Lấp data: Đầu tiên thử lấp bằng Median của cấp bậc đó trong Data. Nếu Data bị nhiễu (NaN), lấy mốc thực tế đắp vào.
     level_medians = df.groupby('level_score')['target_salary'].median()
     df['target_salary'] = df.apply(
         lambda row: (level_medians.get(row['level_score']) 
@@ -84,7 +83,7 @@ def train_pipeline():
 
     features = ['category', 'location', 'level_score', 'edu_score', 'experience_years', 'market_demand', 'exp_demand_power']
     X = df[features].copy()
-    y = np.log1p(df['target_salary']) # Dùng Log để AI không bị sốc số lớn
+    y = np.log1p(df['target_salary'])
 
     categorical_cols = ['category', 'location']
     for col in categorical_cols:
@@ -96,20 +95,25 @@ def train_pipeline():
 
     X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    # BƯỚC 3: HUẤN LUYỆN VỚI KHIÊN BẢO VỆ CỰC MẠNH
-    # Ràng buộc đơn điệu: Cấp bậc tăng, Kinh nghiệm tăng -> Lương BẮT BUỘC TĂNG
+    # BƯỚC 3: HUẤN LUYỆN TĂNG CƯỜNG (INCREMENTAL)
     monotone_constraints = {'level_score': 1, 'experience_years': 1, 'edu_score': 1}
+    
+    model_path = os.path.join(MODEL_DIR, 'salary_predictor.pkl')
+    existing_model = None
+    if os.path.exists(model_path):
+        print(f"-> Tìm thấy mô hình cũ, sẽ huấn luyện tiếp (Incremental Training)...")
+        existing_model = joblib.load(model_path)
 
     print("2. Đang huấn luyện mô hình XGBoost...")
     model = xgb.XGBRegressor(
-        n_estimators=1000,
-        learning_rate=0.03,        # Hạ tốc độ học
-        max_depth=4,               # Cắt rễ nông để cấm học vẹt
-        min_child_weight=5,        # Bắt buộc quy luật phải lặp lại 5 lần mới học
+        n_estimators=500,
+        learning_rate=0.01,
+        max_depth=4,
+        min_child_weight=5,
         subsample=0.8,
         colsample_bytree=0.8,
-        reg_alpha=2.0,             # Tăng khiên L1 mạnh lên để khử nhiễu
-        reg_lambda=5.0,            # Tăng khiên L2 mạnh lên để 2 đường ôm sát nhau
+        reg_alpha=2.0,
+        reg_lambda=5.0,
         monotone_constraints=monotone_constraints,
         enable_categorical=True,
         eval_metric='rmse',
@@ -117,7 +121,8 @@ def train_pipeline():
     )
 
     eval_set = [(X_train, y_train), (X_val, y_val)]
-    model.fit(X_train, y_train, eval_set=eval_set, verbose=False)
+    model.fit(X_train, y_train, eval_set=eval_set, verbose=False, 
+              xgb_model=existing_model.get_booster() if existing_model else None)
 
     # ĐÁNH GIÁ
     y_pred_vnd = np.expm1(model.predict(X_val))
@@ -130,26 +135,29 @@ def train_pipeline():
     print(f"R2 Score: {r2:.2f}")
 
     # XUẤT BIỂU ĐỒ
-    print("\n3. Đang xuất biểu đồ...")
     results = model.evals_result()
-    epochs = len(results['validation_0']['rmse'])
-    x_axis = range(0, epochs)
-    
-    plt.figure(figsize=(10, 5))
-    plt.plot(x_axis, results['validation_0']['rmse'], label='Train Loss (Log)')
-    plt.plot(x_axis, results['validation_1']['rmse'], label='Validation Loss (Log)')
-    plt.legend()
-    plt.ylabel('RMSE Loss (Log VNĐ)')
-    plt.xlabel('Epochs')
-    plt.title('Đường cong học tập (Đã Fix Data)')
-    
-    plot_path = os.path.join(MODEL_DIR, 'loss_chart.png')
-    plt.savefig(plot_path)
-    print(f"-> Đã lưu biểu đồ tại '{plot_path}'")
+    if 'validation_0' in results:
+        epochs = len(results['validation_0']['rmse'])
+        x_axis = range(0, epochs)
+        plt.figure(figsize=(10, 5))
+        plt.plot(x_axis, results['validation_0']['rmse'], label='Train Loss')
+        plt.plot(x_axis, results['validation_1']['rmse'], label='Val Loss')
+        plt.legend()
+        plt.title('Training Progress')
+        plt.savefig(os.path.join(MODEL_DIR, 'loss_chart.png'))
 
-    model_path = os.path.join(MODEL_DIR, 'salary_predictor.pkl')
     joblib.dump(model, model_path)
-    print(f"-> Đã xuất mô hình. Xong!")
+    print(f"-> Đã xuất mô hình mới. Xong!")
 
 if __name__ == "__main__":
-    train_pipeline()
+    import sys
+    days_arg = None
+    if len(sys.argv) > 1:
+        try: days_arg = int(sys.argv[1])
+        except: pass
+    
+    model_path = os.path.join(MODEL_DIR, 'salary_predictor.pkl')
+    if os.path.exists(model_path) and days_arg is None:
+        days_arg = 1 # Mặc định lấy data ngày qua để update nếu đã có model
+        
+    train_pipeline(days=days_arg)
