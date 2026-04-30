@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,15 +14,21 @@ export default function EmployerSettings() {
   const { user } = useAuth();
   const company = user?.companyId ? getCompanyById(user.companyId) : null;
 
+  // Scroll to top on mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-heading font-bold text-foreground tracking-tight">Cài đặt</h2>
         <p className="text-sm text-muted-foreground mt-0.5">Quản lý thông tin công ty và tài khoản</p>
       </div>
 
-      {/* Company Profile */}
-      <Card>
+      <div className="space-y-6 max-w-3xl mx-auto">
+        {/* Company Profile */}
+        <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
             <Building2 className="w-5 h-5 text-primary" />
@@ -116,6 +123,7 @@ export default function EmployerSettings() {
           ))}
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

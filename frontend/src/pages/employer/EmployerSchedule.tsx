@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -245,15 +246,26 @@ interface CreateDialogProps {
   onClose: () => void;
   onAdd: (interview: Interview) => void;
   availableCandidates: { userId: number; userName: string; jobTitle: string; jobId: number }[];
+  preFilledCandidate?: { candidateId: number; candidateName: string; jobTitle: string } | null;
 }
 
-function CreateDialog({ open, onClose, onAdd, availableCandidates }: CreateDialogProps) {
+function CreateDialog({ open, onClose, onAdd, availableCandidates, preFilledCandidate }: CreateDialogProps) {
   const [selectedApp, setSelectedApp] = useState('');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [type, setType] = useState<'online' | 'offline'>('online');
   const [link, setLink] = useState('');
   const [location, setLocation] = useState('');
+
+  // Auto-fill if preFilledCandidate is provided
+  useEffect(() => {
+    if (preFilledCandidate && open) {
+      const matching = availableCandidates.find(c => c.userId === preFilledCandidate.candidateId);
+      if (matching) {
+        setSelectedApp(`${matching.userId}-${matching.jobId}`);
+      }
+    }
+  }, [open, preFilledCandidate, availableCandidates]);
 
   const selectedCandidate = availableCandidates.find(
     c => `${c.userId}-${c.jobId}` === selectedApp
@@ -419,12 +431,30 @@ function CreateDialog({ open, onClose, onAdd, availableCandidates }: CreateDialo
 // ---------- Main Component ----------
 export default function EmployerSchedule() {
   const { user } = useAuth();
+  const location = useLocation();
   const [interviews, setInterviews] = useState<Interview[]>(initialInterviews);
   // default undefined = show all
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [editTarget, setEditTarget] = useState<Interview | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
-  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [preFilledCandidate, setPreFilledCandidate] = useState<{ candidateId: number; candidateName: string; jobTitle: string } | null>(null);
+
+  // Scroll to top on mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  // Check if navigated with candidate data to open create dialog
+  useEffect(() => {
+    if (location.state?.openCreateDialog) {
+      setCreateOpen(true);
+      setPreFilledCandidate({
+        candidateId: location.state.candidateId,
+        candidateName: location.state.candidateName,
+        jobTitle: location.state.jobTitle,
+      });
+    }
+  }, [location.state]);
 
   // Today string YYYY-MM-DD
   const todayStr = useMemo(() => {
@@ -524,44 +554,6 @@ export default function EmployerSchedule() {
           Tạo lịch phỏng vấn
         </Button>
       </div>
-
-      {/* Today's Interview Banner */}
-      {todayInterviews.length > 0 && !bannerDismissed && (
-        <div className="relative flex items-center gap-4 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 px-5 py-3.5 shadow-sm overflow-hidden">
-          {/* Decorative glow */}
-          <div className="absolute -top-4 -right-4 w-24 h-24 rounded-full bg-amber-200/40 blur-2xl pointer-events-none" />
-
-          {/* Bell icon */}
-          <div className="w-9 h-9 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center shrink-0">
-            <Bell className="w-4 h-4 text-amber-600" />
-          </div>
-
-          {/* Content */}
-          <p className="flex-1 text-sm font-semibold text-amber-800">
-            🗓️ Hôm nay có{' '}
-            <span className="text-amber-600">{todayInterviews.length} buổi phỏng vấn</span>
-            {' '}được lên lịch
-          </p>
-
-          {/* View today button */}
-          <Button
-            variant="outline"
-            size="sm"
-            className="shrink-0 text-xs border-amber-300 text-amber-700 hover:bg-amber-100 bg-white/70 hidden sm:inline-flex"
-            onClick={() => { setDate(new Date()); setCurrentPage(1); }}
-          >
-            Xem lịch hôm nay
-          </Button>
-
-          {/* Dismiss */}
-          <button
-            className="text-amber-400 hover:text-amber-600 transition-colors shrink-0"
-            onClick={() => setBannerDismissed(true)}
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
 
       {/* Stats Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -907,6 +899,7 @@ export default function EmployerSchedule() {
         onClose={() => setCreateOpen(false)}
         onAdd={handleAdd}
         availableCandidates={availableCandidates}
+        preFilledCandidate={preFilledCandidate}
       />
     </div>
   );

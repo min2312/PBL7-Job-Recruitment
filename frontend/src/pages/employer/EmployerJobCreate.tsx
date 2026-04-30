@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -17,14 +17,24 @@ import { jobs } from '@/data/mockData';
 
 export default function EmployerJobCreate() {
   const navigate = useNavigate();
+
+  // Scroll to top on mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   const [formData, setFormData] = useState({
     title: '',
+    position: '',
     salary: '',
-    level: '',
+    gender: '',
+    age: '',
     experience: '',
     education: '',
     employmentType: '',
     quantity: '',
+    startDate: '',
+    endDate: '',
     description: '',
     requirement: '',
     benefit: '',
@@ -39,12 +49,10 @@ export default function EmployerJobCreate() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Validate form
     if (!formData.title || !formData.salary || !formData.description) {
       alert('Vui lòng điền các trường bắt buộc');
       return;
     }
-    // Create new job
     const newJob = {
       id: Math.max(...jobs.map(j => j.id)) + 1,
       ...formData,
@@ -54,7 +62,6 @@ export default function EmployerJobCreate() {
       companyId: 1,
       createdAt: new Date().toLocaleDateString('vi-VN'),
     };
-    // TODO: Call API to create job
     navigate(`/employer/jobs`);
   };
 
@@ -72,7 +79,6 @@ export default function EmployerJobCreate() {
         <span className="text-foreground font-medium">Tạo tin mới</span>
       </div>
 
-      {/* Create Job Form */}
       <Card className="rounded-xl border-border/60 shadow-sm">
         <CardHeader className="border-b border-border/60">
           <div className="flex items-center gap-2">
@@ -86,11 +92,12 @@ export default function EmployerJobCreate() {
 
         <CardContent className="pt-6">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Title & Salary Row */}
+
+            {/* 1. Tên công việc & Vị trí */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="title" className="text-sm font-medium">
-                  Chức danh <span className="text-destructive">*</span>
+                  Tên công việc <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="title"
@@ -102,6 +109,23 @@ export default function EmployerJobCreate() {
                   className="h-9"
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="position" className="text-sm font-medium">
+                  Vị trí
+                </Label>
+                <Input
+                  id="position"
+                  name="position"
+                  placeholder="VD: Frontend Developer"
+                  value={formData.position}
+                  onChange={handleChange}
+                  className="h-9"
+                />
+              </div>
+            </div>
+
+            {/* 2. Lương & Số lượng */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="salary" className="text-sm font-medium">
                   Mức lương <span className="text-destructive">*</span>
@@ -116,28 +140,60 @@ export default function EmployerJobCreate() {
                   className="h-9"
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="quantity" className="text-sm font-medium">
+                  Số lượng cần tuyển
+                </Label>
+                <Input
+                  id="quantity"
+                  name="quantity"
+                  type="number"
+                  min="1"
+                  placeholder="VD: 5"
+                  value={formData.quantity}
+                  onChange={handleChange}
+                  className="h-9"
+                />
+              </div>
             </div>
 
-            {/* Level, Experience, Education Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* 3. Giới tính & Tuổi */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="level" className="text-sm font-medium">
-                  Cấp bậc
+                <Label htmlFor="gender" className="text-sm font-medium">
+                  Giới tính
                 </Label>
-                <Select value={formData.level} onValueChange={(value) => setFormData(prev => ({ ...prev, level: value }))}>
+                <Select value={formData.gender} onValueChange={(value) => setFormData(prev => ({ ...prev, gender: value }))}>
                   <SelectTrigger className="h-9">
-                    <SelectValue placeholder="Chọn cấp bậc" />
+                    <SelectValue placeholder="Chọn giới tính" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Intern">Intern</SelectItem>
-                    <SelectItem value="Junior">Junior</SelectItem>
-                    <SelectItem value="Senior">Senior</SelectItem>
-                    <SelectItem value="Lead">Lead</SelectItem>
-                    <SelectItem value="Manager">Manager</SelectItem>
+                    <SelectItem value="Không yêu cầu">Không yêu cầu</SelectItem>
+                    <SelectItem value="Nam">Nam</SelectItem>
+                    <SelectItem value="Nữ">Nữ</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="age" className="text-sm font-medium">
+                  Tuổi
+                </Label>
+                <Input
+                  id="age"
+                  name="age"
+                  type="number"
+                  min="18"
+                  max="60"
+                  placeholder="VD: 25"
+                  value={formData.age}
+                  onChange={handleChange}
+                  className="h-9"
+                />
+              </div>
+            </div>
 
+            {/* 4. Kinh nghiệm & Học vấn & Hình thức */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="experience" className="text-sm font-medium">
                   Kinh nghiệm
@@ -173,10 +229,7 @@ export default function EmployerJobCreate() {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
 
-            {/* Employment Type & Quantity Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="employmentType" className="text-sm font-medium">
                   Hình thức làm việc
@@ -193,25 +246,39 @@ export default function EmployerJobCreate() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
 
+            {/* 5. Ngày bắt đầu & kết thúc nộp */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="quantity" className="text-sm font-medium">
-                  Số lượng cần tuyển
+                <Label htmlFor="startDate" className="text-sm font-medium">
+                  Ngày bắt đầu nhận hồ sơ
                 </Label>
                 <Input
-                  id="quantity"
-                  name="quantity"
-                  type="number"
-                  min="1"
-                  placeholder="VD: 5"
-                  value={formData.quantity}
+                  id="startDate"
+                  name="startDate"
+                  type="date"
+                  value={formData.startDate}
+                  onChange={handleChange}
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="endDate" className="text-sm font-medium">
+                  Ngày kết thúc nhận hồ sơ
+                </Label>
+                <Input
+                  id="endDate"
+                  name="endDate"
+                  type="date"
+                  value={formData.endDate}
                   onChange={handleChange}
                   className="h-9"
                 />
               </div>
             </div>
 
-            {/* Description */}
+            {/* 6. Mô tả công việc */}
             <div className="space-y-2">
               <Label htmlFor="description" className="text-sm font-medium">
                 Mô tả công việc <span className="text-destructive">*</span>
@@ -228,7 +295,7 @@ export default function EmployerJobCreate() {
               />
             </div>
 
-            {/* Requirements */}
+            {/* 7. Yêu cầu ứng viên */}
             <div className="space-y-2">
               <Label htmlFor="requirement" className="text-sm font-medium">
                 Yêu cầu ứng viên
@@ -244,7 +311,7 @@ export default function EmployerJobCreate() {
               />
             </div>
 
-            {/* Benefits */}
+            {/* 8. Quyền lợi */}
             <div className="space-y-2">
               <Label htmlFor="benefit" className="text-sm font-medium">
                 Quyền lợi
@@ -260,36 +327,36 @@ export default function EmployerJobCreate() {
               />
             </div>
 
-            {/* Work Location */}
-            <div className="space-y-2">
-              <Label htmlFor="workLocation" className="text-sm font-medium">
-                Địa điểm làm việc
-              </Label>
-              <Textarea
-                id="workLocation"
-                name="workLocation"
-                placeholder="VD: TP. Hồ Chí Minh, Quận 1"
-                value={formData.workLocation}
-                onChange={handleChange}
-                rows={2}
-                className="resize-none"
-              />
-            </div>
-
-            {/* Work Time */}
-            <div className="space-y-2">
-              <Label htmlFor="workTime" className="text-sm font-medium">
-                Thời gian làm việc
-              </Label>
-              <Textarea
-                id="workTime"
-                name="workTime"
-                placeholder="VD: Thứ 2 - Thứ 6, 8h30 - 17h30"
-                value={formData.workTime}
-                onChange={handleChange}
-                rows={2}
-                className="resize-none"
-              />
+            {/* 9. Địa điểm & Thời gian làm việc */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="workLocation" className="text-sm font-medium">
+                  Địa điểm làm việc
+                </Label>
+                <Textarea
+                  id="workLocation"
+                  name="workLocation"
+                  placeholder="VD: TP. Hồ Chí Minh, Quận 1"
+                  value={formData.workLocation}
+                  onChange={handleChange}
+                  rows={2}
+                  className="resize-none"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="workTime" className="text-sm font-medium">
+                  Thời gian làm việc
+                </Label>
+                <Textarea
+                  id="workTime"
+                  name="workTime"
+                  placeholder="VD: Thứ 2 - Thứ 6, 8h30 - 17h30"
+                  value={formData.workTime}
+                  onChange={handleChange}
+                  rows={2}
+                  className="resize-none"
+                />
+              </div>
             </div>
 
             {/* Form Actions */}

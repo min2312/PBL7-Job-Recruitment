@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { jobs, users } from '@/data/mockData';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +24,11 @@ interface Props {
 
 export default function EmployerOverview({ myJobs, myApplications }: Props) {
   const navigate = useNavigate();
+
+  // Scroll to top on mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
   
   const approvedCount = myApplications.filter(a => a.status === 'approved').length;
   const pendingCount = myApplications.filter(a => a.status === 'pending').length;

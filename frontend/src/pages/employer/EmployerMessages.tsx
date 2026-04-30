@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -41,6 +41,11 @@ const mockMessages: Message[] = [
 export default function EmployerMessages() {
   const [selectedContact, setSelectedContact] = useState(contacts[0]);
   const [newMessage, setNewMessage] = useState('');
+
+  // Scroll to top on mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   return (
     <div className="space-y-4">

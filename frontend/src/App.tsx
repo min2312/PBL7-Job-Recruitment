@@ -20,6 +20,7 @@ import CompaniesPage from "@/pages/CompaniesPage";
 import CompanyDetailPage from "@/pages/CompanyDetailPage";
 import JobSearchPage from "@/pages/JobSearchPage";
 import RegisterPage from "@/pages/RegisterPage";
+import CandidateProfile from "@/pages/CandidateProfile";
 import NotFound from "@/pages/NotFound";
 import { Bounce, ToastContainer } from "react-toastify";
 import PrivateRoutes from "./routes/PrivateRoutes";
@@ -67,6 +68,7 @@ function MainContent() {
           <Route element={<PrivateRoutes />}>
             <Route path="/saved-jobs" element={<SavedJobsPage />} />
             <Route path="/applications" element={<ApplicationsPage />} />
+            <Route path="/candidate/profile" element={<CandidateProfile />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />
