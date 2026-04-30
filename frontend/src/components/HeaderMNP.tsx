@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { usePageLoad } from '@/contexts/PageLoadContext';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Bell, ChevronDown, ArrowRight, User, LogOut } from 'lucide-react';
+import { Bell, ChevronDown, ArrowRight, User, LogOut, Mail, Briefcase, CheckCircle2 } from 'lucide-react';
 import { useState, useRef, useEffect, memo } from 'react';
 import {
   DropdownMenu,
@@ -21,6 +21,7 @@ export default memo(function HeaderMNP() {
   const [companyMenuOpen, setCompanyMenuOpen] = useState(false);
   const [careerMenuOpen, setCareerMenuOpen] = useState(false);
   const [toolMenuOpen, setToolMenuOpen] = useState(false);
+  const [notificationOpen, setNotificationOpen] = useState(false);
   const closeJobMenuTimeoutRef = useRef<NodeJS.Timeout>();
   const closeCompanyMenuTimeoutRef = useRef<NodeJS.Timeout>();
   const closeCareerMenuTimeoutRef = useRef<NodeJS.Timeout>();
@@ -29,6 +30,7 @@ export default memo(function HeaderMNP() {
   const companyBtnRef = useRef<HTMLDivElement>(null);
   const careerBtnRef = useRef<HTMLDivElement>(null);
   const toolBtnRef = useRef<HTMLDivElement>(null);
+  const notificationRef = useRef<HTMLDivElement>(null);
   
   // Close all dropdowns when location changes
   useEffect(() => {
@@ -36,7 +38,22 @@ export default memo(function HeaderMNP() {
     setCompanyMenuOpen(false);
     setCareerMenuOpen(false);
     setToolMenuOpen(false);
+    setNotificationOpen(false);
   }, [location.pathname]);
+
+  // Close notification when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
+        setNotificationOpen(false);
+      }
+    };
+
+    if (notificationOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [notificationOpen]);
 
   const handleJobMenuEnter = () => {
     if (closeJobMenuTimeoutRef.current) clearTimeout(closeJobMenuTimeoutRef.current);
@@ -339,10 +356,134 @@ export default memo(function HeaderMNP() {
         </div>
 
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-          </Button>
+          {/* Notification Bell */}
+          <div className="relative" ref={notificationRef}>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="relative hover:bg-muted"
+              onClick={() => {
+                setNotificationOpen(!notificationOpen);
+                setJobMenuOpen(false);
+                setCompanyMenuOpen(false);
+                setCareerMenuOpen(false);
+                setToolMenuOpen(false);
+              }}
+            >
+              <Bell className="w-5 h-5" />
+              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+            </Button>
+            
+            {/* Notification Dropdown */}
+            {notificationOpen && (
+              <div className="absolute right-0 top-full mt-3 w-80 bg-white border border-slate-200 shadow-xl rounded-xl z-50 overflow-hidden">
+                {/* Header */}
+                <div className="bg-gradient-to-r from-slate-50 to-slate-100 px-5 py-3 border-b border-slate-200">
+                  <h3 className="font-semibold text-sm text-foreground">Thông báo</h3>
+                </div>
+                
+                {/* Notifications List */}
+                <div className="max-h-96 overflow-y-auto">
+                  {user?.role === 'EMPLOYER' ? (
+                    <>
+                      {/* Today's interviews notification */}
+                      <div className="px-5 py-3 border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer group">
+                        <div className="flex items-start gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0 mt-0.5">
+                            <Bell className="w-4 h-4 text-amber-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground">Lịch phỏng vấn hôm nay</p>
+                            <p className="text-xs text-muted-foreground mt-1">Bạn có 2 buổi phỏng vấn được lên lịch hôm nay</p>
+                            <p className="text-xs text-muted-foreground mt-1">09:00 - 10:30, 14:00 - 15:30</p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* New application notification */}
+                      <div className="px-5 py-3 border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer group">
+                        <div className="flex items-start gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0 mt-0.5">
+                            <User className="w-4 h-4 text-blue-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground">Ứng viên mới ứng tuyển</p>
+                            <p className="text-xs text-muted-foreground mt-1">Nguyễn Văn A vừa ứng tuyển vị trí Frontend Developer</p>
+                            <p className="text-xs text-muted-foreground mt-1">5 phút trước</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Profile update notification */}
+                      <div className="px-5 py-3 hover:bg-slate-50 transition-colors cursor-pointer group">
+                        <div className="flex items-start gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center shrink-0 mt-0.5">
+                            <CheckCircle2 className="w-4 h-4 text-green-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground">Hồ sơ công ty</p>
+                            <p className="text-xs text-muted-foreground mt-1">Gợi ý: Cập nhật ảnh bìa công ty để thu hút ứng viên</p>
+                            <p className="text-xs text-muted-foreground mt-1">1 ngày trước</p>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {/* Application status notification */}
+                      <div className="px-5 py-3 border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer group">
+                        <div className="flex items-start gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0 mt-0.5">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground">Phỏng vấn được xác nhận</p>
+                            <p className="text-xs text-muted-foreground mt-1">Vị trí Frontend Developer - TechCorp</p>
+                            <p className="text-xs text-muted-foreground mt-1">Hôm nay lúc 14:00</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Job recommendation notification */}
+                      <div className="px-5 py-3 border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer group">
+                        <div className="flex items-start gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center shrink-0 mt-0.5">
+                            <Briefcase className="w-4 h-4 text-violet-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground">Việc làm phù hợp</p>
+                            <p className="text-xs text-muted-foreground mt-1">3 việc làm mới phù hợp với hồ sơ của bạn</p>
+                            <p className="text-xs text-muted-foreground mt-1">2 giờ trước</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Message notification */}
+                      <div className="px-5 py-3 hover:bg-slate-50 transition-colors cursor-pointer group">
+                        <div className="flex items-start gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-pink-100 flex items-center justify-center shrink-0 mt-0.5">
+                            <Mail className="w-4 h-4 text-pink-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground">Tin nhắn từ nhà tuyển dụng</p>
+                            <p className="text-xs text-muted-foreground mt-1">TechCorp: Chúng tôi rất quan tâm đến hồ sơ của bạn...</p>
+                            <p className="text-xs text-muted-foreground mt-1">3 giờ trước</p>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+                
+                {/* Footer */}
+                <div className="border-t border-slate-200 px-5 py-3 bg-slate-50 text-center">
+                  <button className="text-sm font-medium text-primary hover:text-primary/80 transition-colors">
+                    Xem tất cả thông báo
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
 
           {user ? (
             <DropdownMenu modal={false}>

@@ -1,5 +1,6 @@
+import { useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { TrendingUp, Users, Target, Award } from 'lucide-react';
 
 const applicationsByMonth = [
@@ -11,14 +12,7 @@ const applicationsByMonth = [
   { month: 'T6', applications: 42, hires: 8 },
 ];
 
-const sourceData = [
-  { name: 'JobHub', value: 45 },
-  { name: 'LinkedIn', value: 25 },
-  { name: 'Giới thiệu', value: 20 },
-  { name: 'Khác', value: 10 },
-];
 
-const COLORS = ['hsl(var(--primary))', 'hsl(var(--info))', 'hsl(var(--warning))', 'hsl(var(--muted-foreground))'];
 
 const conversionData = [
   { stage: 'Ứng tuyển', count: 120 },
@@ -29,6 +23,11 @@ const conversionData = [
 ];
 
 export default function EmployerReports() {
+  // Scroll to top on mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   return (
     <div className="space-y-6">
       <div>
@@ -78,24 +77,6 @@ export default function EmployerReports() {
                 <Bar dataKey="applications" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Ứng viên" />
                 <Bar dataKey="hires" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} name="Tuyển dụng" />
               </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-heading font-semibold">Nguồn ứng viên</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
-              <PieChart>
-                <Pie data={sourceData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                  {sourceData.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }} />
-              </PieChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>

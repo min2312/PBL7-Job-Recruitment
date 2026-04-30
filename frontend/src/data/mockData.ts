@@ -37,10 +37,14 @@ export interface Job {
   benefit: string;
   workLocation: string;
   workTime: string;
-  isSaved?: boolean; 
+  isSaved?: boolean;
   createdAt: string;
   categoryIds: number[];
   locationIds: number[];
+  gender?: 'Nam' | 'Nữ' | 'Không yêu cầu' | null;
+  age?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
 }
 
 export interface Application {
@@ -124,9 +128,9 @@ export const locations: Location[] = [
 ];
 
 export const companies: Company[] = [
-  { 
-    id: 1, 
-    name: 'CÔNG TY CỔ PHẦN TẬP ĐOÀN TLC VIỆT NAM', 
+  {
+    id: 1,
+    name: 'CÔNG TY CỔ PHẦN TẬP ĐOÀN TLC VIỆT NAM',
     logo: 'https://cdn-new.topcv.vn/unsafe/80x/https://static.topcv.vn/company_logos/69159935ab9461763023157.png',
     website: 'https://tlc.vn',
     employees: '100-499 nhân viên',
@@ -135,9 +139,9 @@ export const companies: Company[] = [
     email: 'hr@tlc.vn',
     description: 'Với mục tiêu kết nối nhân tài với cơ hội việc làm tốt nhất, chúng tôi đã phục vụ hàng ngàn ứng viên và nhà tuyển dụng. CÔNG TY CỔ PHẦN TẬP ĐOÀN TLC là nhà lãnh đạo trong ngành công nghiệp điện tử và sản xuất. Chúng tôi cung cấp các giải pháp tuyên dụng hàng đầu với đội ngũ chuyên gia giàu kinh nghiệm.'
   },
-  { 
-    id: 2, 
-    name: 'CÔNG TY CỔ PHẦN QUỐC TẾ CUỘC SỐNG VIỆT', 
+  {
+    id: 2,
+    name: 'CÔNG TY CỔ PHẦN QUỐC TẾ CUỘC SỐNG VIỆT',
     logo: 'https://cdn-new.topcv.vn/unsafe/80x/https://static.topcv.vn/company_logos/cong-ty-co-phan-quoc-te-cuoc-song-viet-63992dd6c32d7.jpg',
     website: 'https://qlvn.com.vn',
     employees: '50-99 nhân viên',
@@ -146,9 +150,9 @@ export const companies: Company[] = [
     email: 'recruit@qlvn.com.vn',
     description: 'Công ty chuyên về kinh doanh nông sản và xuất nhập khẩu. Chúng tôi cam kết mang lại các sản phẩm chất lượng cao cho khách hàng trong nước và quốc tế, với đội ngũ nhân viên chuyên nghiệp và tận tâm.'
   },
-  { 
-    id: 3, 
-    name: 'CÔNG TY TNHH NHÔM KÍNH QUỐC ANH', 
+  {
+    id: 3,
+    name: 'CÔNG TY TNHH NHÔM KÍNH QUỐC ANH',
     logo: 'https://cdn-new.topcv.vn/unsafe/80x/https://static.topcv.vn/company_logos/eTcP2MYIUJyg4g1taIMSJlQsiufVXU0W_1743471985____29eac3ed1a097f1fa3d0f09ca478db7a.jpg',
     website: 'https://quocanh.vn',
     employees: '100-199 nhân viên',
@@ -157,9 +161,9 @@ export const companies: Company[] = [
     email: 'jobs@quocanh.vn',
     description: 'Với kinh nghiệm hơn 10 năm trong ngành, chúng tôi cung cấp các giải pháp nhôm kính chất lượng cao, từ thiết kế, sản xuất đến thi công. Đội ngũ kỹ thuật viên lành nghề sẵn sàng phục vụ khách hàng.'
   },
-  { 
-    id: 4, 
-    name: 'Công Ty TNHH Sản Xuất TM DV ITALIO', 
+  {
+    id: 4,
+    name: 'Công Ty TNHH Sản Xuất TM DV ITALIO',
     logo: 'https://cdn-new.topcv.vn/unsafe/80x/https://static.topcv.vn/company_logos/2bBxVApK6caFKGbqCCLyODWHeSzbcdys_1749194490____508e8f0770865cded62edc576f659b94.jpg',
     website: 'https://italio.vn',
     employees: '200-499 nhân viên',
@@ -168,9 +172,9 @@ export const companies: Company[] = [
     email: 'hr@italio.vn',
     description: 'ITALIO là công ty sản xuất và thương mại các sản phẩm công nghiệp chất lượng cao, phục vụ thị trường nội địa và xuất khẩu. Chúng tôi tích cực tuyên dụng những nhân viên giỏi để phát triển công ty.'
   },
-  { 
-    id: 5, 
-    name: 'CÔNG TY TNHH MIRI HOLDINGS', 
+  {
+    id: 5,
+    name: 'CÔNG TY TNHH MIRI HOLDINGS',
     logo: 'https://cdn-new.topcv.vn/unsafe/80x/https://static.topcv.vn/company_logos/hqewKltOzFD9u3pRNJDi21pVDk6I4bdM_1751951772____b67193a07ca26f50b803c369074569ca.png',
     website: 'https://miriholdings.vn',
     employees: '500+ nhân viên',
@@ -179,9 +183,9 @@ export const companies: Company[] = [
     email: 'careers@miriholdings.vn',
     description: 'MIRI Holdings là tập đoàn đa ngành kinh doanh với các hoạt động trong lĩnh vực nhà hàng, khách sạn, du lịch và dịch vụ. Với môi trường làm việc chuyên nghiệp, chúng tôi tìm kiếm những nhân sự có tinh thần trách nhiệm cao.'
   },
-  { 
-    id: 8, 
-    name: 'CÔNG TY CỔ PHẦN CÔNG NGHỆ & SÁNG TẠO TRẺ TEKY', 
+  {
+    id: 8,
+    name: 'CÔNG TY CỔ PHẦN CÔNG NGHỆ & SÁNG TẠO TRẺ TEKY',
     logo: 'https://cdn-new.topcv.vn/unsafe/80x/https://static.topcv.vn/company_logos/cong-ty-co-phan-cong-nghe-sang-tao-tre-teky-holdings-6297130b27e96.jpg',
     website: 'https://teky.vn',
     employees: '100-299 nhân viên',
@@ -190,9 +194,9 @@ export const companies: Company[] = [
     email: 'hr@teky.vn',
     description: 'TEKY là một trong những công ty tiên phong trong lĩnh vực đào tạo công nghệ cho trẻ em tại Việt Nam. Chúng tôi tạo môi trường sáng tạo, khuyến khích đổi mới và phát triển kỹ năng của từng thành viên trong tập thể.'
   },
-  { 
-    id: 18, 
-    name: 'Công ty Cổ phần MISA', 
+  {
+    id: 18,
+    name: 'Công ty Cổ phần MISA',
     logo: 'https://cdn-new.topcv.vn/unsafe/80x/https://static.topcv.vn/company_logos/YVVFSY05ZUhqjlVHtBl2kOD1a189WFj0_1652947920____d78c5dd2ab820dcbb9a367b40e712067.jpg',
     website: 'https://misa.vn',
     employees: '500+ nhân viên',
@@ -201,9 +205,9 @@ export const companies: Company[] = [
     email: 'careers@misa.vn',
     description: 'MISA là công ty hàng đầu trong lĩnh vực phần mềm quản trị doanh nghiệp tại Việt Nam. Với công nghệ tiên tiến và đội ngũ chuyên gia giỏi, chúng tôi cung cấp các giải pháp ERP, CRM, HRM toàn diện cho doanh nghiệp. Chúng tôi luôn tìm kiếm những tài năng CNTT để gia nhập đội ngũ.'
   },
-  { 
-    id: 47, 
-    name: 'Trung Tâm Anh Ngữ ILA', 
+  {
+    id: 47,
+    name: 'Trung Tâm Anh Ngữ ILA',
     logo: 'https://cdn-new.topcv.vn/unsafe/80x/https://static.topcv.vn/company_logos/trung-tam-anh-ngu-ila-57bfa5cf4cf23_rs.jpg',
     website: 'https://ilavietnam.vn',
     employees: '50-99 nhân viên',
@@ -212,9 +216,9 @@ export const companies: Company[] = [
     email: 'jobs@ilavietnam.vn',
     description: 'ILA là một trung tâm anh ngữ quốc tế với kinh nghiệm giáo dục tiếng Anh hơn 20 năm. Chúng tôi cung cấp các khóa học tiếng Anh đa dạng và chất lượng cao. Nếu bạn đam mê giáo dục và có kỹ năng giao tiếp tốt, hãy gia nhập đội ngũ của chúng tôi.'
   },
-  { 
-    id: 53, 
-    name: 'SHBFinance', 
+  {
+    id: 53,
+    name: 'SHBFinance',
     logo: 'https://cdn-new.topcv.vn/unsafe/80x/https://static.topcv.vn/company_logos/Yeayjqzb9trIIi8az0dQFohw4tHAs5Hw_1651662182____f1a9a5bf90ccc65572d96cbe20efe520.jfif',
     website: 'https://shbfinance.vn',
     employees: '100-299 nhân viên',
@@ -223,9 +227,9 @@ export const companies: Company[] = [
     email: 'hr@shbfinance.vn',
     description: 'SHBFinance là công ty cung cấp các dịch vụ tài chính và tín dụng đỉnh cao. Chúng tôi mang lại các giải pháp tài chính toàn diện và dịch vụ khách hàng xuất sắc. Tham gia vào đội ngũ chuyên nghiệp và năng động của chúng tôi.'
   },
-  { 
-    id: 100, 
-    name: 'Ngân hàng TMCP Đông Nam Á - SEABANK', 
+  {
+    id: 100,
+    name: 'Ngân hàng TMCP Đông Nam Á - SEABANK',
     logo: 'https://cdn-new.topcv.vn/unsafe/80x/https://static.topcv.vn/company_logos/4XhudLFrcBny3dlsD9Mn7SetP50YWkv3_1711512611____54b244854e45defa1604a6104a045c24.png',
     website: 'https://seabank.com.vn',
     employees: '1000+ nhân viên',
@@ -245,6 +249,10 @@ export const jobs: Job[] = [
     benefit: 'Thu nhập 25-40 triệu. Lương tháng 13. BHXH, BHYT, BHTN. Môi trường chuyên nghiệp.',
     workLocation: 'Ninh Bình - KCN Châu Sơn', workTime: 'Thứ 2 - Thứ 7 (08:00 - 17:00)',
     createdAt: '2026-03-25', categoryIds: [1, 4], locationIds: [2],
+    gender: null,
+    age: null,
+    startDate: null,
+    endDate: null,
   },
   {
     id: 2, companyId: 2, title: 'Nhân Viên Marketing – Kỹ Thuật (Ngành Nông Nghiệp)', salary: 'Thoả thuận', level: 'Nhân viên',
@@ -254,6 +262,10 @@ export const jobs: Job[] = [
     benefit: 'Thu nhập thỏa thuận. BHXH, BHYT, BHTN. Lương tháng 13. Du lịch hàng năm.',
     workLocation: 'Hồ Chí Minh - Phường Linh Xuân', workTime: 'Thứ 2 - Thứ 7 (07:30 - 17:00)',
     createdAt: '2026-03-25', categoryIds: [2, 20], locationIds: [3],
+    gender: null,
+    age: null,
+    startDate: null,
+    endDate: null,
   },
   {
     id: 3, companyId: 3, title: 'Kỹ Thuật Viên Công Trình Nhôm Kính', salary: '15 - 20 triệu', level: 'Nhân viên',
@@ -263,6 +275,10 @@ export const jobs: Job[] = [
     benefit: 'Thu nhập 15-20 triệu + KPI. BHXH, BHYT. Thưởng lễ tết.',
     workLocation: 'Hồ Chí Minh - Quận 9', workTime: 'Thứ 2 - Thứ 7 (08:00 - 17:00)',
     createdAt: '2026-03-24', categoryIds: [3, 29], locationIds: [3],
+    gender: null,
+    age: null,
+    startDate: null,
+    endDate: null,
   },
   {
     id: 4, companyId: 4, title: 'Nhân Viên Kinh Doanh - Từ 2 Năm Kinh Nghiệm', salary: 'Thoả thuận', level: 'Nhân viên',
@@ -272,6 +288,10 @@ export const jobs: Job[] = [
     benefit: 'Lương cứng 7.5-10 triệu + hoa hồng. BHXH. Lương tháng 13.',
     workLocation: 'Hà Nội - Nam Từ Liêm', workTime: 'Thứ 2 - Thứ 7 (07:30 - 16:30)',
     createdAt: '2026-03-24', categoryIds: [1, 18], locationIds: [4],
+    gender: null,
+    age: null,
+    startDate: null,
+    endDate: null,
   },
   {
     id: 5, companyId: 5, title: 'Restaurant Manager (Thu Nhập Hấp Dẫn)', salary: 'Thoả thuận', level: 'Trưởng chi nhánh',
@@ -281,6 +301,10 @@ export const jobs: Job[] = [
     benefit: 'Competitive salary, monthly bonus, tips. Annual leave, 13th-month bonus. Career growth opportunities.',
     workLocation: 'Đà Nẵng - 199 Nguyễn Văn Thoại', workTime: 'Theo lịch phân công',
     createdAt: '2026-03-23', categoryIds: [5], locationIds: [5],
+    gender: null,
+    age: null,
+    startDate: null,
+    endDate: null,
   },
   {
     id: 6, companyId: 8, title: 'Lập Trình Viên Frontend React', salary: '18 - 30 triệu', level: 'Nhân viên',
@@ -290,6 +314,10 @@ export const jobs: Job[] = [
     benefit: 'Lương cạnh tranh 18-30 triệu. Laptop công ty. Work from home 2 ngày/tuần.',
     workLocation: 'Hà Nội - Cầu Giấy', workTime: 'Thứ 2 - Thứ 6 (09:00 - 18:00)',
     createdAt: '2026-03-25', categoryIds: [9, 33], locationIds: [4],
+    gender: null,
+    age: null,
+    startDate: null,
+    endDate: null,
   },
   {
     id: 7, companyId: 18, title: 'Kế Toán Tổng Hợp', salary: '12 - 18 triệu', level: 'Nhân viên',
@@ -299,6 +327,10 @@ export const jobs: Job[] = [
     benefit: 'Lương 12-18 triệu. BHXH đầy đủ. Lương tháng 13. Du lịch công ty.',
     workLocation: 'Hà Nội - Phạm Văn Bạch', workTime: 'Thứ 2 - Thứ 6 (08:00 - 17:30)',
     createdAt: '2026-03-22', categoryIds: [39, 15], locationIds: [4],
+    gender: null,
+    age: null,
+    startDate: null,
+    endDate: null,
   },
   {
     id: 8, companyId: 47, title: 'Giáo Viên Tiếng Anh', salary: '15 - 25 triệu', level: 'Nhân viên',
@@ -308,6 +340,10 @@ export const jobs: Job[] = [
     benefit: 'Lương 15-25 triệu. Đào tạo chuyên nghiệp. Cơ hội phát triển.',
     workLocation: 'Hồ Chí Minh - Quận 1', workTime: 'Thứ 2 - Thứ 7 (linh hoạt)',
     createdAt: '2026-03-25', categoryIds: [8], locationIds: [3],
+    gender: null,
+    age: null,
+    startDate: null,
+    endDate: null,
   },
   {
     id: 9, companyId: 53, title: 'Chuyên Viên Tín Dụng', salary: '12 - 20 triệu', level: 'Nhân viên',
@@ -317,6 +353,10 @@ export const jobs: Job[] = [
     benefit: 'Lương cạnh tranh + thưởng KPI. Bảo hiểm sức khỏe cao cấp.',
     workLocation: 'Hà Nội - Nhiều chi nhánh', workTime: 'Thứ 2 - Thứ 6 (08:00 - 17:00)',
     createdAt: '2026-03-24', categoryIds: [14, 15], locationIds: [4],
+    gender: null,
+    age: null,
+    startDate: null,
+    endDate: null,
   },
   {
     id: 10, companyId: 100, title: 'Digital Marketing Manager', salary: '20 - 35 triệu', level: 'Trưởng/Phó phòng',
@@ -326,6 +366,10 @@ export const jobs: Job[] = [
     benefit: 'Lương 20-35 triệu + bonus. Môi trường quốc tế. Laptop riêng.',
     workLocation: 'Hồ Chí Minh - Quận 3', workTime: 'Thứ 2 - Thứ 6 (08:30 - 17:30)',
     createdAt: '2026-03-25', categoryIds: [20, 33], locationIds: [3],
+    gender: null,
+    age: null,
+    startDate: null,
+    endDate: null,
   },
   {
     id: 11, companyId: 1, title: 'Nhân Viên QC - Kiểm Tra Chất Lượng', salary: '10 - 15 triệu', level: 'Nhân viên',
@@ -335,6 +379,10 @@ export const jobs: Job[] = [
     benefit: 'Lương 10-15 triệu. BHXH đầy đủ. Ăn trưa miễn phí.',
     workLocation: 'Ninh Bình - KCN Châu Sơn', workTime: 'Thứ 2 - Thứ 6 (08:00 - 17:00)',
     createdAt: '2026-03-23', categoryIds: [4], locationIds: [2],
+    gender: null,
+    age: null,
+    startDate: null,
+    endDate: null,
   },
   {
     id: 12, companyId: 18, title: 'Lập Trình Viên Backend .NET', salary: '20 - 35 triệu', level: 'Nhân viên',
@@ -344,6 +392,10 @@ export const jobs: Job[] = [
     benefit: 'Lương 20-35 triệu. Review lương 2 lần/năm. Đào tạo kỹ năng.',
     workLocation: 'Hà Nội - Phạm Văn Bạch', workTime: 'Thứ 2 - Thứ 6 (08:00 - 17:30)',
     createdAt: '2026-03-25', categoryIds: [9], locationIds: [4],
+    gender: null,
+    age: null,
+    startDate: null,
+    endDate: null,
   },
 ];
 
