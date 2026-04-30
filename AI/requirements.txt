@@ -11,3 +11,9 @@ python-dotenv
 sqlalchemy
 pymysql
 neo4j
+seleniumbase
+beautifulsoup4
+lxml
+cloudscrape
+fake_useragent
+bcrypt

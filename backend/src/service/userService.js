@@ -1,12 +1,45 @@
 import { raw } from "mysql2";
 import db from "../models/index";
 import bcrypt from "bcryptjs";
-import { where } from "sequelize";
-import { response } from "express";
 import { CreateJWT, CreateRefreshJWT } from "../middleware/JWT_Action";
+import firebaseAdmin from "../config/firebase";
 const cloudinary = require("cloudinary").v2;
+const { uploadToAzure, deleteFromAzure } = require("./azureStorageService");
+const streamifier = require("streamifier");
 require("dotenv").config();
 const salt = bcrypt.genSaltSync(10);
+
+/**
+ * Helper to upload buffer to Cloudinary
+ */
+const uploadBufferToCloudinary = (buffer, folder) => {
+	return new Promise((resolve, reject) => {
+		let stream = cloudinary.uploader.upload_stream(
+			{ folder: folder },
+			(error, result) => {
+				if (result) resolve(result);
+				else reject(error);
+			}
+		);
+		streamifier.createReadStream(buffer).pipe(stream);
+	});
+};
+
+/**
+ * Helper to extract public_id from Cloudinary URL and delete
+ */
+const deleteCloudinaryImage = async (url) => {
+	if (!url) return;
+	try {
+		// Example URL: https://res.cloudinary.com/dowe2swf5/image/upload/v1714213123/Job-Recruitment/filename.png
+		const parts = url.split("/");
+		const folderAndName = parts.slice(parts.indexOf("Job-Recruitment")).join("/"); // "Job-Recruitment/filename.png"
+		const publicId = folderAndName.split(".")[0]; // "Job-Recruitment/filename"
+		await cloudinary.uploader.destroy(publicId);
+	} catch (error) {
+		console.error("Error deleting from Cloudinary:", error);
+	}
+};
 let HandleUserLogin = (email, password) => {
 	return new Promise(async (resolve, reject) => {
 		try {
@@ -20,6 +53,12 @@ let HandleUserLogin = (email, password) => {
 				if (user) {
 					let check = await bcrypt.compareSync(password, user.password);
 					if (check) {
+						if(user.role === "EMPLOYER"){
+							let company = await db.Company.findOne({
+								where: { id: user.companyId },
+							});
+							user.company = company;
+						}
 						let payload = {
 							id: user.id,
 							email: user.email,
@@ -27,12 +66,16 @@ let HandleUserLogin = (email, password) => {
 							phone: user.phone,
 							createdAt: user.createdAt,
 							role: user.role,
+							profilePicture: user.profilePicture,
+							description: user.description,
+							cv_file: user.cv_file,
+							company: user.company,
 						};
 						let accessToken = CreateJWT(payload);
 						let refreshToken = CreateRefreshJWT(payload);
 						userData.errCode = 0;
 						userData.errMessage = `OK`;
-						delete user.passwordHash;
+						delete user.password;
 						userData.user = user;
 						userData.DT = {
 							access_token: accessToken,
@@ -136,35 +179,31 @@ let CreateNewUser = (data) => {
 					errMessage: "Your email has exist",
 				});
 			} else {
-				if(data.role === "EMPLOYER"){
+				let new_company = null;
+				if (data.role === "EMPLOYER") {
 					let checkCompany = await db.Company.findOne({
 						where: { name: data.companyName },
 					});
-					if(checkCompany){
+					if (checkCompany) {
 						resolve({
 							errCode: 1,
 							errMessage: "Company has exist",
 						});
 						return;
 					}
+					new_company = await db.Company.create({ name: data.companyName });
 				}
 				let hashPasswordFromBcrypt = await hashUserPassword(data.password);
 				let new_user = await db.User.create({
-					//(value my sql): (value name-html)
 					email: data.email,
 					password: hashPasswordFromBcrypt,
 					name: data.name,
 					phone: data.phone,
 					role: data.role,
+					companyId: new_company ? new_company.id : null,
 				});
 				new_user = new_user.get({ plain: true });
 				delete new_user.password;
-				let new_company = null;
-				if(data.role === "EMPLOYER"){
-					new_company = await db.Company.create({
-						name: data.companyName,
-					});
-				}
 				resolve({
 					errCode: 0,
 					message: "Create success",
@@ -202,7 +241,7 @@ let DeleteUser = (User_id) => {
 		}
 	});
 };
-let updateUser = (data) => {
+let updateUser = (data, files) => {
 	return new Promise(async (resolve, reject) => {
 		try {
 			if (!data.id) {
@@ -210,51 +249,114 @@ let updateUser = (data) => {
 					errCode: 2,
 					errMessage: "Missing required parameter!",
 				});
+				return;
 			}
 			let user = await db.User.findOne({
 				where: { id: data.id },
 			});
-			if (user) {
-				let hashPasswordFromBcrypt = await hashUserPassword(data.password);
-				await db.User.update(
-					{
-						name: data.name,
-						email: data.email,
-						password: hashPasswordFromBcrypt,
-						phone: data.phone,
-						role: data.role,
-					},
-					{
-						where: { id: data.id },
-					},
-				);
-				let newUser = await db.User.findOne({
-					where: { id: data.id },
-				});
-				let payload = {
-					id: newUser.id,
-					email: newUser.email,
-					name: newUser.name,
-					role: newUser.role,
-				};
-				let token = CreateJWT(payload);
-				delete user.password;
-				delete newUser.password;
-				resolve({
-					errCode: 0,
-					message: "Update User Success!",
-					user: newUser,
-					DT: {
-						access_token: token,
-					},
-				});
-			} else {
-				resolve({
-					errCode: 1,
-					errMessage: "User Not Found!",
-				});
+			if (!user) {
+				resolve({ errCode: 1, errMessage: "User Not Found!" });
+				return;
 			}
+
+			let updateData = {
+				name: data.name || user.name,
+				email: data.email || user.email,
+				phone: data.phone || user.phone,
+				description: data.description || user.description,
+			};
+
+			if (data.password) {
+				updateData.password = await hashUserPassword(data.password);
+			}
+
+			// 1. Handle Profile Picture (Cloudinary)
+			if (files && files.profilePicture) {
+				// Delete old one if exists
+				if (user.profilePicture) {
+					await deleteCloudinaryImage(user.profilePicture);
+				}
+				const result = await uploadBufferToCloudinary(
+					files.profilePicture[0].buffer,
+					"Job-Recruitment"
+				);
+				updateData.profilePicture = result.secure_url;
+			}
+
+			// 2. Handle CV File (Azure)
+			if (files && files.cv_file) {
+				// Delete old one if exists
+				if (user.cv_file) {
+					await deleteFromAzure(user.cv_file);
+				}
+				const cvUrl = await uploadToAzure(
+					files.cv_file[0].buffer,
+					files.cv_file[0].originalname,
+					files.cv_file[0].mimetype
+				);
+				updateData.cv_file = cvUrl;
+			}
+
+			await db.User.update(updateData, { where: { id: data.id } });
+
+			// 3. Handle Employer / Company update
+			if (user.role === "EMPLOYER" && user.companyId) {
+				const company = await db.Company.findByPk(user.companyId);
+				let companyUpdateData = {
+					name: data.companyName || undefined,
+					description: data.companyDescription || undefined,
+				};
+
+				if (files && files.logo) {
+					// Delete old logo if exists
+					if (company && company.logo) {
+						await deleteCloudinaryImage(company.logo);
+					}
+					const result = await uploadBufferToCloudinary(
+						files.logo[0].buffer,
+						"Job-Recruitment"
+					);
+					companyUpdateData.logo = result.secure_url;
+				}
+
+				// Clean undefined fields
+				Object.keys(companyUpdateData).forEach(key => 
+					companyUpdateData[key] === undefined && delete companyUpdateData[key]
+				);
+
+				if (Object.keys(companyUpdateData).length > 0) {
+					await db.Company.update(companyUpdateData, {
+						where: { id: user.companyId },
+					});
+				}
+			}
+
+			// Fetch updated user with company info
+			let newUser = await db.User.findOne({
+				where: { id: data.id },
+				include: user.role === "EMPLOYER" ? [{ model: db.Company, as: "company" }] : [],
+			});
+
+			let payload = {
+				id: newUser.id,
+				email: newUser.email,
+				name: newUser.name,
+				role: newUser.role,
+				description: newUser.description,
+				cv_file: newUser.cv_file,
+				profilePicture: newUser.profilePicture,
+				company: newUser.company,
+			};
+
+			let token = CreateJWT(payload);
+			resolve({
+				errCode: 0,
+				message: "Update User Success!",
+				user: newUser,
+				DT: { access_token: token },
+			});
 		} catch (e) {
+			console.error("Error in updateUser service:", e);
 			reject(e);
 		}
 	});
@@ -312,7 +414,7 @@ let updateUserProfile = (data, fileImage) => {
 				let updatedUser = await db.User.findOne({
 					where: { id: data.id },
 					attributes: {
-						exclude: ["passwordHash"],
+						exclude: ["password"],
 					},
 				});
 
@@ -400,7 +502,7 @@ let resetPassword = (email, newPassword) => {
 			} else {
 				let hashPassword = await bcrypt.hashSync(newPassword, salt);
 				await db.User.update(
-					{ passwordHash: hashPassword },
+					{ password: hashPassword },
 					{ where: { email } },
 				);
 				resolve({ errCode: 0, message: "Password reset successful" });
@@ -411,8 +513,97 @@ let resetPassword = (email, newPassword) => {
 	});
 };
 
+let HandleFirebaseLogin = (idToken) => {
+	return new Promise(async (resolve, reject) => {
+		try {
+			let userData = {};
+			if (!firebaseAdmin) {
+				userData.errCode = -1;
+				userData.errMessage = "Firebase Admin is not configured on the server.";
+				return resolve(userData);
+			}
+
+			let decodedToken;
+			try {
+				decodedToken = await firebaseAdmin.auth().verifyIdToken(idToken);
+			} catch (error) {
+				console.error("Firebase token verification failed:", error);
+				userData.errCode = 1;
+				userData.errMessage = "Invalid or expired Firebase ID token.";
+				return resolve(userData);
+			}
+
+			const { email, name, picture } = decodedToken;
+			if (!email) {
+				userData.errCode = 2;
+				userData.errMessage = "Email not found in Firebase token.";
+				return resolve(userData);
+			}
+
+			let user = await db.User.findOne({
+				where: { email: email },
+				raw: true,
+			});
+
+			if (!user) {
+				// Create new user
+				const dummyPassword = Math.random().toString(36).slice(-10);
+				const hashPassword = await bcrypt.hashSync(dummyPassword, salt);
+				
+				let newUser = await db.User.create({
+					email: email,
+					password: hashPassword,
+					name: name || email.split('@')[0],
+					role: "CANDIDATE", // Default role
+					profilePicture: picture || null
+				});
+				
+				user = newUser.get({ plain: true });
+			}
+
+			if (user.role === "EMPLOYER") {
+				let company = await db.Company.findOne({
+					where: { id: user.companyId },
+				});
+				user.company = company;
+			}
+
+			let payload = {
+				id: user.id,
+				email: user.email,
+				name: user.name,
+				phone: user.phone,
+				createdAt: user.createdAt,
+				role: user.role,
+				profilePicture: user.profilePicture,
+				description: user.description,
+				cv_file: user.cv_file,
+				company: user.company,
+			};
+
+			let accessToken = CreateJWT(payload);
+			let refreshToken = CreateRefreshJWT(payload);
+
+			userData.errCode = 0;
+			userData.errMessage = `OK`;
+			delete user.password;
+			userData.user = user;
+			userData.DT = {
+				access_token: accessToken,
+				refresh_token: refreshToken,
+			};
+			
+			resolve(userData);
+		} catch (e) {
+			console.error("Error in HandleFirebaseLogin service:", e);
+			reject(e);
+		}
+	});
+};
+
 module.exports = {
 	HandleUserLogin: HandleUserLogin,
+	HandleFirebaseLogin: HandleFirebaseLogin,
 	getAllUser: getAllUser,
 	CreateNewUser: CreateNewUser,
 	DeleteUser: DeleteUser,

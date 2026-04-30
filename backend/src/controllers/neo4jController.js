@@ -183,7 +183,8 @@ export const HandleGetSalaryByIndustry = async (req, res) => {
 
 export const HandleBuildTrainingDataset = async (req, res) => {
 	try {
-		const rows = await neo4jService.buildTrainingDataset();
+		const days = req.query.days ? Number(req.query.days) : null;
+		const rows = await neo4jService.buildTrainingDataset(days);
 		return res.status(200).json({ errCode: 0, errMessage: "OK", data: rows });
 	} catch (error) {
 		console.error(error);

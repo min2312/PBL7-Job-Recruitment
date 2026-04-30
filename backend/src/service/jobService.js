@@ -475,6 +475,7 @@ const getJobByCompanyId = async ({
 	limit = 10,
 	search = "",
 	location = "",
+	status = "all",
 	userId = null,
 }) => {
 	try {
@@ -485,6 +486,9 @@ const getJobByCompanyId = async ({
 		const where = { companyId };
 		if (search) {
 			where.title = { [Op.like]: `%${search}%` };
+		}
+		if (status && status !== "all") {
+			where.status = status;
 		}
 
 		const includeLocation = {
@@ -981,6 +985,69 @@ const getSavedJobs = async (userId, page = 1, limit = 10) => {
 	}
 };
 
+const createJob = async (data) => {
+	try {
+		const {
+			companyId,
+			title,
+			salary,
+			level,
+			experience,
+			education,
+			gender,
+			age,
+			employmentType,
+			quantity,
+			startDate,
+			endDate,
+			description,
+			requirement,
+			benefit,
+			workLocation,
+			workTime,
+			categoryIds, // Array of IDs
+			locationIds, // Array of IDs
+		} = data;
+
+		const job = await db.Job.create({
+			companyId,
+			title,
+			salary,
+			level,
+			experience,
+			education,
+			gender,
+			age,
+			employmentType,
+			quantity,
+			startDate,
+			endDate,
+			description,
+			requirement,
+			benefit,
+			workLocation,
+			workTime,
+			status: "open",
+		});
+
+		if (categoryIds && categoryIds.length > 0) {
+			await job.setCategories(categoryIds);
+		}
+		if (locationIds && locationIds.length > 0) {
+			await job.setLocations(locationIds);
+		}
+
+		return {
+			errCode: 0,
+			errMessage: "Job created successfully",
+			data: job,
+		};
+	} catch (error) {
+		console.error("Error in createJob service:", error);
+		throw error;
+	}
+};
+
 module.exports = {
 	searchJobs,
 	fetchRandomJobsByLocation,
@@ -988,4 +1055,5 @@ module.exports = {
 	getJobById,
 	saveOrUnsaveJob,
 	getSavedJobs,
+	createJob,
 };

@@ -3,6 +3,7 @@ require("dotenv").config();
 
 const nonSecurePaths = [
 	"/api/login",
+	"/api/firebase-login",
 	"/api/register",
 	"/api/logout",
 	"/api/refresh-token",
@@ -41,6 +42,7 @@ const nonSecurePaths = [
 	"/api/neo4j/salary-by-industry",
 	"/api/neo4j/categories-paginated",
 	"/api/neo4j/market-summary",
+	"/api/neo4j/sync-all"
 ];
 
 const createSignedToken = (payload, secretKey, expiresIn) => {

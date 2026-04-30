@@ -1,4 +1,5 @@
 import db from "../models/index";
+import { Op } from "sequelize";
 import neo4j from "neo4j-driver";
 import { waitForNeo4j, getWriteSession } from "../config/connectNeo4j";
 
@@ -43,7 +44,7 @@ export const syncAllToNeo4j = async () => {
 		for (const u of users) {
 			await session.run(
 				`MERGE (u:User {id: $id}) SET u.email = $email, u.fullName = $fullName`,
-				{ id: u.id, email: u.email, fullName: u.fullName },
+				{ id: u.id, email: u.email, fullName: u.name },
 			);
 		}
 
@@ -107,6 +108,116 @@ export const syncAllToNeo4j = async () => {
 		return { ok: true };
 	} catch (err) {
 		console.error("Neo4j sync error:", err);
+		return { ok: false, error: err.message };
+	} finally {
+		await session.close();
+	}
+};
+export const syncRecentToNeo4j = async (days = 1) => {
+	const session = await getSession();
+	try {
+		const sinceDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+		// 1. Get recent jobs
+		const jobs = await db.Job.findAll({
+			where: { createdAt: { [Op.gte]: sinceDate } },
+			raw: true,
+		});
+
+		if (jobs.length === 0) return { ok: true, message: "No new jobs to sync" };
+
+		// 2. Collect related IDs to sync only what's necessary
+		const companyIds = [...new Set(jobs.map((j) => j.companyId).filter(Boolean))];
+		const jobIds = jobs.map((j) => j.id);
+
+		// Sync necessary Companies
+		const companies = await db.Company.findAll({
+			where: { id: { [Op.in]: companyIds } },
+			raw: true,
+		});
+		for (const c of companies) {
+			await session.run(`MERGE (co:Company {id: $id}) SET co.name = $name`, {
+				id: c.id,
+				name: c.name,
+			});
+		}
+
+		// 3. Sync Jobs and Company-Job relations
+		for (const j of jobs) {
+			await session.run(
+				`MERGE (j:Job {id: $id})
+         SET j.title = $title, j.salary = $salary, j.level = $level, j.experience = $experience, j.education = $education, j.job_url = $job_url, j.createdAt = datetime($createdAt)`,
+				{
+					id: j.id,
+					title: j.title,
+					salary: j.salary,
+					level: j.level,
+					experience: j.experience,
+					education: j.education,
+					job_url: j.jobUrl || null, // Lưu ý: Sequelize dùng jobUrl (camelCase) cho field job_url
+					createdAt: j.createdAt ? new Date(j.createdAt).toISOString() : null,
+				},
+			);
+			if (j.companyId) {
+				await session.run(
+					`MATCH (co:Company {id: $companyId}), (j:Job {id: $jobId})
+           MERGE (co)-[:POSTED]->(j)`,
+					{ companyId: j.companyId, jobId: j.id },
+				);
+			}
+		}
+
+		// 4. Sync JobCategories + Categories
+		const jobCats = await db.JobCategory.findAll({
+			where: { jobId: { [Op.in]: jobIds } },
+			raw: true,
+		});
+		const catIds = [...new Set(jobCats.map((jc) => jc.categoryId))];
+		const categories = await db.Category.findAll({
+			where: { id: { [Op.in]: catIds } },
+			raw: true,
+		});
+		for (const cat of categories) {
+			await session.run(`MERGE (cat:Category {id: $id}) SET cat.name = $name`, {
+				id: cat.id,
+				name: cat.name,
+			});
+		}
+		for (const jc of jobCats) {
+			await session.run(
+				`MATCH (j:Job {id: $jobId}), (cat:Category {id: $catId})
+         MERGE (j)-[:BELONGS_TO]->(cat)`,
+				{ jobId: jc.jobId, catId: jc.categoryId },
+			);
+		}
+
+		// 5. Sync JobLocations + Locations
+		const jobLocs = await db.JobLocation.findAll({
+			where: { jobId: { [Op.in]: jobIds } },
+			raw: true,
+		});
+		const locIds = [...new Set(jobLocs.map((jl) => jl.locationId))];
+		const locations = await db.Location.findAll({
+			where: { id: { [Op.in]: locIds } },
+			raw: true,
+		});
+		for (const loc of locations) {
+			await session.run(`MERGE (loc:Location {id: $id}) SET loc.name = $name`, {
+				id: loc.id,
+				name: loc.name,
+			});
+		}
+		for (const jl of jobLocs) {
+			await session.run(
+				`MATCH (j:Job {id: $jobId}), (loc:Location {id: $locId})
+         MERGE (j)-[:LOCATED_IN]->(loc)`,
+				{ jobId: jl.jobId, locId: jl.locationId },
+			);
+		}
+
+		return { ok: true, count: jobs.length };
+	} catch (err) {
+		console.error("Neo4j incremental sync error:", err);
 		return { ok: false, error: err.message };
 	} finally {
 		await session.close();

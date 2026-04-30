@@ -76,7 +76,7 @@ const searchJobs = async (req, res) => {
 const getJobByCompanyId = async (req, res) => {
 	try {
 		const companyId = req.params.id;
-		const { page, limit, search, location, userId: queryUserId } = req.query || {};
+		const { page, limit, search, location, status, userId: queryUserId } = req.query || {};
 		const userId = queryUserId || req.user?.id;
 		const data = await jobService.getJobByCompanyId({
 			companyId,
@@ -84,6 +84,7 @@ const getJobByCompanyId = async (req, res) => {
 			limit,
 			search,
 			location,
+			status,
 			userId,
 		});
 		return res.status(200).json({ errCode: 0, errMessage: "OK", data: data });
@@ -161,6 +162,47 @@ const getSavedJobs = async (req, res) => {
 	}
 };
 
+const HandleCreateJob = async (req, res) => {
+	try {
+		const data = req.body;
+		// Ensure employer is posting for their own company
+		if (req.user.role !== "EMPLOYER") {
+			return res.status(403).json({ errCode: 1, errMessage: "Only employers can post jobs" });
+		}
+		data.companyId = req.user.companyId;
+
+		const result = await jobService.createJob(data);
+		return res.status(200).json(result);
+	} catch (error) {
+		console.error("Error in HandleCreateJob", error);
+		return res.status(500).json({ errCode: -1, errMessage: "Internal server error" });
+	}
+};
+
+const HandleGetEmployerJobs = async (req, res) => {
+	try {
+		const companyId = req.user?.companyId;
+		if (!companyId) {
+			return res.status(403).json({ errCode: 1, errMessage: "Only employers with a company can view jobs" });
+		}
+		
+		const { page, limit, search, location, status } = req.query;
+		const data = await jobService.getJobByCompanyId({
+			companyId,
+			page,
+			limit,
+			search,
+			location,
+			status,
+			userId: req.user.id
+		});
+		return res.status(200).json({ errCode: 0, errMessage: "OK", data: data });
+	} catch (error) {
+		console.error("Error in HandleGetEmployerJobs", error);
+		return res.status(500).json({ errCode: -1, errMessage: "Internal server error" });
+	}
+};
+
 module.exports = {
 	getRandomJobsByLocation,
 	searchJobs,
@@ -168,4 +210,6 @@ module.exports = {
 	getJobById,
 	saveOrUnsaveJob,
 	getSavedJobs,
+	HandleCreateJob,
+	HandleGetEmployerJobs,
 };

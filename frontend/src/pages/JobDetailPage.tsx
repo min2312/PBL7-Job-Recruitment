@@ -398,7 +398,7 @@ export default function JobDetailPage({ job: jobProp }: { job?: any }) {
                   )}
                 </div>
               </div>
-              <a href="#" className="text-teal-600 text-xs font-medium hover:underline inline-block">
+              <a href={`/companies/${company.id}`} className="text-teal-600 text-xs font-medium hover:underline inline-block">
                 Xem trang công ty →
               </a>
               <div className="space-y-2 border-t pt-3">

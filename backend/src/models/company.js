@@ -4,6 +4,7 @@ module.exports = (sequelize, DataTypes) => {
 	class Company extends Model {
 		static associate(models) {
 			Company.hasMany(models.Job, { foreignKey: "company_id" });
+			Company.hasMany(models.User, { foreignKey: "company_id", as: "users" });
 		}
 	}
 
@@ -12,6 +13,9 @@ module.exports = (sequelize, DataTypes) => {
 			name: { type: DataTypes.STRING, allowNull: false },
 			logo: { type: DataTypes.STRING, allowNull: true },
 			description: { type: DataTypes.TEXT, allowNull: true },
+			website_url: { type: DataTypes.STRING, allowNull: true },
+			company_address: { type: DataTypes.STRING, allowNull: true },
+			company_scale: { type: DataTypes.STRING, allowNull: true },
 		},
 		{
 			sequelize,
