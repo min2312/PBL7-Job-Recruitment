@@ -14,7 +14,7 @@ import SavedJobsPage from "@/pages/SavedJobsPage";
 import ApplicationsPage from "@/pages/ApplicationsPage";
 import LoginPage from "@/pages/LoginPage";
 import EmployerDashboard from "@/pages/EmployerDashboard";
-import AdminDashboard from "@/pages/AdminDashboard";
+import AdminDashboard from "@/pages/admin/AdminDashboard";
 import InsightsPage from "@/pages/InsightsPage";
 import CompaniesPage from "@/pages/CompaniesPage";
 import CompanyDetailPage from "@/pages/CompanyDetailPage";
