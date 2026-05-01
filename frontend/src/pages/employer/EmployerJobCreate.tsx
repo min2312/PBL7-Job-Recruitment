@@ -12,27 +12,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ArrowLeft, Plus } from 'lucide-react';
-import { jobs } from '@/data/mockData';
+import { ArrowLeft, Plus, Loader2 } from 'lucide-react';
+import axiosClient from '@/services/axiosClient';
+import { toast } from 'react-toastify';
 
-export default function EmployerJobCreate() {
+interface Props {
+  refreshData?: () => void;
+}
+
+export default function EmployerJobCreate({ refreshData }: Props) {
   const navigate = useNavigate();
-
-  // Scroll to top on mount
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
+  const [loading, setLoading] = useState(false);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [locations, setLocations] = useState<any[]>([]);
 
   const [formData, setFormData] = useState({
     title: '',
-    position: '',
+    level: '',
     salary: '',
-    gender: '',
+    gender: 'Không yêu cầu',
     age: '',
-    experience: '',
-    education: '',
-    employmentType: '',
-    quantity: '',
+    experience: 'Không yêu cầu',
+    education: 'Không yêu cầu',
+    employmentType: 'Toàn thời gian',
+    quantity: '1',
     startDate: '',
     endDate: '',
     description: '',
@@ -40,29 +43,60 @@ export default function EmployerJobCreate() {
     benefit: '',
     workLocation: '',
     workTime: '',
+    categoryIds: [] as number[],
+    locationIds: [] as number[],
   });
+
+  useEffect(() => {
+    const fetchMetadata = async () => {
+      try {
+        const [catRes, locRes] = await Promise.all([
+          axiosClient.get('/api/categories'),
+          axiosClient.get('/api/locations')
+        ]);
+        if (catRes.data.errCode === 0) setCategories(catRes.data.data);
+        if (locRes.data.errCode === 0) setLocations(locRes.data.data);
+      } catch (error) {
+        console.error('Error fetching metadata:', error);
+      }
+    };
+    fetchMetadata();
+    window.scrollTo(0, 0);
+  }, []);
 
   const handleChange = (e: any) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title || !formData.salary || !formData.description) {
-      alert('Vui lòng điền các trường bắt buộc');
+      toast.warn('Vui lòng điền các trường bắt buộc');
       return;
     }
-    const newJob = {
-      id: Math.max(...jobs.map(j => j.id)) + 1,
-      ...formData,
-      quantity: parseInt(formData.quantity) || 1,
-      categoryIds: [1],
-      locationIds: [1],
-      companyId: 1,
-      createdAt: new Date().toLocaleDateString('vi-VN'),
-    };
-    navigate(`/employer/jobs`);
+    
+    setLoading(true);
+    try {
+      const payload = {
+        ...formData,
+        quantity: parseInt(formData.quantity) || 1,
+        age: formData.age ? parseInt(formData.age) : null,
+      };
+      
+      const res = await axiosClient.post('/api/jobs/create', payload);
+      if (res.data.errCode === 0) {
+        toast.success('Đăng tin tuyển dụng thành công!');
+        if (refreshData) refreshData();
+        navigate('/employer/jobs');
+      } else {
+        toast.error(res.data.errMessage || 'Đăng tin thất bại');
+      }
+    } catch (error) {
+      toast.error('Lỗi kết nối máy chủ');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -110,14 +144,14 @@ export default function EmployerJobCreate() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="position" className="text-sm font-medium">
+                <Label htmlFor="level" className="text-sm font-medium">
                   Vị trí
                 </Label>
                 <Input
-                  id="position"
-                  name="position"
+                  id="level"
+                  name="level"
                   placeholder="VD: Frontend Developer"
-                  value={formData.position}
+                  value={formData.level}
                   onChange={handleChange}
                   className="h-9"
                 />
@@ -157,10 +191,50 @@ export default function EmployerJobCreate() {
               </div>
             </div>
 
+            {/* Metadata: Category & Location */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">
+                  Ngành nghề
+                </Label>
+                <Select 
+                  value={formData.categoryIds[0]?.toString()} 
+                  onValueChange={(val) => setFormData(prev => ({ ...prev, categoryIds: [parseInt(val)] }))}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Chọn ngành nghề" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map(cat => (
+                      <SelectItem key={cat.id} value={cat.id.toString()}>{cat.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">
+                  Khu vực
+                </Label>
+                <Select 
+                  value={formData.locationIds[0]?.toString()} 
+                  onValueChange={(val) => setFormData(prev => ({ ...prev, locationIds: [parseInt(val)] }))}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Chọn tỉnh thành" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {locations.map(loc => (
+                      <SelectItem key={loc.id} value={loc.id.toString()}>{loc.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             {/* 3. Giới tính & Tuổi */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="gender" className="text-sm font-medium">
+                <Label className="text-sm font-medium">
                   Giới tính
                 </Label>
                 <Select value={formData.gender} onValueChange={(value) => setFormData(prev => ({ ...prev, gender: value }))}>
@@ -182,8 +256,6 @@ export default function EmployerJobCreate() {
                   id="age"
                   name="age"
                   type="number"
-                  min="18"
-                  max="60"
                   placeholder="VD: 25"
                   value={formData.age}
                   onChange={handleChange}
@@ -195,7 +267,7 @@ export default function EmployerJobCreate() {
             {/* 4. Kinh nghiệm & Học vấn & Hình thức */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="experience" className="text-sm font-medium">
+                <Label className="text-sm font-medium">
                   Kinh nghiệm
                 </Label>
                 <Select value={formData.experience} onValueChange={(value) => setFormData(prev => ({ ...prev, experience: value }))}>
@@ -213,7 +285,7 @@ export default function EmployerJobCreate() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="education" className="text-sm font-medium">
+                <Label className="text-sm font-medium">
                   Học vấn
                 </Label>
                 <Select value={formData.education} onValueChange={(value) => setFormData(prev => ({ ...prev, education: value }))}>
@@ -231,7 +303,7 @@ export default function EmployerJobCreate() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="employmentType" className="text-sm font-medium">
+                <Label className="text-sm font-medium">
                   Hình thức làm việc
                 </Label>
                 <Select value={formData.employmentType} onValueChange={(value) => setFormData(prev => ({ ...prev, employmentType: value }))}>
@@ -366,14 +438,21 @@ export default function EmployerJobCreate() {
                 variant="outline"
                 onClick={() => navigate('/employer/jobs')}
                 className="flex-1"
+                disabled={loading}
               >
                 Hủy
               </Button>
               <Button
                 type="submit"
                 className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                disabled={loading}
               >
-                <Plus className="w-4 h-4 mr-2" /> Tạo tin tuyển dụng
+                {loading ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <Plus className="w-4 h-4 mr-2" />
+                )}
+                Tạo tin tuyển dụng
               </Button>
             </div>
           </form>

@@ -1,12 +1,12 @@
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
-import { applications, jobs, getCompanyById, users } from '@/data/mockData';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { EmployerSidebar } from '@/components/EmployerSidebar';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Bell, User, CheckCircle2 } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Bell, User, CheckCircle2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useRef, useEffect, useMemo } from 'react';
+import axiosClient from '@/services/axiosClient';
 import EmployerOverview from '@/pages/employer/EmployerOverview';
 import EmployerJobs from '@/pages/employer/EmployerJobs';
 import EmployerJobDetail from '@/pages/employer/EmployerJobDetail';
@@ -19,7 +19,6 @@ import EmployerSchedule from '@/pages/employer/EmployerSchedule';
 import EmployerReports from '@/pages/employer/EmployerReports';
 import EmployerSettings from '@/pages/employer/EmployerSettings';
 
-
 export default function EmployerDashboard() {
   const { user, isAuthReady } = useAuth();
   const location = useLocation();
@@ -27,9 +26,65 @@ export default function EmployerDashboard() {
   const [notificationOpen, setNotificationOpen] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
 
+  const [myJobs, setMyJobs] = useState<any[]>([]);
+  const [totalJobs, setTotalJobs] = useState(0);
+  const [jobPage, setJobPage] = useState(1);
+  const [jobLimit, setJobLimit] = useState(10);
+
+  const [myApplications, setMyApplications] = useState<any[]>([]);
+  const [totalApps, setTotalApps] = useState(0);
+  const [appPage, setAppPage] = useState(1);
+  const [appLimit, setAppLimit] = useState(9);
+
+  const [isLoadingData, setIsLoadingData] = useState(true);
+
+  const fetchJobs = async (page = 1, limit = 10, search = '', status = '') => {
+    setIsLoadingData(true);
+    try {
+      const res = await axiosClient.get(`/api/employer/jobs?page=${page}&limit=${limit}&search=${search}&status=${status}`);
+      if (res.data.errCode === 0) {
+        setMyJobs(res.data.data.jobs || []);
+        setTotalJobs(res.data.data.total || 0);
+        setJobPage(page);
+        setJobLimit(limit);
+      }
+    } catch (error) {
+      console.error('Error fetching jobs:', error);
+    } finally {
+      setIsLoadingData(false);
+    }
+  };
+
+  const fetchApplications = async (page = 1, limit = 9, search = '', status = '') => {
+    setIsLoadingData(true);
+    try {
+      const res = await axiosClient.get(`/api/employer/applications?page=${page}&limit=${limit}&search=${search}&status=${status}`);
+      if (res.data.errCode === 0) {
+        setMyApplications(res.data.data.applications || []);
+        setTotalApps(res.data.data.total || 0);
+        setAppPage(page);
+        setAppLimit(limit);
+      }
+    } catch (error) {
+      console.error('Error fetching applications:', error);
+    } finally {
+      setIsLoadingData(false);
+    }
+  };
+
+  const fetchData = async () => {
+    if (!user || user.role !== 'EMPLOYER') return;
+    await Promise.all([fetchJobs(1, 10), fetchApplications(1, 9)]);
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [user]);
+
   if (!isAuthReady) {
     return (
       <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">
+        <Loader2 className="w-5 h-5 animate-spin mr-2" />
         Đang kiểm tra phiên đăng nhập...
       </div>
     );
@@ -37,30 +92,24 @@ export default function EmployerDashboard() {
 
   if (!user || user.role !== 'EMPLOYER') return <Navigate to="/login" />;
 
-  const company = user.companyId ? getCompanyById(user.companyId) : null;
-  const myJobs = jobs.filter(j => j.companyId === user.companyId);
-  const myJobIds = myJobs.map(j => j.id);
-  const myApplications = applications.filter(a => myJobIds.includes(a.jobId));
-
+  const company = user.company;
+  
   // Get today's date
-  const todayStr = useMemo(() => {
+  const todayStr = (() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  }, []);
+  })();
 
-  // Mock interview data (in real app, this would come from backend)
-  const mockInterviews = [
-    { id: 1, candidateName: 'Nguyễn Văn A', jobTitle: 'Frontend Developer', date: '2026-04-07', time: '09:00' },
-    { id: 2, candidateName: 'Hoàng Văn E', jobTitle: 'Backend .NET Developer', date: '2026-04-07', time: '14:00' },
-    { id: 3, candidateName: 'Trần Thị B', jobTitle: 'Python Developer', date: todayStr, time: '10:30' },
-    { id: 4, candidateName: 'Phạm Văn C', jobTitle: 'Kế Toán Tổng Hợp', date: todayStr, time: '14:00' },
-  ];
-
-  // Today's interviews
+  // Mock interview data (keep for now as requested)
+  const mockInterviews: any[] = []; 
   const todayInterviews = mockInterviews.filter(i => i.date === todayStr);
 
   // New applications (mock: applications created in last 24 hours)
-  const newApplications = myApplications.slice(0, 2);
+  const newApplications = myApplications.filter(app => {
+    const createdDate = new Date(app.createdAt);
+    const now = new Date();
+    return (now.getTime() - createdDate.getTime()) < (24 * 60 * 60 * 1000);
+  }).slice(0, 5);
 
   // Close notification when clicking outside
   useEffect(() => {
@@ -218,12 +267,12 @@ export default function EmployerDashboard() {
           <main className="flex-1 px-6 py-6 overflow-auto">
             <Routes>
               <Route index element={<EmployerOverview myJobs={myJobs} myApplications={myApplications} />} />
-              <Route path="jobs" element={<EmployerJobs myJobs={myJobs} />} />
-              <Route path="jobs/create" element={<EmployerJobCreate />} />
-              <Route path="jobs/:id" element={<EmployerJobDetail />} />
-              <Route path="jobs/edit/:id" element={<EmployerJobEdit />} />
-              <Route path="candidates" element={<EmployerCandidates />} />
-              <Route path="candidates/:id" element={<EmployerCandidateDetail />} />
+              <Route path="jobs" element={<EmployerJobs myJobs={myJobs} total={totalJobs} page={jobPage} limit={jobLimit} onPageChange={fetchJobs} refreshData={fetchData} />} />
+              <Route path="jobs/create" element={<EmployerJobCreate refreshData={fetchData} />} />
+              <Route path="jobs/:id" element={<EmployerJobDetail refreshData={fetchData} />} />
+              <Route path="jobs/edit/:id" element={<EmployerJobEdit refreshData={fetchData} />} />
+              <Route path="candidates" element={<EmployerCandidates myApplications={myApplications} total={totalApps} page={appPage} limit={appLimit} onPageChange={fetchApplications} refreshData={fetchData} />} />
+              <Route path="candidates/:id" element={<EmployerCandidateDetail refreshData={fetchData} />} />
               <Route path="messages" element={<EmployerMessages />} />
               <Route path="schedule" element={<EmployerSchedule />} />
               <Route path="reports" element={<EmployerReports />} />

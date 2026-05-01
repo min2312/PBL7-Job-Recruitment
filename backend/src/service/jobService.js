@@ -1,4 +1,5 @@
 const db = require("../models");
+const { syncSingleJob, deleteJobNode } = require("./syncToNeo4jService");
 const { Op } = db.Sequelize;
 const crypto = require("crypto");
 
@@ -20,6 +21,27 @@ const addSavedStatusToJobs = async (jobs, userId) => {
 	return jobs.map((job) => {
 		const j = job.get ? job.get({ plain: true }) : job;
 		return { ...j, isSaved: savedJobIds.has(j.id) };
+	});
+};
+
+const addApplicationStatusToJobs = async (jobs, userId) => {
+	if (!userId || !jobs || jobs.length === 0) {
+		return jobs.map((job) => {
+			const j = job.get ? job.get({ plain: true }) : job;
+			return { ...j, isApplied: false };
+		});
+	}
+	const jobIds = jobs.map((j) => j.id);
+	const applications = await db.Application.findAll({
+		where: {
+			userId,
+			jobId: { [Op.in]: jobIds },
+		},
+	});
+	const appliedJobIds = new Set(applications.map((a) => a.jobId));
+	return jobs.map((job) => {
+		const j = job.get ? job.get({ plain: true }) : job;
+		return { ...j, isApplied: appliedJobIds.has(j.id) };
 	});
 };
 
@@ -195,7 +217,7 @@ async function fetchRandomJobsByLocation({
 	};
 
 	// Job-level filters where clause
-	const jobWhere = {};
+	const jobWhere = { status: "open" };
 
 	const parseSalaryRange = (salaryStr) => {
 		if (!salaryStr) return null;
@@ -419,13 +441,14 @@ async function fetchRandomJobsByLocation({
 		const returnedSeed =
 			seed || (pageNum === 1 ? Math.random().toString(36).slice(2, 10) : null);
 
-		const jobsWithStatus = await addSavedStatusToJobs(result.rows, userId);
+		const jobsWithSavedStatus = await addSavedStatusToJobs(result.rows, userId);
+		const jobsWithAllStatus = await addApplicationStatusToJobs(jobsWithSavedStatus, userId);
 
 		return {
 			total: result.count,
 			page: pageNum,
 			pageSize,
-			jobs: jobsWithStatus,
+			jobs: jobsWithAllStatus,
 			seed: returnedSeed,
 		};
 	}
@@ -459,13 +482,14 @@ async function fetchRandomJobsByLocation({
 	const returnedSeed =
 		seed || (pageNum === 1 ? Math.random().toString(36).slice(2, 10) : null);
 
-	const jobsWithStatus = await addSavedStatusToJobs(result.rows, userId);
+	const jobsWithSavedStatus = await addSavedStatusToJobs(result.rows, userId);
+	const jobsWithAllStatus = await addApplicationStatusToJobs(jobsWithSavedStatus, userId);
 
 	return {
 		total: result.count,
 		page: pageNum,
 		pageSize,
-		jobs: jobsWithStatus,
+		jobs: jobsWithAllStatus,
 		seed: returnedSeed,
 	};
 }
@@ -508,6 +532,18 @@ const getJobByCompanyId = async ({
 			where,
 			limit: pageSize,
 			offset,
+			attributes: {
+				include: [
+					[
+						db.sequelize.literal(`(
+							SELECT COUNT(*)
+							FROM applications AS app
+							WHERE app.job_id = Job.id
+						)`),
+						"applicantCount"
+					]
+				]
+			},
 			include: [
 				includeLocation,
 				{
@@ -523,12 +559,13 @@ const getJobByCompanyId = async ({
 			distinct: true,
 		});
 
-		const jobsWithStatus = await addSavedStatusToJobs(rows, userId);
+		const jobsWithSavedStatus = await addSavedStatusToJobs(rows, userId);
+		const jobsWithAllStatus = await addApplicationStatusToJobs(jobsWithSavedStatus, userId);
 		return {
 			total: count,
 			page: pageNum,
 			limit: pageSize,
-			jobs: jobsWithStatus,
+			jobs: jobsWithAllStatus,
 		};
 	} catch (error) {
 		throw error;
@@ -558,8 +595,9 @@ const getJobById = async (jobId, userId = null) => {
 
 		if (!job) return null;
 
-		const jobsWithStatus = await addSavedStatusToJobs([job], userId);
-		return jobsWithStatus[0];
+		const jobsWithSavedStatus = await addSavedStatusToJobs([job], userId);
+		const jobsWithAllStatus = await addApplicationStatusToJobs(jobsWithSavedStatus, userId);
+		return jobsWithAllStatus[0];
 	} catch (error) {
 		throw error;
 	}
@@ -793,7 +831,7 @@ async function searchJobs({
 	};
 
 	// --- Build where clause ---
-	const jobWhere = {};
+	const jobWhere = { status: "open" };
 	if (search && search.trim()) {
 		jobWhere.title = { [Op.like]: `%${search.trim()}%` };
 	}
@@ -862,13 +900,14 @@ async function searchJobs({
 
 		const totalFiltered = filtered.length;
 		const pageRows = filtered.slice(offset, offset + pageSize);
-		const jobsWithStatus = await addSavedStatusToJobs(pageRows, userId);
+		const jobsWithSavedStatus = await addSavedStatusToJobs(pageRows, userId);
+		const jobsWithAllStatus = await addApplicationStatusToJobs(jobsWithSavedStatus, userId);
 
 		return {
 			total: totalFiltered,
 			page: pageNum,
 			pageSize,
-			jobs: jobsWithStatus,
+			jobs: jobsWithAllStatus,
 		};
 	}
 
@@ -882,13 +921,14 @@ async function searchJobs({
 		order: [["id", "DESC"]],
 	});
 
-	const jobsWithStatus = await addSavedStatusToJobs(result.rows, userId);
+	const jobsWithSavedStatus = await addSavedStatusToJobs(result.rows, userId);
+	const jobsWithAllStatus = await addApplicationStatusToJobs(jobsWithSavedStatus, userId);
 
 	return {
 		total: result.count,
 		page: pageNum,
 		pageSize,
-		jobs: jobsWithStatus,
+		jobs: jobsWithAllStatus,
 	};
 }
 
@@ -974,11 +1014,13 @@ const getSavedJobs = async (userId, page = 1, limit = 10) => {
 			};
 		});
 
+		const jobsWithAppliedStatus = await addApplicationStatusToJobs(jobs, userId);
+
 		return {
 			total: count,
 			page: pageNum,
 			limit: pageSize,
-			jobs,
+			jobs: jobsWithAppliedStatus,
 		};
 	} catch (error) {
 		throw error;
@@ -1037,6 +1079,9 @@ const createJob = async (data) => {
 			await job.setLocations(locationIds);
 		}
 
+		// Sync to Neo4j
+		await syncSingleJob(job.id);
+
 		return {
 			errCode: 0,
 			errMessage: "Job created successfully",
@@ -1044,6 +1089,97 @@ const createJob = async (data) => {
 		};
 	} catch (error) {
 		console.error("Error in createJob service:", error);
+		throw error;
+	}
+};
+
+const updateJob = async (id, data) => {
+	try {
+		const {
+			title,
+			salary,
+			level,
+			experience,
+			education,
+			gender,
+			age,
+			employmentType,
+			quantity,
+			startDate,
+			endDate,
+			description,
+			requirement,
+			benefit,
+			workLocation,
+			workTime,
+			categoryIds,
+			locationIds,
+			status
+		} = data;
+
+		const job = await db.Job.findByPk(id);
+		if (!job) {
+			return { errCode: 1, errMessage: "Job not found" };
+		}
+
+		await job.update({
+			title,
+			salary,
+			level,
+			experience,
+			education,
+			gender,
+			age,
+			employmentType,
+			quantity,
+			startDate,
+			endDate,
+			description,
+			requirement,
+			benefit,
+			workLocation,
+			workTime,
+			status: status || job.status
+		});
+
+		if (categoryIds) {
+			await job.setCategories(categoryIds);
+		}
+		if (locationIds) {
+			await job.setLocations(locationIds);
+		}
+
+		// Sync to Neo4j
+		await syncSingleJob(id);
+
+		return {
+			errCode: 0,
+			errMessage: "Job updated successfully",
+			data: job,
+		};
+	} catch (error) {
+		console.error("Error in updateJob service:", error);
+		throw error;
+	}
+};
+
+const deleteJob = async (id) => {
+	try {
+		const job = await db.Job.findByPk(id);
+		if (!job) {
+			return { errCode: 1, errMessage: "Job not found" };
+		}
+		await job.destroy();
+
+		// Sync to Neo4j
+		await deleteJobNode(id);
+
+		return {
+			errCode: 0,
+			errMessage: "Job deleted successfully",
+		};
+	} catch (error) {
+		console.error("Error in deleteJob service:", error);
 		throw error;
 	}
 };
@@ -1056,4 +1192,6 @@ module.exports = {
 	saveOrUnsaveJob,
 	getSavedJobs,
 	createJob,
+	updateJob,
+	deleteJob,
 };

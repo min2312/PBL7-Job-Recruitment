@@ -21,10 +21,14 @@ export default function RelatedJobCard({ job, onMouseEnter, onMouseLeave }: Rela
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  // Check if job is saved on component mount
+  // Check if job status on component mount
   useEffect(() => {
     setIsSaved(job.isSaved || false);
-  }, [job.isSaved]);
+    setIsApplied(job.isApplied || false);
+  }, [job.isSaved, job.isApplied]);
+
+  const [isApplied, setIsApplied] = useState(job.isApplied || false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   const handleSaveJob = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
@@ -54,6 +58,32 @@ export default function RelatedJobCard({ job, onMouseEnter, onMouseLeave }: Rela
       console.error('Error:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleCancelApply = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    
+    setIsCancelling(true);
+    try {
+      const response = await axiosClient.delete('/api/jobs/cancel-apply', {
+        data: { jobId: job.id }
+      });
+      if (response.data.errCode === 0) {
+        setIsApplied(false);
+        toast.success('Hủy ứng tuyển thành công');
+      } else {
+        toast.error(response.data.errMessage || 'Lỗi khi hủy ứng tuyển');
+      }
+    } catch (error) {
+      toast.error('Lỗi hệ thống khi hủy ứng tuyển');
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -131,10 +161,21 @@ export default function RelatedJobCard({ job, onMouseEnter, onMouseLeave }: Rela
           {/* Heart Button */}
           <div className="flex items-center justify-end gap-2">
             <button 
-              onClick={() => navigate(`/jobs/${job.id}`)}
-              className="hidden group-hover:flex h-8 items-center justify-center px-3 bg-black text-white text-xs font-semibold rounded hover:bg-slate-800 transition-colors"
+              onClick={(e) => {
+                if (isApplied) {
+                  handleCancelApply(e);
+                } else {
+                  navigate(`/jobs/${job.id}`);
+                }
+              }}
+              disabled={isCancelling}
+              className={`hidden group-hover:flex h-8 items-center justify-center px-3 text-xs font-semibold rounded transition-colors ${
+                isApplied 
+                  ? "bg-rose-500 hover:bg-rose-600 text-white" 
+                  : "bg-black text-white hover:bg-slate-800"
+              }`}
             >
-              Ứng tuyển
+              {isApplied ? 'Hủy ứng tuyển' : 'Ứng tuyển'}
             </button>
             <button 
               onClick={handleSaveJob}

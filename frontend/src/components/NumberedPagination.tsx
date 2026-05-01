@@ -122,6 +122,27 @@ export default function NumberedPagination({
 			>
 				<ChevronRight className="w-4 h-4" />
 			</button>
+
+			{/* Jump to page */}
+			<div className="flex items-center gap-2 ml-4 text-sm text-slate-500">
+				<span>Đến trang:</span>
+				<input
+					type="number"
+					min={1}
+					max={totalPages}
+					className="w-12 h-9 px-1 text-center border border-slate-200 rounded-md focus:outline-none focus:border-emerald-500 transition-colors"
+					onKeyDown={(e) => {
+						if (e.key === "Enter") {
+							const val = parseInt((e.target as HTMLInputElement).value);
+							if (val >= 1 && val <= totalPages) {
+								onPageChange(val);
+								window.scrollTo(0, 0);
+							}
+						}
+					}}
+					placeholder="..."
+				/>
+			</div>
 		</div>
 	);
 }

@@ -169,7 +169,7 @@ const HandleCreateJob = async (req, res) => {
 		if (req.user.role !== "EMPLOYER") {
 			return res.status(403).json({ errCode: 1, errMessage: "Only employers can post jobs" });
 		}
-		data.companyId = req.user.companyId;
+		data.companyId = req.user.company?.id;
 
 		const result = await jobService.createJob(data);
 		return res.status(200).json(result);
@@ -181,7 +181,7 @@ const HandleCreateJob = async (req, res) => {
 
 const HandleGetEmployerJobs = async (req, res) => {
 	try {
-		const companyId = req.user?.companyId;
+		const companyId = req.user?.company.id;
 		if (!companyId) {
 			return res.status(403).json({ errCode: 1, errMessage: "Only employers with a company can view jobs" });
 		}
@@ -203,6 +203,43 @@ const HandleGetEmployerJobs = async (req, res) => {
 	}
 };
 
+const HandleUpdateJob = async (req, res) => {
+	try {
+		const { id } = req.params;
+		const data = req.body;
+		const companyId = req.user.company.id;
+
+		const job = await jobService.getJobById(id);
+		if (!job || job.companyId !== companyId) {
+			return res.status(403).json({ errCode: 1, errMessage: "You don't have permission to edit this job" });
+		}
+
+		const result = await jobService.updateJob(id, data);
+		return res.status(200).json(result);
+	} catch (error) {
+		console.error("Error in HandleUpdateJob", error);
+		return res.status(500).json({ errCode: -1, errMessage: "Internal server error" });
+	}
+};
+
+const HandleDeleteJob = async (req, res) => {
+	try {
+		const { id } = req.params;
+		const companyId = req.user.company.id;
+
+		const job = await jobService.getJobById(id);
+		if (!job || job.companyId !== companyId) {
+			return res.status(403).json({ errCode: 1, errMessage: "You don't have permission to delete this job" });
+		}
+
+		const result = await jobService.deleteJob(id);
+		return res.status(200).json(result);
+	} catch (error) {
+		console.error("Error in HandleDeleteJob", error);
+		return res.status(500).json({ errCode: -1, errMessage: "Internal server error" });
+	}
+};
+
 module.exports = {
 	getRandomJobsByLocation,
 	searchJobs,
@@ -211,5 +248,7 @@ module.exports = {
 	saveOrUnsaveJob,
 	getSavedJobs,
 	HandleCreateJob,
+	HandleUpdateJob,
+	HandleDeleteJob,
 	HandleGetEmployerJobs,
 };

@@ -5,6 +5,7 @@ import { CreateJWT, CreateRefreshJWT } from "../middleware/JWT_Action";
 import firebaseAdmin from "../config/firebase";
 const cloudinary = require("cloudinary").v2;
 const { uploadToAzure, deleteFromAzure } = require("./azureStorageService");
+const { syncSingleUser, syncSingleCompany } = require("./syncToNeo4jService");
 const streamifier = require("streamifier");
 require("dotenv").config();
 const salt = bcrypt.genSaltSync(10);
@@ -202,6 +203,10 @@ let CreateNewUser = (data) => {
 					role: data.role,
 					companyId: new_company ? new_company.id : null,
 				});
+
+				// Sync to Neo4j
+				await syncSingleUser(new_user.id);
+				if (new_company) await syncSingleCompany(new_company.id);
 				new_user = new_user.get({ plain: true });
 				delete new_user.password;
 				resolve({
@@ -299,6 +304,9 @@ let updateUser = (data, files) => {
 
 			await db.User.update(updateData, { where: { id: data.id } });
 
+			// Sync to Neo4j
+			await syncSingleUser(data.id);
+
 			// 3. Handle Employer / Company update
 			if (user.role === "EMPLOYER" && user.companyId) {
 				const company = await db.Company.findByPk(user.companyId);
@@ -328,6 +336,8 @@ let updateUser = (data, files) => {
 					await db.Company.update(companyUpdateData, {
 						where: { id: user.companyId },
 					});
+					// Sync to Neo4j
+					await syncSingleCompany(user.companyId);
 				}
 			}
 
@@ -349,11 +359,12 @@ let updateUser = (data, files) => {
 			};
 
 			let token = CreateJWT(payload);
+			let refreshToken = CreateRefreshJWT(payload);
 			resolve({
 				errCode: 0,
 				message: "Update User Success!",
 				user: newUser,
-				DT: { access_token: token },
+				DT: { access_token: token, refresh_token: refreshToken },
 			});
 		} catch (e) {
 			console.error("Error in updateUser service:", e);
@@ -410,6 +421,9 @@ let updateUserProfile = (data, fileImage) => {
 					where: { id: data.id },
 				});
 
+				// Sync to Neo4j
+				await syncSingleUser(data.id);
+
 				// Fetch the updated user data
 				let updatedUser = await db.User.findOne({
 					where: { id: data.id },
@@ -431,12 +445,14 @@ let updateUserProfile = (data, fileImage) => {
 					isPremium: updatedUser.isPremium,
 				};
 				let token = CreateJWT(payload);
+				let refreshToken = CreateRefreshJWT(payload);
 
 				resolve({
 					errCode: 0,
 					user: updatedUser,
 					DT: {
 						access_token: token,
+						refresh_token: refreshToken,
 					},
 				});
 			} else {
@@ -558,7 +574,20 @@ let HandleFirebaseLogin = (idToken) => {
 					profilePicture: picture || null
 				});
 				
+				// Sync to Neo4j
+				await syncSingleUser(newUser.id);
+				
 				user = newUser.get({ plain: true });
+			} else {
+				// Nếu user đã có nhưng chưa có ảnh, hoặc ảnh Google khác ảnh cũ thì cập nhật
+				if (picture && user.profilePicture !== picture) {
+					await db.User.update(
+						{ profilePicture: picture, name: user.name || name },
+						{ where: { id: user.id } }
+					);
+					user.profilePicture = picture;
+					if (!user.name) user.name = name;
+				}
 			}
 
 			if (user.role === "EMPLOYER") {
@@ -601,6 +630,233 @@ let HandleFirebaseLogin = (idToken) => {
 	});
 };
 
+let changeUserPassword = (data) => {
+	return new Promise(async (resolve, reject) => {
+		try {
+			let user = await db.User.findOne({
+				where: { id: data.id },
+			});
+			if (user) {
+				let check = await bcrypt.compareSync(data.currentPassword, user.password);
+				if (check) {
+					let hashPassword = await bcrypt.hashSync(data.newPassword, salt);
+					await db.User.update(
+						{ password: hashPassword },
+						{ where: { id: data.id } },
+					);
+					// Sync to Neo4j
+					await syncSingleUser(data.id);
+					resolve({
+						errCode: 0,
+						message: "Đổi mật khẩu thành công",
+					});
+				} else {
+					resolve({
+						errCode: 1,
+						errMessage: "Mật khẩu hiện tại không chính xác",
+					});
+				}
+			} else {
+				resolve({
+					errCode: 2,
+					errMessage: "Không tìm thấy user",
+				});
+			}
+		} catch (e) {
+			reject(e);
+		}
+	});
+};
+
+let removeUserFile = (userId, type) => {
+	return new Promise(async (resolve, reject) => {
+		try {
+			let user = await db.User.findOne({
+				where: { id: userId },
+			});
+			if (!user) {
+				return resolve({ errCode: 1, errMessage: "Không tìm thấy user" });
+			}
+
+			if (type === "avatar") {
+				if (user.profilePicture && user.profilePicture.includes("cloudinary.com")) {
+					// Extract public_id from Cloudinary URL
+					// Format: https://res.cloudinary.com/cloud_name/image/upload/v123/folder/id.jpg
+					const parts = user.profilePicture.split("/");
+					const fileName = parts[parts.length - 1]; // id.jpg
+					const publicIdWithoutExt = fileName.split(".")[0];
+					const folder = parts[parts.length - 2]; // Job-Recruitment (folder)
+					const publicId = `${folder}/${publicIdWithoutExt}`;
+
+					await cloudinary.uploader.destroy(publicId);
+				}
+				await db.User.update(
+					{ profilePicture: null },
+					{ where: { id: userId } },
+				);
+			} else if (type === "cv") {
+				if (user.cv_file) {
+					await deleteFromAzure(user.cv_file);
+				}
+				await db.User.update(
+					{ cv_file: null },
+					{ where: { id: userId } },
+				);
+				// Sync to Neo4j
+				await syncSingleUser(userId);
+			}
+
+			//payload token
+			let updatedUser = await db.User.findOne({
+				where: { id: userId },
+			});
+
+			let payload = {
+				id: updatedUser.id,
+				email: updatedUser.email,
+				name: updatedUser.name,
+				phone: updatedUser.phone,
+				createdAt: updatedUser.createdAt,
+				role: updatedUser.role,
+				profilePicture: updatedUser.profilePicture,
+				description: updatedUser.description,
+				cv_file: updatedUser.cv_file,
+				company: updatedUser.company,
+			};
+
+			let token = CreateJWT(payload);
+			let refreshToken = CreateRefreshJWT(payload);
+
+			resolve({
+				errCode: 0,
+				message: "Xóa file thành công",
+				DT: {
+					access_token: token,
+					refresh_token: refreshToken,
+				},
+			});
+		} catch (e) {
+			reject(e);
+		}
+	});
+};
+
+let updateEmployerLogo = (userId, file) => {
+	return new Promise(async (resolve, reject) => {
+		try {
+			if (!userId || !file) {
+				return resolve({ errCode: 1, errMessage: "Missing required parameters!" });
+			}
+
+			let user = await db.User.findOne({
+				where: { id: userId },
+			});
+
+			if (!user || user.role !== "EMPLOYER" || !user.companyId) {
+				return resolve({ errCode: 2, errMessage: "Invalid user or company!" });
+			}
+
+			const company = await db.Company.findByPk(user.companyId);
+			if (company && company.logo) {
+				await deleteCloudinaryImage(company.logo);
+			}
+
+			const result = await uploadBufferToCloudinary(file.buffer, "Job-Recruitment");
+			await db.Company.update(
+				{ logo: result.secure_url },
+				{ where: { id: user.companyId } }
+			);
+			// Sync to Neo4j
+			await syncSingleCompany(user.companyId);
+
+			// Fetch updated user with company info for new token
+			let updatedUser = await db.User.findOne({
+				where: { id: userId },
+				include: [{ model: db.Company, as: "company" }],
+			});
+
+			let payload = {
+				id: updatedUser.id,
+				email: updatedUser.email,
+				name: updatedUser.name,
+				role: updatedUser.role,
+				description: updatedUser.description,
+				cv_file: updatedUser.cv_file,
+				profilePicture: updatedUser.profilePicture,
+				company: updatedUser.company,
+			};
+
+			let token = CreateJWT(payload);
+			let refreshToken = CreateRefreshJWT(payload);
+
+			resolve({
+				errCode: 0,
+				message: "Update Logo Success!",
+				user: updatedUser,
+				DT: { access_token: token, refresh_token: refreshToken },
+			});
+		} catch (e) {
+			reject(e);
+		}
+	});
+};
+
+let deleteEmployerLogo = (userId) => {
+	return new Promise(async (resolve, reject) => {
+		try {
+			if (!userId) {
+				return resolve({ errCode: 1, errMessage: "Missing required parameters!" });
+			}
+
+			let user = await db.User.findOne({
+				where: { id: userId },
+			});
+
+			if (!user || user.role !== "EMPLOYER" || !user.companyId) {
+				return resolve({ errCode: 2, errMessage: "Invalid user or company!" });
+			}
+
+			const company = await db.Company.findByPk(user.companyId);
+			if (company && company.logo) {
+				await deleteCloudinaryImage(company.logo);
+				await db.Company.update(
+					{ logo: null },
+					{ where: { id: user.companyId } }
+				);
+			}
+
+			// Fetch updated user
+			let updatedUser = await db.User.findOne({
+				where: { id: userId },
+				include: [{ model: db.Company, as: "company" }],
+			});
+
+			let payload = {
+				id: updatedUser.id,
+				email: updatedUser.email,
+				name: updatedUser.name,
+				role: updatedUser.role,
+				description: updatedUser.description,
+				cv_file: updatedUser.cv_file,
+				profilePicture: updatedUser.profilePicture,
+				company: updatedUser.company,
+			};
+
+			let token = CreateJWT(payload);
+			let refreshToken = CreateRefreshJWT(payload);
+
+			resolve({
+				errCode: 0,
+				message: "Delete Logo Success!",
+				user: updatedUser,
+				DT: { access_token: token, refresh_token: refreshToken },
+			});
+		} catch (e) {
+			reject(e);
+		}
+	});
+};
+
 module.exports = {
 	HandleUserLogin: HandleUserLogin,
 	HandleFirebaseLogin: HandleFirebaseLogin,
@@ -612,5 +868,9 @@ module.exports = {
 	getInfoCar: getInfoCar,
 	upsertUserSocial: upsertUserSocial,
 	resetPassword: resetPassword,
-	CheckUserEmail: CheckUserEmail, // new export for service-level email checking
+	CheckUserEmail: CheckUserEmail,
+	changeUserPassword: changeUserPassword,
+	removeUserFile: removeUserFile,
+	updateEmployerLogo: updateEmployerLogo,
+	deleteEmployerLogo: deleteEmployerLogo,
 };

@@ -1,83 +1,101 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search } from 'lucide-react';
-
-interface Candidate {
-  id: number;
-  name: string;
-  email: string;
-  phone: string;
-  jobTitle: string;
-  level: string;
-  applicationDate: string;
-  status: 'applied' | 'reviewing' | 'interview' | 'accepted' | 'rejected';
-}
-
-const mockCandidates: Candidate[] = [
-  { id: 1, name: 'Nguyễn Văn A', email: 'nguyenvana@gmail.com', phone: '0901234567', jobTitle: 'React Developer', level: 'Senior', applicationDate: '2026-04-28', status: 'interview' },
-  { id: 2, name: 'Trần Thị B', email: 'tranthib@gmail.com', phone: '0912345678', jobTitle: 'Python Developer', level: 'Mid-level', applicationDate: '2026-04-27', status: 'applied' },
-  { id: 3, name: 'Lê Văn C', email: 'levanc@gmail.com', phone: '0923456789', jobTitle: 'Marketing Manager', level: 'Mid-level', applicationDate: '2026-04-26', status: 'reviewing' },
-  { id: 4, name: 'Phạm Thị D', email: 'phamthid@gmail.com', phone: '0934567890', jobTitle: '.NET Developer', level: 'Senior', applicationDate: '2026-04-25', status: 'accepted' },
-  { id: 5, name: 'Hoàng Văn E', email: 'hoangvane@gmail.com', phone: '0945678901', jobTitle: 'Java Developer', level: 'Senior', applicationDate: '2026-04-24', status: 'interview' },
-  { id: 6, name: 'Đỗ Thị F', email: 'dothif@gmail.com', phone: '0956789012', jobTitle: 'UI/UX Designer', level: 'Junior', applicationDate: '2026-04-23', status: 'rejected' },
-];
+import { Search, MessageSquare, Eye } from 'lucide-react';
+import NumberedPagination from '@/components/NumberedPagination';
 
 const statusConfig: Record<string, { label: string; emoji: string; className: string }> = {
-  applied: { label: 'Đã nộp', emoji: '🟡', className: 'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-400' },
-  reviewing: { label: 'Đang xét', emoji: '🔵', className: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-400' },
-  interview: { label: 'Phỏng vấn', emoji: '🟣', className: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-400' },
-  accepted: { label: 'Đã nhận', emoji: '🟢', className: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-400' },
-  rejected: { label: 'Từ chối', emoji: '🔴', className: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-400' },
+  pending: { label: 'Đã nộp', emoji: '🟡', className: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
+  interview: { label: 'Phỏng vấn', emoji: '🟣', className: 'bg-purple-50 text-purple-700 border-purple-200' },
+  approved: { label: 'Đã nhận', emoji: '🟢', className: 'bg-green-50 text-green-700 border-green-200' },
+  rejected: { label: 'Từ chối', emoji: '🔴', className: 'bg-red-50 text-red-700 border-red-200' },
 };
 
-export default function EmployerCandidates() {
+interface Props {
+  myApplications: any[];
+  total: number;
+  page: number;
+  limit: number;
+  onPageChange: (page: number, limit: number, search?: string, status?: string) => void;
+  refreshData: () => void;
+}
+
+export default function EmployerCandidates({ myApplications, total, page, limit, onPageChange, refreshData }: Props) {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  // Scroll to top on mount
+  // Server-side search and status filter with debounce
   useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
+    const delayDebounceFn = setTimeout(() => {
+      // Fetch data based on search and statusFilter
+      // Convert 'all' to empty string for backend
+      const statusParam = statusFilter === 'all' ? '' : statusFilter;
+      
+      // Always reset to page 1 when filtering/searching
+      onPageChange(1, limit, search, statusParam);
+    }, 500);
 
-  const filtered = mockCandidates
-    .filter(c => {
-      const matchSearch = c.name.toLowerCase().includes(search.toLowerCase()) || c.email.toLowerCase().includes(search.toLowerCase());
-      const matchStatus = statusFilter === 'all' || c.status === statusFilter;
-      return matchSearch && matchStatus;
-    })
-    .sort((a, b) => a.name.localeCompare(b.name));
+    return () => clearTimeout(delayDebounceFn);
+  }, [search, statusFilter]);
+
+  const filtered = myApplications; // Server returns filtered page
+
+  // Group applications by candidate
+  const groupedCandidates = useMemo(() => {
+    const groups: Record<number, any> = {};
+    filtered.forEach(app => {
+      const userId = app.user_id;
+      if (!groups[userId]) {
+        groups[userId] = {
+          user: app.User,
+          applications: []
+        };
+      }
+      groups[userId].applications.push(app);
+    });
+    // Sort candidates by their most recent application
+    return Object.values(groups).sort((a: any, b: any) => {
+      const dateA = new Date(a.applications[0].createdAt).getTime();
+      const dateB = new Date(b.applications[0].createdAt).getTime();
+      return dateB - dateA;
+    });
+  }, [filtered]);
+
+  // Pagination logic (now based on unique candidates)
+  const totalPages = Math.ceil(groupedCandidates.length / limit);
+  const currentCandidates = groupedCandidates.slice((page - 1) * limit, page * limit);
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-heading font-bold text-foreground tracking-tight">Ứng viên</h2>
-        <p className="text-sm text-muted-foreground mt-0.5">{mockCandidates.length} ứng viên</p>
+        <h2 className="text-2xl font-bold">Ứng viên</h2>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          {groupedCandidates.length} ứng viên ({filtered.length} lượt ứng tuyển)
+        </p>
       </div>
 
       {/* Search & Filters */}
-      <Card>
+      <Card className="border border-slate-200 shadow-sm">
         <CardContent className="p-4">
           <div className="flex flex-col lg:flex-row gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="Tìm kiếm theo tên, kỹ năng..." className="pl-10" value={search} onChange={e => setSearch(e.target.value)} />
+              <Input placeholder="Tìm kiếm theo tên ứng viên, email..." className="pl-10" value={search} onChange={e => setSearch(e.target.value)} />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Trạng thái" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Tất cả</SelectItem>
-                <SelectItem value="applied">🟡 Đã nộp</SelectItem>
-                <SelectItem value="reviewing">🔵 Đang xét</SelectItem>
+                <SelectItem value="all">Tất cả trạng thái</SelectItem>
+                <SelectItem value="pending">🟡 Đã nộp</SelectItem>
                 <SelectItem value="interview">🟣 Phỏng vấn</SelectItem>
-                <SelectItem value="accepted">🟢 Đã nhận</SelectItem>
+                <SelectItem value="approved">🟢 Đã nhận</SelectItem>
                 <SelectItem value="rejected">🔴 Từ chối</SelectItem>
               </SelectContent>
             </Select>
@@ -86,87 +104,102 @@ export default function EmployerCandidates() {
       </Card>
 
       {/* Candidate Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {filtered.map(candidate => {
-          const config = statusConfig[candidate.status];
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {currentCandidates.map((group: any) => {
+          const applicant = group.user;
+          const apps = group.applications;
+          const hasMultiple = apps.length > 1;
+
           return (
-            <Card key={candidate.id} className="hover:shadow-md transition-all group">
-              <CardContent className="p-5">
-                {/* Header: Tên & Status Badge */}
-                <div className="flex items-start justify-between gap-3 mb-4">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-lg text-foreground">{candidate.name}</p>
-                  </div>
-                  <Badge variant="outline" className={`${config.className} whitespace-nowrap shrink-0`}>
-                    {config.emoji} {config.label}
-                  </Badge>
-                </div>
-
-                {/* Email & Phone */}
-                <div className="space-y-2 mb-4 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">Email:</span>
-                    <a href={`mailto:${candidate.email}`} className="text-primary hover:underline truncate">
-                      {candidate.email}
-                    </a>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">SĐT:</span>
-                    <a href={`tel:${candidate.phone}`} className="text-primary hover:underline">
-                      {candidate.phone}
-                    </a>
-                  </div>
-                </div>
-
-                {/* Job Info */}
-                <div className="space-y-2 mb-4 pb-4 border-b border-border">
-                  <div>
-                    <p className="text-xs text-muted-foreground font-medium">Tên công việc</p>
-                    <p className="text-sm font-medium text-foreground">{candidate.jobTitle}</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <p className="text-xs text-muted-foreground font-medium">Vị trí</p>
-                      <p className="text-sm font-medium text-foreground">{candidate.level}</p>
+            <Card key={applicant?.id} className="hover:shadow-md transition-all border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+              <CardContent className="p-0 flex-1">
+                <div className="p-5">
+                  {/* Candidate Header */}
+                  <div className="flex items-start justify-between gap-3 mb-5">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center font-bold shrink-0 overflow-hidden ring-2 ring-slate-50">
+                         {applicant?.profilePicture ? (
+                           <img src={applicant.profilePicture} alt="" className="w-full h-full object-cover" />
+                         ) : (
+                           applicant?.name?.charAt(0).toUpperCase()
+                         )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-bold text-slate-900 truncate text-base">{applicant?.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{applicant?.email}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground font-medium">Ngày nộp</p>
-                      <p className="text-sm font-medium text-foreground">{candidate.applicationDate}</p>
+                    {hasMultiple && (
+                      <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-100 text-[10px] whitespace-nowrap">
+                        {apps.length} vị trí
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* Applications List */}
+                  <div className="space-y-3 mb-2">
+                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Vị trí ứng tuyển</p>
+                    <div className="space-y-2 max-h-[160px] overflow-auto pr-1 custom-scrollbar">
+                      {apps.map((app: any) => {
+                        const config = statusConfig[app.status] || statusConfig.pending;
+                        return (
+                          <div key={app.id} className="p-2.5 rounded-lg bg-slate-50/80 border border-slate-100 group/item hover:bg-white hover:border-slate-200 transition-all">
+                            <div className="flex justify-between items-start gap-2 mb-1.5">
+                              <p className="text-xs font-bold text-slate-800 line-clamp-1 flex-1">{app.Job?.title}</p>
+                              <Badge variant="outline" className={`${config.className} text-[9px] px-1.5 py-0 h-4 font-bold uppercase`}>
+                                {config.label}
+                              </Badge>
+                            </div>
+                            <div className="flex justify-between items-center mt-2.5 pt-2 border-t border-slate-200/60">
+                              <span className="text-[10px] text-muted-foreground">
+                                {new Date(app.createdAt).toLocaleDateString('vi-VN')}
+                              </span>
+                              <Button 
+                                size="sm" 
+                                variant="ghost" 
+                                className="h-7 px-2 text-[10px] font-bold text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 gap-1.5"
+                                onClick={() => navigate(`/employer/candidates/${app.id}`)}
+                              >
+                                <Eye className="w-3.5 h-3.5" /> Chi tiết
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    className="flex-1" 
-                    size="sm"
-                    onClick={() => navigate(`../candidates/${candidate.id}`)}
-                  >
-                    Xem chi tiết
-                  </Button>
-                  <Button 
-                    className="flex-1" 
-                    size="sm"
-                    onClick={() => navigate('../messages', { state: { candidate } })}
-                  >
-                    Liên hệ
-                  </Button>
                 </div>
               </CardContent>
+
+              <div className="px-5 pb-5 pt-0">
+                <Button 
+                  className="w-full h-9 text-xs bg-emerald-600 hover:bg-emerald-700 shadow-sm"
+                  onClick={() => navigate('../messages', { state: { applicant } })}
+                >
+                  <MessageSquare className="w-3 h-3 mr-2" /> Nhắn tin cho ứng viên
+                </Button>
+              </div>
             </Card>
           );
         })}
       </div>
 
-      {filtered.length === 0 && (
-        <Card>
+      {currentCandidates.length === 0 && (
+        <Card className="border border-slate-200 shadow-sm">
           <CardContent className="p-12 text-center text-muted-foreground">
             Không tìm thấy ứng viên nào phù hợp
           </CardContent>
         </Card>
       )}
+
+      {/* Pagination */}
+      <div className="flex justify-center pt-6">
+        <NumberedPagination 
+          currentPage={page}
+          totalPages={totalPages}
+          onPageChange={(p) => onPageChange(p, limit)}
+        />
+      </div>
     </div>
   );
 }

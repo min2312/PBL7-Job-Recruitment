@@ -117,50 +117,47 @@ const checkUserJWT = (req, res, next) => {
 		return false;
 	};
 
-	if (isNonSecurePath(req.path) || isNgrokRequest) {
-		return next();
-	}
 	let cookies = req.cookies;
 	if (cookies && (cookies.jwt || cookies.jwt2)) {
 		if (cookies.jwt) {
 			let token = cookies.jwt;
 			let decoded = verifyToken(token);
-			if (decoded.error === "TokenExpiredError") {
-				return res.status(401).json({
-					errCode: -2,
-					errMessage: "Token has expired. Please log in again.",
-				});
-			}
-			if (decoded) {
+			if (decoded && decoded.error === "TokenExpiredError") {
+				if (!isNonSecurePath(req.path)) {
+					return res.status(401).json({
+						errCode: -2,
+						errMessage: "Token has expired. Please log in again.",
+					});
+				}
+			} else if (decoded) {
 				req.user = decoded;
 				req.token = token;
-			} else {
-				return res.status(401).json({
-					errCode: -2,
-					errMessage: "Not Authenticated the user",
-				});
 			}
 		}
+
 		if (cookies.jwt2) {
 			let token = cookies.jwt2;
 			let decoded = verifyToken(token);
-			if (decoded.error === "TokenExpiredError") {
-				return res.status(401).json({
-					errCode: -1,
-					errMessage: "Token has expired. Please log in again.",
-				});
-			}
-			if (decoded) {
+			if (decoded && decoded.error === "TokenExpiredError") {
+				if (!isNonSecurePath(req.path)) {
+					return res.status(401).json({
+						errCode: -1,
+						errMessage: "Token has expired. Please log in again.",
+					});
+				}
+			} else if (decoded) {
 				req.admin = decoded;
 				req.adminToken = token;
-			} else {
-				return res.status(401).json({
-					errCode: -1,
-					errMessage: "Not Authenticated the user",
-				});
 			}
 		}
-		next();
+	}
+
+	if (isNonSecurePath(req.path) || isNgrokRequest) {
+		return next();
+	}
+
+	if (req.user || req.admin) {
+		return next();
 	} else {
 		return res.status(401).json({
 			errCode: -2,

@@ -7,11 +7,12 @@ import companyController from "../controllers/companyController";
 import locationController from "../controllers/locationController";
 import categoryController from "../controllers/categoryController";
 import applicationController from "../controllers/applicationController";
+import employerController from "../controllers/employerController";
 import { checkUserJWT, CreateJWT } from "../middleware/JWT_Action";
 import checkExpiredSubscriptions from "../middleware/checkExpiredSubscriptions";
 import passport from "passport";
 // import apiController from "../controllers/apiController";
-import { uploadUserFiles, uploadApplicationFiles } from "../middleware/Cloudinary_Multer";
+import { uploadUserFiles, uploadApplicationFiles, uploadCompanyFiles } from "../middleware/Cloudinary_Multer";
 // import socialController from "../controllers/socialController.js";
 import {
 	sendResetOTP,
@@ -48,6 +49,8 @@ let initWebRoutes = (app) => {
 		userController.HandleEditUser
 	);
 	router.post("/api/register", userController.HandleCreateNewUser);
+	router.post("/api/change-password", userController.HandleChangePassword);
+	router.delete("/api/remove-file", userController.HandleRemoveFile);
 
 	// router.post(
 	// 	"/api/create-new-post",
@@ -98,14 +101,28 @@ let initWebRoutes = (app) => {
 		"/api/jobs/create",
 		jobController.HandleCreateJob
 	);
+	router.put(
+		"/api/jobs/update/:id",
+		jobController.HandleUpdateJob
+	);
+	router.delete(
+		"/api/jobs/delete/:id",
+		jobController.HandleDeleteJob
+	);
 	router.get("/api/employer/jobs", jobController.HandleGetEmployerJobs);
 	router.post(
 		"/api/jobs/apply",
 		uploadApplicationFiles,
 		applicationController.HandleApplyJob
 	);
+	router.delete("/api/jobs/cancel-apply", applicationController.HandleCancelApplication);
 	router.get("/api/my-applications", applicationController.HandleGetMyApplications);
 	router.get("/api/employer/applications", applicationController.HandleGetEmployerApplications);
+	router.get("/api/employer/applications/:id", applicationController.HandleGetApplicationById);
+	router.put("/api/employer/applications/status", applicationController.HandleUpdateApplicationStatus);
+	router.post("/api/employer/update-logo", uploadCompanyFiles, userController.HandleUpdateEmployerLogo);
+	router.delete("/api/employer/delete-logo", userController.HandleDeleteEmployerLogo);
+	router.get("/api/employer/statistics", employerController.HandleGetStatistics);
 	// CATEGORY
 	router.get("/api/categories", categoryController.getAllCategories);
 	// LOCATION
