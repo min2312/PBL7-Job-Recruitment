@@ -1,4 +1,5 @@
 import db from "../models/index";
+const { syncSingleApplication, deleteApplicationRel } = require("./syncToNeo4jService");
 const { uploadToAzure } = require("./azureStorageService");
 
 const handleApplyJob = async (data, file) => {
@@ -20,7 +21,7 @@ const handleApplyJob = async (data, file) => {
         if (existingApp) {
             return {
                 errCode: 2,
-                errMessage: "You have already applied for this job."
+                errMessage: "Bạn đã ứng tuyển vào công việc này"
             };
         }
 
@@ -32,7 +33,7 @@ const handleApplyJob = async (data, file) => {
             if (!user || !user.cv_file) {
                 return {
                     errCode: 3,
-                    errMessage: "No existing CV found in your profile. Please upload a new one."
+                    errMessage: "Bạn chưa có file CV trong hồ sơ. Hãy upload file CV mới"
                 };
             }
             cvUrl = user.cv_file;
@@ -46,7 +47,7 @@ const handleApplyJob = async (data, file) => {
         } else {
             return {
                 errCode: 4,
-                errMessage: "Please provide a CV file or use your existing one."
+                errMessage: "Hãy cung cấp file CV hoặc sử dụng file CV đã có trong hồ sơ"
             };
         }
 
@@ -58,9 +59,12 @@ const handleApplyJob = async (data, file) => {
             status: "pending"
         });
 
+        // Sync to Neo4j
+        await syncSingleApplication(application.id);
+
         return {
             errCode: 0,
-            errMessage: "Application submitted successfully!",
+            errMessage: "Bạn đã ứng tuyển thành công!",
             data: application
         };
 
@@ -134,7 +138,13 @@ const getApplicationsByUser = async (userId) => {
         const apps = await db.Application.findAll({
             where: { userId },
             include: [
-                { model: db.Job, include: [{ model: db.Company, as: "company" }] }
+                { 
+                    model: db.Job, 
+                    include: [
+                        { model: db.Company, as: "Company" },
+                        { model: db.Location, as: "locations" }
+                    ] 
+                }
             ],
             order: [['createdAt', 'DESC']]
         });
@@ -148,8 +158,125 @@ const getApplicationsByUser = async (userId) => {
     }
 };
 
+const handleCancelApplication = async (userId, jobId) => {
+    try {
+        if (!userId || !jobId) {
+            return {
+                errCode: 1,
+                errMessage: "Missing required parameters"
+            };
+        }
+
+        const application = await db.Application.findOne({
+            where: { userId, jobId }
+        });
+
+        if (!application) {
+            return {
+                errCode: 2,
+                errMessage: "Bạn chưa ứng tuyển vào công việc này"
+            };
+        }
+
+        // Optional: Only allow cancelling if status is 'pending'
+        if (application.status !== 'pending') {
+            return {
+                errCode: 3,
+                errMessage: "Không thể huỷ ứng tuyển vào công việc này"
+            };
+        }
+
+        await application.destroy();
+
+        // Sync to Neo4j
+        await deleteApplicationRel(userId, jobId);
+
+        return {
+            errCode: 0,
+            errMessage: "Bạn đã huỷ ứng tuyển thành công!"
+        };
+    } catch (error) {
+        console.error("Error in handleCancelApplication service:", error);
+        return {
+            errCode: -1,
+            errMessage: "Internal server error"
+        };
+    }
+};
+
+const getApplicationById = async (applicationId) => {
+    try {
+        const application = await db.Application.findByPk(applicationId, {
+            include: [
+                {
+                    model: db.Job,
+                    include: [
+                        { model: db.Company, as: "Company" },
+                        { model: db.Location, as: "locations" }
+                    ]
+                },
+                {
+                    model: db.User,
+                    attributes: ['id', 'name', 'email', 'phone', 'profilePicture', 'description', 'cv_file']
+                }
+            ]
+        });
+
+        if (!application) {
+            return { errCode: 1, errMessage: "Application not found" };
+        }
+
+        return { errCode: 0, data: application };
+    } catch (error) {
+        console.error("Error in getApplicationById service:", error);
+        return { errCode: -1, errMessage: "Internal server error" };
+    }
+};
+
+const updateApplicationStatus = async (applicationId, status) => {
+    try {
+        const application = await db.Application.findByPk(applicationId);
+        if (!application) {
+            return {
+                errCode: 1,
+                errMessage: "Application not found"
+            };
+        }
+
+        // Validate status
+        const validStatuses = ["pending", "interview", "approved", "rejected"];
+        if (!validStatuses.includes(status)) {
+            return {
+                errCode: 2,
+                errMessage: "Invalid status"
+            };
+        }
+
+        application.status = status;
+        await application.save();
+
+        // Sync to Neo4j
+        await syncSingleApplication(applicationId);
+
+        return {
+            errCode: 0,
+            errMessage: "Status updated successfully",
+            data: application
+        };
+    } catch (error) {
+        console.error("Error in updateApplicationStatus service:", error);
+        return {
+            errCode: -1,
+            errMessage: "Internal server error"
+        };
+    }
+};
+
 module.exports = {
     handleApplyJob,
     getApplicationsByUser,
-    getApplicationsByEmployer
+    getApplicationsByEmployer,
+    handleCancelApplication,
+    updateApplicationStatus,
+    getApplicationById
 };

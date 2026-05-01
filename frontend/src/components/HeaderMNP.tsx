@@ -2,7 +2,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { usePageLoad } from '@/contexts/PageLoadContext';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Bell, ChevronDown, ArrowRight, User, LogOut, Mail, Briefcase, CheckCircle2 } from 'lucide-react';
 import { useState, useRef, useEffect, memo } from 'react';
 import {
@@ -490,6 +490,7 @@ export default memo(function HeaderMNP() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon">
                   <Avatar className="w-8 h-8">
+                    <AvatarImage src={user.profilePicture} />
                     <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
                       {user.name?.charAt(0) || 'U'}
                     </AvatarFallback>

@@ -6,12 +6,15 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
   ArrowLeft, User, Mail, Phone, Save, Edit3, Lock, Eye, EyeOff,
-  CheckCircle, AlertCircle, Camera, Upload, File, X, Download
+  CheckCircle, AlertCircle, Camera, Upload, File, X, Download, Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { updateProfile, changePassword, removeFile } from '@/services/authService';
+import { toast } from 'react-toastify';
+import ConfirmModal from '@/components/ConfirmModal';
 
 export default function CandidateProfile() {
-  const { user, isAuthReady } = useAuth();
+  const { user, isAuthReady, login } = useAuth();
   const location = useLocation();
 
   // Scroll to top when page loads or location changes
@@ -22,25 +25,38 @@ export default function CandidateProfile() {
   const [editing, setEditing] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSavingAvatar, setIsSavingAvatar] = useState(false);
+  const [isChangingPass, setIsChangingPass] = useState(false);
   const [profile, setProfile] = useState({
     name: '',
     email: '',
     phone: '',
-    bio: 'Tôi là một chuyên viên có kinh nghiệm trong lĩnh vực công nghệ, đam mê xây dựng các sản phẩm số chất lượng cao.',
+    bio: '',
   });
 
   // CV upload state
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [cvFileName, setCvFileName] = useState<string | null>(null);
+  const [cvPreviewUrl, setCvPreviewUrl] = useState<string | null>(null);
   const [cvUploadSuccess, setCvUploadSuccess] = useState(false);
   const [cvError, setCvError] = useState('');
-
   // Password change state
   const [passwords, setPasswords] = useState({ current: '', newPass: '', confirm: '' });
   const [showPass, setShowPass] = useState({ current: false, newPass: false, confirm: false });
   const [passError, setPassError] = useState('');
   const [passSuccess, setPassSuccess] = useState(false);
+
+  // Global confirm modal state
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    description: '',
+    onConfirm: async () => {},
+    isLoading: false
+  });
 
   if (!isAuthReady) {
     return (
@@ -56,34 +72,135 @@ export default function CandidateProfile() {
   if (!user || user.role !== 'CANDIDATE') return <Navigate to="/login" />;
 
   if (profile.name === '' && user) {
-    setProfile(p => ({ ...p, name: user.name, email: user.email, phone: user.phone || '' }));
+    setProfile({
+      name: user.name || '',
+      email: user.email || '',
+      phone: user.phone || '',
+      bio: user.description || '',
+    });
+    
+    if (user.cv_file) {
+      const urlParts = user.cv_file.split('/');
+      const fullName = urlParts[urlParts.length - 1];
+      const cleanName = fullName.replace(/^\d+-+/, ''); 
+      setCvFileName(cleanName || fullName);
+    }
   }
 
-  const handleSave = () => {
-    setEditing(false);
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 3000);
+  const handleSave = async () => {
+    if (!user) return;
+    setIsSaving(true);
+    try {
+      const formData = new FormData();
+      formData.append('id', user.id.toString());
+      formData.append('name', profile.name);
+      formData.append('phone', profile.phone);
+      formData.append('description', profile.bio);
+      
+      if (avatarFile) {
+        formData.append('profilePicture', avatarFile);
+      }
+      
+      if (cvFile) {
+        formData.append('cv_file', cvFile);
+      }
+
+      const updatedUser = await updateProfile(formData);
+      login(updatedUser); // Update global state
+      
+      setEditing(false);
+      setSaveSuccess(true);
+      toast.success('Cập nhật thông tin thành công!');
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (error: any) {
+      toast.error(error.message || 'Cập nhật thất bại');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handlePasswordChange = () => {
+  const handlePasswordChange = async () => {
     setPassError('');
     if (!passwords.current) return setPassError('Vui lòng nhập mật khẩu hiện tại.');
     if (passwords.newPass.length < 8) return setPassError('Mật khẩu mới tối thiểu 8 ký tự.');
     if (passwords.newPass !== passwords.confirm) return setPassError('Xác nhận mật khẩu không khớp.');
-    setPassSuccess(true);
-    setPasswords({ current: '', newPass: '', confirm: '' });
-    setTimeout(() => setPassSuccess(false), 3000);
+    
+    setIsChangingPass(true);
+    try {
+      await changePassword({
+        current: passwords.current,
+        newPass: passwords.newPass
+      });
+      
+      setPassSuccess(true);
+      setPasswords({ current: '', newPass: '', confirm: '' });
+      toast.success('Đổi mật khẩu thành công!');
+      setTimeout(() => setPassSuccess(false), 3000);
+    } catch (error: any) {
+      setPassError(error.message || 'Đổi mật khẩu thất bại');
+      toast.error(error.message || 'Đổi mật khẩu thất bại');
+    } finally {
+      setIsChangingPass(false);
+    }
   };
 
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setAvatarFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setAvatarPreview(reader.result as string);
+        setIsAvatarModalOpen(true); // Mở modal khi đã có ảnh preview
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleAvatarSave = async () => {
+    if (!avatarFile || !user) return;
+    setIsSavingAvatar(true);
+    try {
+      const formData = new FormData();
+      formData.append('id', user.id.toString());
+      formData.append('profilePicture', avatarFile);
+
+      const updatedUser = await updateProfile(formData);
+      login(updatedUser);
+      toast.success('Cập nhật ảnh đại diện thành công!');
+      setIsAvatarModalOpen(false); // Chỉ đóng modal khi thành công
+    } catch (error: any) {
+      toast.error('Lỗi: ' + error.message);
+    } finally {
+      setIsSavingAvatar(false);
+    }
+  };
+
+  const handleAvatarRemove = () => {
+    if (!user) return;
+    
+    setConfirmModal({
+      isOpen: true,
+      title: 'Xóa ảnh đại diện',
+      description: 'Bạn có chắc chắn muốn xóa ảnh đại diện hiện tại? Hành động này không thể hoàn tác.',
+      isLoading: false,
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, isLoading: true }));
+        try {
+          await removeFile('avatar');
+          login({ ...user, profilePicture: '' });
+          setAvatarPreview(null);
+          setAvatarFile(null);
+          setIsAvatarModalOpen(false);
+          toast.success('Đã xóa ảnh đại diện');
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        } catch (error: any) {
+          toast.error('Lỗi khi xóa ảnh: ' + error.message);
+        } finally {
+          setConfirmModal(prev => ({ ...prev, isLoading: false }));
+        }
+      }
+    });
   };
 
   const handleCVUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -105,19 +222,70 @@ export default function CandidateProfile() {
       
       setCvFile(file);
       setCvFileName(file.name);
+      setCvPreviewUrl(URL.createObjectURL(file));
     }
   };
 
-  const handleCVRemove = () => {
-    setCvFile(null);
-    setCvFileName(null);
-    setCvError('');
+  const handleCVRemove = async () => {
+    // Nếu là file mới chọn (chưa lưu)
+    if (cvFile) {
+      if (cvPreviewUrl) {
+        URL.revokeObjectURL(cvPreviewUrl);
+      }
+      setCvFile(null);
+      setCvFileName(null);
+      setCvPreviewUrl(null);
+      setCvError('');
+      return;
+    }
+
+    // Nếu là file đã có trên Server
+    if (user?.cv_file) {
+      setConfirmModal({
+        isOpen: true,
+        title: 'Xóa CV hiện tại',
+        description: 'Hệ thống sẽ xóa file CV cũ của bạn. Bạn sẽ cần tải lên file mới để nhà tuyển dụng có thể xem.',
+        isLoading: false,
+        onConfirm: async () => {
+          setConfirmModal(prev => ({ ...prev, isLoading: true }));
+          try {
+            await removeFile('cv');
+            login({ ...user, cv_file: '' });
+            setCvFileName(null);
+            setCvPreviewUrl(null);
+            toast.success('Đã xóa CV thành công');
+            setConfirmModal(prev => ({ ...prev, isOpen: false }));
+          } catch (error: any) {
+            toast.error('Lỗi khi xóa CV: ' + error.message);
+          } finally {
+            setConfirmModal(prev => ({ ...prev, isLoading: false }));
+          }
+        }
+      });
+    }
   };
 
-  const handleCVSave = () => {
+  const handleCVSave = async() => {
     if (cvFile) {
-      setCvUploadSuccess(true);
-      setTimeout(() => setCvUploadSuccess(false), 3000);
+      if (!user) return;
+      setIsSaving(true);
+      try {
+        const formData = new FormData();
+        formData.append('id', user.id.toString());
+        formData.append('cv_file', cvFile);
+
+        const updatedUser = await updateProfile(formData);
+        console.log(updatedUser);
+        login(updatedUser); 
+        setEditing(false);
+        setSaveSuccess(true);
+        toast.success('Cập nhật thông tin thành công!');
+        setTimeout(() => setSaveSuccess(false), 3000);
+      } catch (error: any) {
+        toast.error(error.message || 'Cập nhật thất bại');
+      } finally {
+        setIsSaving(false);
+      }
     }
   };
 
@@ -141,6 +309,7 @@ export default function CandidateProfile() {
       
       setCvFile(file);
       setCvFileName(file.name);
+      setCvPreviewUrl(URL.createObjectURL(file));
     }
   };
 
@@ -157,29 +326,48 @@ export default function CandidateProfile() {
         {/* Profile Header Card */}
         <div className="bg-card border border-border rounded-2xl p-6 -mt-12 mb-8 relative z-10 shadow-sm">
           <div className="flex items-center gap-4 flex-1">
-            <div className="relative group cursor-pointer">
+            <div className="relative group">
               {/* Avatar Display */}
               <div className={`w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold text-white flex-shrink-0 transition-all group-hover:ring-2 group-hover:ring-blue-400 ${
-                avatarPreview ? 'bg-cover bg-center' : (profile.name.toLowerCase().includes('a') ? 'bg-blue-500' : 'bg-gradient-to-br from-purple-500 to-pink-500')
+                (user?.profilePicture) ? 'bg-cover bg-center' : (profile.name.toLowerCase().includes('a') ? 'bg-blue-500' : 'bg-gradient-to-br from-purple-500 to-pink-500')
               }`}
-              style={avatarPreview ? { backgroundImage: `url(${avatarPreview})` } : {}}>
-                {!avatarPreview && initials}
+              style={(user?.profilePicture) ? { backgroundImage: `url(${user?.profilePicture})` } : {}}>
+                {!(user?.profilePicture) && initials}
               </div>
               
-              {/* Upload Overlay */}
-              <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <Camera className="w-6 h-6 text-white" />
+              {/* Upload & Delete Overlays */}
+              <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-0 group-hover:opacity-100 transition-opacity rounded-full overflow-hidden">
+                <label 
+                  htmlFor="avatar-upload" 
+                  className="flex-1 h-full flex flex-col items-center justify-center hover:bg-white/10 transition-colors cursor-pointer border-r border-white/20"
+                >
+                  <Camera className="w-5 h-5 mb-1" />
+                  <span className="text-[10px] font-medium">Sửa</span>
+                </label>
+                
+                {user?.profilePicture && (
+                  <button 
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      handleAvatarRemove();
+                    }}
+                    className="flex-1 h-full flex flex-col items-center justify-center hover:bg-red-500/40 transition-colors"
+                  >
+                    <X className="w-5 h-5 mb-1" />
+                    <span className="text-[10px] font-medium">Xóa</span>
+                  </button>
+                )}
               </div>
               
-              {/* Hidden File Input */}
               <input
                 type="file"
+                id="avatar-upload"
+                className="hidden"
                 accept="image/*"
                 onChange={handleAvatarUpload}
-                className="hidden"
-                id="avatar-upload"
               />
-              <label htmlFor="avatar-upload" className="absolute inset-0 rounded-full cursor-pointer" />
             </div>
             <div>
               <h1 className="text-2xl font-bold text-foreground">{profile.name || 'Tên ứng viên'}</h1>
@@ -211,9 +399,10 @@ export default function CandidateProfile() {
               </Button>
             ) : (
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => setEditing(false)} className="border-gray-300">Huỷ</Button>
-                <Button onClick={handleSave} size="sm" className="gap-2 bg-black hover:bg-gray-800 text-white">
-                  <Save className="w-4 h-4" /> Lưu
+                <Button variant="outline" size="sm" onClick={() => setEditing(false)} className="border-gray-300" disabled={isSaving}>Huỷ</Button>
+                <Button onClick={handleSave} size="sm" className="gap-2 bg-black hover:bg-gray-800 text-white" disabled={isSaving}>
+                  {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  Lưu
                 </Button>
               </div>
             )
@@ -298,7 +487,7 @@ export default function CandidateProfile() {
               )}
             </AnimatePresence>
 
-            {!cvFile ? (
+            {!cvFileName ? (
               <div
                 onDrop={handleCVDrop}
                 onDragOver={e => e.preventDefault()}
@@ -324,28 +513,43 @@ export default function CandidateProfile() {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="border border-border rounded-lg p-4 bg-muted/30 flex items-center justify-between">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 overflow-hidden flex-1">
                   <File className="w-8 h-8 text-blue-500 flex-shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{cvFileName}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {(cvFile.size / 1024).toFixed(1)} KB
+                  <div className="min-w-0 flex-1">
+                    <a 
+                      href={cvFile ? cvPreviewUrl || '#' : user?.cv_file} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-sm font-medium text-foreground truncate block hover:text-blue-500 hover:underline transition-colors"
+                      title="Click để xem CV"
+                    >
+                      {cvFileName}
+                    </a>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {cvFile ? `${(cvFile.size / 1024).toFixed(1)} KB` : ''}
                     </p>
                   </div>
                 </div>
-                <button
-                  onClick={handleCVRemove}
-                  className="text-muted-foreground hover:text-red-500 transition-colors flex-shrink-0">
-                  <X className="w-5 h-5" />
-                </button>
+                
+                <div className="flex items-center gap-2 ml-4">
+                  <button
+                    onClick={handleCVRemove}
+                    className="h-8 w-8 flex items-center justify-center text-muted-foreground hover:text-red-500 transition-colors rounded-md hover:bg-red-50 dark:hover:bg-red-950/30"
+                    title="Xóa CV"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
               </motion.div>
             )}
 
             {cvFile && (
               <Button
                 onClick={handleCVSave}
-                className="w-full gap-2 bg-black hover:bg-gray-800 text-white">
-                <Download className="w-4 h-4" /> Lưu CV
+                className="w-full gap-2 bg-black hover:bg-gray-800 text-white"
+                disabled={isSaving}>
+                {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                Lưu CV
               </Button>
             )}
           </div>
@@ -460,13 +664,99 @@ export default function CandidateProfile() {
 
           <Button
             onClick={handlePasswordChange}
-            disabled={!passwords.current || !passwords.newPass || !passwords.confirm}
+            disabled={!passwords.current || !passwords.newPass || !passwords.confirm || isChangingPass}
             className="w-full gap-2 mt-4 bg-black hover:bg-gray-800 text-white disabled:bg-gray-400 disabled:cursor-not-allowed">
-            <Lock className="w-4 h-4" /> Cập nhật mật khẩu
+            {isChangingPass ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
+            Cập nhật mật khẩu
           </Button>
           </div>
         </Section>
       </div>
+
+      {/* Avatar Update Modal */}
+      <AnimatePresence>
+        {isAvatarModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => !isSavingAvatar && setIsAvatarModalOpen(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl overflow-hidden"
+            >
+              <div className="p-6 border-b border-border flex items-center justify-between">
+                <h3 className="text-lg font-bold">Cập nhật ảnh đại diện</h3>
+                <button 
+                  onClick={() => setIsAvatarModalOpen(false)}
+                  className="p-1 hover:bg-muted rounded-full transition-colors"
+                  disabled={isSavingAvatar}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="p-8 flex flex-col items-center">
+                <div className="w-48 h-48 rounded-full border-4 border-primary/20 p-1 mb-6">
+                  <div 
+                    className="w-full h-full rounded-full bg-cover bg-center shadow-inner"
+                    style={{ backgroundImage: `url(${avatarPreview})` }}
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground text-center mb-2">
+                  Bạn có chắc chắn muốn sử dụng ảnh này làm ảnh đại diện?
+                </p>
+              </div>
+
+              <div className="p-6 bg-muted/50 flex flex-col gap-3">
+                <div className="flex gap-3">
+                  <Button 
+                    variant="outline" 
+                    className="flex-1" 
+                    onClick={() => setIsAvatarModalOpen(false)}
+                    disabled={isSavingAvatar}
+                  >
+                    Hủy
+                  </Button>
+                  <Button 
+                    className="flex-1 bg-black hover:bg-gray-800 text-white gap-2"
+                    onClick={handleAvatarSave}
+                    disabled={isSavingAvatar}
+                  >
+                    {isSavingAvatar ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    Lưu ảnh
+                  </Button>
+                </div>
+                
+                {user?.profilePicture && !avatarFile && (
+                  <Button
+                    variant="ghost"
+                    className="w-full text-red-500 hover:text-red-600 hover:bg-red-50"
+                    onClick={handleAvatarRemove}
+                    disabled={isSavingAvatar}
+                  >
+                    <X className="w-4 h-4 mr-2" /> Xóa ảnh hiện tại
+                  </Button>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        description={confirmModal.description}
+        isLoading={confirmModal.isLoading}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+      />
     </div>
   );
 }

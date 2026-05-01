@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import axiosClient from '@/services/axiosClient';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { toast } from 'react-toastify';
+import NumberedPagination from '@/components/NumberedPagination';
 
 // JobSaveButton component for reusable save functionality
 function JobSaveButton({ jobId, isSaved }: { jobId: number; isSaved: boolean }) {
@@ -418,13 +419,38 @@ export default function CompanyDetailPage() {
                             {/* Action Buttons */}
                             <div className="flex-shrink-0 flex items-center gap-2">
                               <button 
-                                onClick={(e) => {
+                                onClick={async (e) => {
                                   e.stopPropagation();
-                                  navigate(`/jobs/${job.id}`);
+                                  if (job.isApplied) {
+                                    if (!user) {
+                                      navigate('/login');
+                                      return;
+                                    }
+                                    try {
+                                      const response = await axiosClient.delete('/api/jobs/cancel-apply', {
+                                        data: { jobId: job.id }
+                                      });
+                                      if (response.data.errCode === 0) {
+                                        toast.success('Hủy ứng tuyển thành công');
+                                        // Update local state
+                                        setCompanyJobs(prev => prev.map(j => j.id === job.id ? { ...j, isApplied: false } : j));
+                                      } else {
+                                        toast.error(response.data.errMessage || 'Lỗi khi hủy ứng tuyển');
+                                      }
+                                    } catch (error) {
+                                      toast.error('Lỗi hệ thống khi hủy ứng tuyển');
+                                    }
+                                  } else {
+                                    navigate(`/jobs/${job.id}`);
+                                  }
                                 }}
-                                className="px-4 py-2 bg-black text-white rounded-lg font-semibold text-sm hover:bg-slate-800 transition-colors whitespace-nowrap"
+                                className={`px-4 py-2 rounded-lg font-semibold text-sm transition-colors whitespace-nowrap ${
+                                  job.isApplied 
+                                    ? "bg-rose-500 hover:bg-rose-600 text-white" 
+                                    : "bg-black text-white hover:bg-slate-800"
+                                }`}
                               >
-                                Ứng tuyển
+                                {job.isApplied ? 'Hủy ứng tuyển' : 'Ứng tuyển'}
                               </button>
                               <JobSaveButton jobId={job.id} isSaved = {job.isSaved} />
                             </div>
@@ -435,26 +461,12 @@ export default function CompanyDetailPage() {
 
                     {/* Pagination */}
                     {totalJobPages > 1 && (
-                      <div className="flex items-center justify-center gap-4 mt-8 pt-6 border-t border-slate-200">
-                        <Button
-                          variant="outline"
-                          onClick={() => setCurrentJobPage(prev => Math.max(1, prev - 1))}
-                          disabled={currentJobPage === 1}
-                          className="px-4 py-2"
-                        >
-                          ← Trước
-                        </Button>
-                        <span className="text-sm font-semibold text-slate-700">
-                          {currentJobPage}/{totalJobPages}
-                        </span>
-                        <Button
-                          variant="outline"
-                          onClick={() => setCurrentJobPage(prev => Math.min(totalJobPages, prev + 1))}
-                          disabled={currentJobPage === totalJobPages}
-                          className="px-4 py-2"
-                        >
-                          Tiếp →
-                        </Button>
+                      <div className="mt-8 pt-6 border-t border-slate-200">
+                        <NumberedPagination
+                          currentPage={currentJobPage}
+                          totalPages={totalJobPages}
+                          onPageChange={setCurrentJobPage}
+                        />
                       </div>
                     )}
                   </>

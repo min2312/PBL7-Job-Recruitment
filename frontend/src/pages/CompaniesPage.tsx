@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import JobNeedsBanner from "@/components/JobNeedsBanner";
 import axiosClient from "@/services/axiosClient";
+import NumberedPagination from "@/components/NumberedPagination";
 
 export default function CompaniesPage() {
 	const navigate = useNavigate();
@@ -205,28 +206,12 @@ export default function CompaniesPage() {
 
 				{/* Pagination */}
 				{!isLoading && companies.length > 0 && totalPages > 1 && (
-					<div className="flex items-center justify-center gap-4 mt-12 pt-8 border-t border-slate-200">
-						<Button
-							variant="outline"
-							onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-							disabled={currentPage === 1}
-							className="px-4 py-2"
-						>
-							← Trước
-						</Button>
-						<span className="text-sm font-semibold text-slate-700">
-							{currentPage}/{totalPages}
-						</span>
-						<Button
-							variant="outline"
-							onClick={() =>
-								setCurrentPage((prev) => Math.min(totalPages, prev + 1))
-							}
-							disabled={currentPage === totalPages}
-							className="px-4 py-2"
-						>
-							Tiếp →
-						</Button>
+					<div className="mt-12 pt-8 border-t border-slate-200">
+						<NumberedPagination
+							currentPage={currentPage}
+							totalPages={totalPages}
+							onPageChange={setCurrentPage}
+						/>
 					</div>
 				)}
 			</div>

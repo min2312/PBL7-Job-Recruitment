@@ -3,6 +3,10 @@ import { Button } from "@/components/ui/button";
 import { DollarSign, MapPin, Clock } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import axiosClient from "@/services/axiosClient";
+import { toast } from "react-toastify";
+import { Loader2 } from "lucide-react";
 
 interface JobPreviewPopupProps {
 	job: Job;
@@ -16,10 +20,39 @@ export default function JobPreviewPopup({
 	onPopupHover,
 }: JobPreviewPopupProps) {
 	const navigate = useNavigate();
+	const { user } = useAuth();
+	const [isApplied, setIsApplied] = useState(job.isApplied || false);
+	const [isCancelling, setIsCancelling] = useState(false);
+	
 	const company = (job as any).Company;
 	const firstLocation = (job as any).locations?.[0];
 	const headerLocationName = firstLocation?.name ?? null;
 	const detailedLocation = job.workLocation || headerLocationName;
+
+	const handleCancelApply = async (e: React.MouseEvent) => {
+		e.stopPropagation();
+		if (!user) {
+			navigate('/login');
+			return;
+		}
+		
+		setIsCancelling(true);
+		try {
+			const response = await axiosClient.delete('/api/jobs/cancel-apply', {
+				data: { jobId: job.id }
+			});
+			if (response.data.errCode === 0) {
+				setIsApplied(false);
+				toast.success('Hủy ứng tuyển thành công');
+			} else {
+				toast.error(response.data.errMessage || 'Lỗi khi hủy ứng tuyển');
+			}
+		} catch (error) {
+			toast.error('Lỗi hệ thống khi hủy ứng tuyển');
+		} finally {
+			setIsCancelling(false);
+		}
+	};
 	return (
 		<div
 			className="fixed z-50 bg-white rounded-lg border border-slate-300 shadow-2xl p-6 w-96 animate-in fade-in max-h-[380px] overflow-y-auto"
@@ -224,10 +257,27 @@ export default function JobPreviewPopup({
 			<div className="flex gap-2">
 				<Button
 					size="sm"
-					className="border-2 border-slate-900 bg-white text-slate-900 hover:bg-slate-900 hover:text-white text-xs font-semibold rounded-lg px-3 py-2 transition-all"
-					onClick={() => navigate(`/jobs/${job.id}`, { state: { job } })}
+					className={`border-2 text-xs font-semibold rounded-lg px-3 py-2 transition-all ${
+						isApplied 
+							? "bg-rose-500 hover:bg-rose-600 border-rose-500 text-white" 
+							: "border-slate-900 bg-white text-slate-900 hover:bg-slate-900 hover:text-white"
+					}`}
+					onClick={(e) => {
+						if (isApplied) {
+							handleCancelApply(e);
+						} else {
+							navigate(`/jobs/${job.id}`, { state: { job } });
+						}
+					}}
+					disabled={isCancelling}
 				>
-					Ứng tuyển
+					{isCancelling ? (
+						<Loader2 className="w-3 h-3 animate-spin" />
+					) : isApplied ? (
+						'Hủy ứng tuyển'
+					) : (
+						'Ứng tuyển'
+					)}
 				</Button>
 				<Button
 					size="sm"

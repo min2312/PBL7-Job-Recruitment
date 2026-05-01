@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-import { User } from '@/data/mockData';
+import { Company, User } from '@/data/mockData';
 import { auth, googleProvider } from '../config/firebase';
 import { signInWithPopup } from 'firebase/auth';
 
@@ -13,7 +13,11 @@ type AuthPayloadRecord = Record<string, unknown> & {
   fullName?: string;
   role?: string;
   phone?: string;
+  profilePicture?: string;
   companyId?: string | number;
+  description?: string;
+  cv_file?: string;
+  company?:Company
 };
 
 type AuthResponseRecord = Record<string, unknown> & {
@@ -57,7 +61,11 @@ export const normalizeAuthUser = (payload: unknown): User => {
     name: data.name || data.fullName || data.email || 'User',
     role: normalizeRole(data.role),
     phone: data.phone,
+    profilePicture: data.profilePicture,
     companyId: Number(data.companyId) || undefined,
+    description: data.description || '',
+    cv_file: data.cv_file || '',  
+    company: data.company
   };
 };
 
@@ -156,6 +164,62 @@ export async function getCurrentSession() {
   }
 
   return null;
+}
+
+export async function updateProfile(data: FormData) {
+  const response = await authHttpClient.put('/api/update-profile', data, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  const responseData = response.data as AuthResponseRecord;
+  if (responseData.errCode !== 0) {
+    throw new Error(responseData.message || responseData.errMessage || 'Cập nhật thất bại');
+  }
+  return normalizeAuthUser(extractAuthPayload(responseData));
+}
+
+export async function changePassword(passwords: { current: string; newPass: string }) {
+  // Check if backend has this endpoint. If not, I will suggest creating it.
+  const response = await authHttpClient.post('/api/change-password', passwords);
+  const responseData = response.data as AuthResponseRecord;
+  if (responseData.errCode !== 0) {
+    throw new Error(responseData.message || responseData.errMessage || 'Đổi mật khẩu thất bại');
+  }
+  return responseData;
+}
+
+export async function removeFile(type: 'avatar' | 'cv') {
+  const response = await authHttpClient.delete('/api/remove-file', {
+    data: { type }
+  });
+  const responseData = response.data as AuthResponseRecord;
+  if (responseData.errCode !== 0) {
+    throw new Error(responseData.message || responseData.errMessage || 'Xóa thất bại');
+  }
+  return responseData;
+}
+
+export async function updateEmployerLogo(data: FormData) {
+  const response = await authHttpClient.post('/api/employer/update-logo', data, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  const responseData = response.data as AuthResponseRecord;
+  if (responseData.errCode !== 0) {
+    throw new Error(responseData.message || responseData.errMessage || 'Cập nhật logo thất bại');
+  }
+  return normalizeAuthUser(extractAuthPayload(responseData));
+}
+
+export async function deleteEmployerLogo() {
+  const response = await authHttpClient.delete('/api/employer/delete-logo');
+  const responseData = response.data as AuthResponseRecord;
+  if (responseData.errCode !== 0) {
+    throw new Error(responseData.message || responseData.errMessage || 'Xóa logo thất bại');
+  }
+  return normalizeAuthUser(extractAuthPayload(responseData));
 }
 
 export async function logoutSession(scope: AuthScope | 'all' = 'all') {

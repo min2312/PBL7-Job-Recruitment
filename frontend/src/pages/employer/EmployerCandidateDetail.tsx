@@ -1,261 +1,293 @@
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import {
-  ArrowLeft, Mail, Phone, MapPin, MessageSquare, Download, Eye, FileText
+  ArrowLeft, Mail, Phone, MapPin, MessageSquare, Download, FileText, Loader2, CheckCircle2, XCircle, Calendar
 } from 'lucide-react';
-
-interface CandidateDetail {
-  id: number;
-  name: string;
-  email: string;
-  phone: string;
-  dateOfBirth?: string;
-  address?: string;
-  jobTitle: string;
-  level: string;
-  applicationDate: string;
-  status: 'applied' | 'reviewing' | 'interview' | 'accepted' | 'rejected';
-  cvUrl?: string;
-  experience?: string;
-  education?: string;
-  projects?: Array<{ name: string; description: string; tech: string[] }>;
-  interviewDate?: string;
-  interviewNotes?: string;
-  internalRating?: number;
-  hrNotes?: string;
-}
-
-const mockCandidateDetails: Record<number, CandidateDetail> = {
-  1: {
-    id: 1,
-    name: 'Nguyễn Văn A',
-    email: 'nguyenvana@gmail.com',
-    phone: '0901234567',
-    dateOfBirth: '1995-03-15',
-    address: 'Hà Nội',
-    jobTitle: 'React Developer',
-    level: 'Senior',
-    applicationDate: '2026-04-28',
-    status: 'interview',
-    cvUrl: '/cv/nguyenvana.pdf',
-    experience: '5 năm kinh nghiệm phát triển web, chuyên React và TypeScript',
-    education: 'Đại học Bách Khoa Hà Nội - Khoa Công Nghệ Thông Tin',
-    projects: [
-      { name: 'E-commerce Platform', description: 'Xây dựng nền tảng thương mại điện tử', tech: ['React', 'Node.js', 'MongoDB'] },
-      { name: 'Booking System', description: 'Hệ thống đặt phòng trực tuyến', tech: ['React', 'Firebase', 'Tailwind'] },
-    ],
-    interviewDate: '2026-05-05 10:00',
-    interviewNotes: 'Ứng viên có kinh nghiệm tốt, trả lời tốt các câu hỏi kỹ thuật',
-    internalRating: 4.5,
-    hrNotes: 'Ứng viên rất phù hợp với vị trí, kỹ năng giao tiếp tốt',
-  },
-  2: {
-    id: 2,
-    name: 'Trần Thị B',
-    email: 'tranthib@gmail.com',
-    phone: '0912345678',
-    dateOfBirth: '1998-07-22',
-    address: 'TP. Hồ Chí Minh',
-    jobTitle: 'Python Developer',
-    level: 'Mid-level',
-    applicationDate: '2026-04-27',
-    status: 'applied',
-    cvUrl: '/cv/tranthib.pdf',
-    experience: '3 năm làm việc với Python, Django, FastAPI',
-    education: 'Đại học RMIT - Khoa Công Nghệ Thông Tin',
-    projects: [
-      { name: 'Data Analytics Dashboard', description: 'Dashboard phân tích dữ liệu', tech: ['Python', 'Django', 'PostgreSQL'] },
-    ],
-    hrNotes: 'Cần tiếp tục đánh giá trong vòng phỏng vấn kỹ thuật',
-  },
-};
+import axiosClient from '@/services/axiosClient';
+import { toast } from 'react-toastify';
 
 const statusConfig: Record<string, { label: string; emoji: string; className: string }> = {
-  applied: { label: 'Đã nộp', emoji: '🟡', className: 'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-400' },
-  reviewing: { label: 'Đang xét', emoji: '🔵', className: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-400' },
-  interview: { label: 'Phỏng vấn', emoji: '🟣', className: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-400' },
-  accepted: { label: 'Đã nhận', emoji: '🟢', className: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-400' },
-  rejected: { label: 'Từ chối', emoji: '🔴', className: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-400' },
+  pending: { label: 'Đã nộp', emoji: '🟡', className: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
+  interview: { label: 'Phỏng vấn', emoji: '🟣', className: 'bg-purple-50 text-purple-700 border-purple-200' },
+  approved: { label: 'Đã nhận', emoji: '🟢', className: 'bg-green-50 text-green-700 border-green-200' },
+  rejected: { label: 'Từ chối', emoji: '🔴', className: 'bg-red-50 text-red-700 border-red-200' },
 };
 
-export default function EmployerCandidateDetail() {
+interface Props {
+  refreshData?: () => void;
+}
+
+export default function EmployerCandidateDetail({ refreshData }: Props) {
   const { id } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
+  const [application, setApplication] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
 
-  const candidateId = Number(id);
-  const candidate = mockCandidateDetails[candidateId];
-  const config = candidate ? statusConfig[candidate.status] : null;
+  const fetchApplication = async () => {
+    setLoading(true);
+    try {
+      const res = await axiosClient.get(`/api/employer/applications/${id}`);
+      if (res.data.errCode === 0) {
+        setApplication(res.data.data);
+      } else {
+        toast.error(res.data.errMessage || 'Lỗi lấy thông tin hồ sơ');
+      }
+    } catch (error) {
+      console.error('Error fetching application detail:', error);
+      toast.error('Lỗi kết nối máy chủ');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // Scroll to top when component mounts or id changes
   useEffect(() => {
+    fetchApplication();
     window.scrollTo(0, 0);
   }, [id]);
 
-  if (!candidate) {
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownload = async (url: string, filename: string) => {
+    setDownloading(true);
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Download failed');
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error('Download error:', error);
+      // If CORS fails, it will open in new window
+      window.open(url, '_blank');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handleStatusChange = async (newStatus: string) => {
+    setUpdating(true);
+    try {
+      const res = await axiosClient.put('/api/employer/applications/status', {
+        applicationId: id,
+        status: newStatus
+      });
+      if (res.data.errCode === 0) {
+        toast.success(`Đã cập nhật trạng thái: ${statusConfig[newStatus].label}`);
+        setApplication({ ...application, status: newStatus });
+        if (refreshData) refreshData();
+      } else {
+        toast.error(res.data.errMessage || 'Cập nhật thất bại');
+      }
+    } catch (error) {
+      toast.error('Lỗi kết nối máy chủ');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  if (loading) {
     return (
-      <div className="space-y-6 max-w-6xl mx-auto">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
-            <ArrowLeft className="w-4 h-4 mr-2" /> Quay lại
-          </Button>
-        </div>
+      <div className="min-h-[400px] flex items-center justify-center text-sm text-muted-foreground">
+        <Loader2 className="w-5 h-5 animate-spin mr-2" />
+        Đang tải thông tin hồ sơ...
+      </div>
+    );
+  }
+
+  if (!application) {
+    return (
+      <div className="space-y-6 max-w-4xl mx-auto py-10">
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
+          <ArrowLeft className="w-4 h-4 mr-2" /> Quay lại
+        </Button>
         <Card>
-          <CardContent className="p-12 text-center text-muted-foreground">
-            Không tìm thấy ứng viên
+          <CardContent className="p-12 text-center text-muted-foreground text-sm">
+            Không tìm thấy thông tin hồ sơ ứng tuyển
           </CardContent>
         </Card>
       </div>
     );
   }
 
+  const applicant = application.User;
+  const job = application.Job;
+  const config = statusConfig[application.status] || statusConfig.pending;
+
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2">
+    <div className="space-y-6 max-w-4xl mx-auto pb-10">
+      <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
-          <ArrowLeft className="w-4 h-4 mr-2" /> Quay lại
+          <ArrowLeft className="w-4 h-4 mr-2" /> Quay lại danh sách
         </Button>
+        
+        <div className="flex gap-2">
+          {application.status === 'pending' && (
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="text-blue-600 border-blue-200 hover:bg-blue-50"
+              onClick={() => handleStatusChange('interview')}
+              disabled={updating}
+            >
+              {updating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Calendar className="w-4 h-4 mr-2" />}
+              Mời phỏng vấn
+            </Button>
+          )}
+          
+          {(application.status === 'pending' || application.status === 'interview') && (
+            <>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="text-green-600 border-green-200 hover:bg-green-50"
+                onClick={() => handleStatusChange('approved')}
+                disabled={updating}
+              >
+                {updating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
+                Chấp nhận
+              </Button>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="text-red-600 border-red-200 hover:bg-red-50"
+                onClick={() => handleStatusChange('rejected')}
+                disabled={updating}
+              >
+                {updating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <XCircle className="w-4 h-4 mr-2" />}
+                Từ chối
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Header Card */}
-      <Card>
+      <Card className="rounded-xl border-border/60 shadow-sm overflow-hidden">
         <CardContent className="p-6">
-          <div className="flex items-start justify-between gap-4 mb-6">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground mb-2">{candidate.name}</h1>
-              <div className="flex items-center gap-4 flex-wrap text-sm text-muted-foreground">
-                <span className="flex items-center gap-1.5">
-                  <Mail className="w-4 h-4" /> {candidate.email}
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Phone className="w-4 h-4" /> {candidate.phone}
-                </span>
-                {candidate.address && (
-                  <span className="flex items-center gap-1.5">
-                    <MapPin className="w-4 h-4" /> {candidate.address}
-                  </span>
-                )}
+          <div className="flex flex-col md:flex-row gap-6 items-start">
+            <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center text-2xl font-bold text-slate-600 shrink-0 overflow-hidden">
+               {applicant?.profilePicture ? (
+                 <img src={applicant.profilePicture} alt="" className="w-full h-full object-cover" />
+               ) : (
+                 applicant?.name?.charAt(0)
+               )}
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-1">
+                <h1 className="text-2xl font-bold">{applicant?.name}</h1>
+                <Badge className={config.className}>{config.label}</Badge>
+              </div>
+              <p className="text-muted-foreground font-medium">Vị trí: {job?.title}</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 pt-6 border-t border-slate-100">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Mail className="w-4 h-4" /> {applicant?.email}
+                </div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Phone className="w-4 h-4" /> {applicant?.phone || 'Chưa cập nhật'}
+                </div>
               </div>
             </div>
-            <Badge variant="outline" className={`${config?.className} whitespace-nowrap`}>
-              {config?.emoji} {config?.label}
-            </Badge>
-          </div>
-
-          <Separator />
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-            <div>
-              <p className="text-xs text-muted-foreground font-medium">Tên công việc</p>
-              <p className="text-sm font-medium text-foreground mt-1">{candidate.jobTitle}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground font-medium">Vị trí</p>
-              <p className="text-sm font-medium text-foreground mt-1">{candidate.level}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground font-medium">Ngày nộp đơn</p>
-              <p className="text-sm font-medium text-foreground mt-1">{candidate.applicationDate}</p>
-            </div>
-            {candidate.dateOfBirth && (
-              <div>
-                <p className="text-xs text-muted-foreground font-medium">Ngày sinh</p>
-                <p className="text-sm font-medium text-foreground mt-1">{candidate.dateOfBirth}</p>
-              </div>
-            )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Main Content */}
-      <div className="space-y-6">
-        {/* CV Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>CV</CardTitle>
-          </CardHeader>
-          <CardContent className="p-6">
-            {candidate.cvUrl ? (
-              <div className="space-y-4">
-                <div className="border-2 border-dashed border-border rounded-lg p-12 text-center">
-                  <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-50" />
-                  <p className="text-sm text-muted-foreground mb-4">CV: {candidate.name}</p>
-                  <div className="flex gap-2 justify-center">
-                    <Button variant="outline" className="gap-2">
-                      <Eye className="w-4 h-4" /> Xem CV
-                    </Button>
-                    <Button className="gap-2">
-                      <Download className="w-4 h-4" /> Tải xuống
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-12 text-muted-foreground">
-                Chưa có CV
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <Card className="rounded-xl border-border/60 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg font-bold">Giới thiệu</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
+                {applicant?.description || 'Ứng viên chưa cung cấp thông tin giới thiệu.'}
+              </p>
+            </CardContent>
+          </Card>
 
-        {/* Interview Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Phỏng vấn</CardTitle>
-          </CardHeader>
-          <CardContent className="p-6">
-            <Button 
-              className="w-full gap-2"
-              onClick={() => navigate('/employer/schedule', { 
-                state: { 
-                  candidateId: candidate.id, 
-                  candidateName: candidate.name,
-                  jobTitle: candidate.jobTitle,
-                  openCreateDialog: true
-                } 
-              })}
-            >
-              <MessageSquare className="w-4 h-4" /> Lên lịch phỏng vấn
-            </Button>
-          </CardContent>
-        </Card>
+          <Card className="rounded-xl border-border/60 shadow-sm overflow-hidden">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-lg font-bold">Hồ sơ đính kèm (CV)</CardTitle>
+              {application.cv_file && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => handleDownload(application.cv_file, `CV_${applicant?.name?.replace(/\s+/g, '_')}.pdf`)}
+                  disabled={downloading}
+                >
+                  {downloading ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  ) : (
+                    <Download className="w-4 h-4 mr-2" />
+                  )}
+                  {downloading ? 'Đang xử lý...' : 'Tải xuống'}
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent className="p-0">
+               {application.cv_file ? (
+                 <div className="aspect-[1/1.4] w-full bg-slate-100">
+                    <iframe 
+                      src={`${application.cv_file}#toolbar=0`} 
+                      className="w-full h-full border-none"
+                      title="CV Preview"
+                    />
+                 </div>
+               ) : (
+                 <div className="py-20 text-center text-muted-foreground text-sm">
+                    <FileText className="w-12 h-12 mx-auto mb-2 opacity-20" />
+                    Ứng viên chưa đính kèm CV
+                 </div>
+               )}
+            </CardContent>
+          </Card>
+        </div>
 
-        {/* Status History Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Lịch sử trạng thái</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 p-3 border border-border rounded-lg">
-                <div className="w-2 h-2 rounded-full bg-yellow-400" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-foreground">Đã nộp đơn</p>
-                  <p className="text-xs text-muted-foreground">2026-04-28</p>
-                </div>
+        <div className="space-y-6">
+          <Card className="rounded-xl border-border/60 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-sm font-bold uppercase text-muted-foreground">Chi tiết ứng tuyển</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <p className="text-xs text-muted-foreground">Ngày nộp</p>
+                <p className="text-sm font-bold">{new Date(application.createdAt).toLocaleDateString('vi-VN')}</p>
               </div>
-              <div className="flex items-center gap-3 p-3 border border-border rounded-lg">
-                <div className="w-2 h-2 rounded-full bg-blue-400" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-foreground">Đang xét</p>
-                  <p className="text-xs text-muted-foreground">2026-04-29</p>
-                </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Công việc</p>
+                <p className="text-sm font-bold text-blue-600 hover:underline cursor-pointer" onClick={() => navigate(`/employer/jobs/${job?.id}`)}>
+                  {job?.title}
+                </p>
               </div>
-              <div className="flex items-center gap-3 p-3 border border-border rounded-lg bg-purple-50 dark:bg-purple-950/30">
-                <div className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-foreground">Phỏng vấn</p>
-                  <p className="text-xs text-muted-foreground">2026-04-30 (hiện tại)</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              <Separator />
+              <Button className="w-full bg-emerald-600 hover:bg-emerald-700" onClick={() => navigate('../messages', { state: { applicant } })}>
+                <MessageSquare className="w-4 h-4 mr-2" /> Nhắn tin
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-xl border-border/60 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-sm font-bold uppercase text-muted-foreground">Trạng thái xử lý</CardTitle>
+            </CardHeader>
+            <CardContent>
+               <div className={`p-4 rounded-lg border ${config.className}`}>
+                  <p className="text-sm font-bold">{config.label}</p>
+                  <p className="text-[10px] uppercase mt-1 opacity-70">Cập nhật: {new Date(application.updatedAt).toLocaleDateString('vi-VN')}</p>
+               </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

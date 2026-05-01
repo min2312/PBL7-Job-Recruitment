@@ -14,7 +14,7 @@ module.exports = (sequelize, DataTypes) => {
 			jobId: { type: DataTypes.INTEGER, allowNull: false, field: "job_id" },
 			cv_file: { type: DataTypes.STRING, allowNull: true },
 			status: {
-				type: DataTypes.ENUM("pending", "approved", "rejected"),
+				type: DataTypes.ENUM("pending", "interview", "approved", "rejected"),
 				allowNull: false,
 				defaultValue: "pending",
 			},

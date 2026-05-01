@@ -13,6 +13,7 @@ import { useNavigate } from "react-router-dom";
 import axiosClient from "@/services/axiosClient";
 import { useAuth } from "@/hooks/useAuth";
 import JobCard from "@/components/JobCard";
+import NumberedPagination from "@/components/NumberedPagination";
 import JobPreviewPopup from "@/components/JobPreviewPopup";
 import {
 	Select,
@@ -154,6 +155,7 @@ export default function TopJobsList() {
 				locationIds: (j.locations || []).map((l: any) => l.id) || [],
 				createdAt: j.createdAt ?? j.created_at,
 				isSaved: j.isSaved,
+				isApplied: j.isApplied,
 			}));
 
 			setJobs(normalized);
@@ -180,14 +182,9 @@ export default function TopJobsList() {
 
 	const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-	const handlePrevPage = () => {
-		const next = currentPage <= 1 ? totalPages : currentPage - 1;
-		fetchJobs(next, true);
-	};
-
-	const handleNextPage = () => {
-		const next = currentPage >= totalPages ? 1 : currentPage + 1;
-		fetchJobs(next, true);
+	const handlePageChange = (page: number) => {
+		setCurrentPage(page);
+		fetchJobs(page, true);
 	};
 
 	const scroll = (direction: "left" | "right") => {
@@ -377,27 +374,15 @@ export default function TopJobsList() {
 			</div>
 
 			{/* Pagination */}
-			<div className="flex items-center justify-center gap-2 h-[40px]">
-				{totalPages > 1 && (
-					<>
-						<button
-							onClick={handlePrevPage}
-							className="p-1.5 border-2 border-slate-900 rounded-full transition-all text-slate-900 hover:bg-slate-900 hover:text-white"
-						>
-							<ChevronLeft className="w-4 h-4" />
-						</button>
-						<span className="text-sm text-slate-500">
-							{currentPage} / {totalPages}
-						</span>
-						<button
-							onClick={handleNextPage}
-							className="p-1.5 border-2 border-slate-900 rounded-full transition-all text-slate-900 hover:bg-slate-900 hover:text-white"
-						>
-							<ChevronRight className="w-4 h-4" />
-						</button>
-					</>
-				)}
-			</div>
+			{totalPages > 1 && (
+				<div className="mt-8">
+					<NumberedPagination
+						currentPage={currentPage}
+						totalPages={totalPages}
+						onPageChange={handlePageChange}
+					/>
+				</div>
+			)}
 		</div>
 	);
 }

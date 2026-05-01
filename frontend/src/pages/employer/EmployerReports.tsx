@@ -1,32 +1,58 @@
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { TrendingUp, Users, Target, Award } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { TrendingUp, Users, Target, Award, Loader2 } from 'lucide-react';
+import axiosClient from '@/services/axiosClient';
 
-const applicationsByMonth = [
-  { month: 'T1', applications: 12, hires: 2 },
-  { month: 'T2', applications: 24, hires: 4 },
-  { month: 'T3', applications: 18, hires: 3 },
-  { month: 'T4', applications: 35, hires: 6 },
-  { month: 'T5', applications: 28, hires: 5 },
-  { month: 'T6', applications: 42, hires: 8 },
-];
-
-
-
-const conversionData = [
-  { stage: 'Ứng tuyển', count: 120 },
-  { stage: 'Sàng lọc', count: 80 },
-  { stage: 'Phỏng vấn', count: 35 },
-  { stage: 'Đề nghị', count: 15 },
-  { stage: 'Tuyển dụng', count: 10 },
-];
+// Mock data removed, replaced with API data
 
 export default function EmployerReports() {
-  // Scroll to top on mount
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<any>(null);
+
+  // Scroll to top and fetch data on mount
   useEffect(() => {
     window.scrollTo(0, 0);
+    fetchStatistics();
   }, []);
+
+  const fetchStatistics = async () => {
+    try {
+      setLoading(true);
+      const response = await axiosClient.get('/api/employer/statistics');
+      if (response.data.errCode === 0) {
+        setStats(response.data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch statistics:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-3">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <p className="text-muted-foreground animate-pulse">Đang tải dữ liệu báo cáo...</p>
+      </div>
+    );
+  }
+
+  if (!stats) {
+    return (
+      <div className="p-8 text-center bg-card rounded-xl border border-dashed">
+        <p className="text-muted-foreground">Không thể tải dữ liệu báo cáo. Vui lòng thử lại sau.</p>
+      </div>
+    );
+  }
+
+  const kpiStats = [
+    { icon: Users, label: 'Tổng ứng viên', value: stats.totalCandidates.toString(), change: '+0%', color: 'text-primary', bg: 'bg-primary/10' },
+    { icon: Target, label: 'Tỷ lệ chuyển đổi', value: `${stats.conversionRate}%`, change: '+0%', color: 'text-success', bg: 'bg-success/10' },
+    { icon: TrendingUp, label: 'Thời gian tuyển TB', value: `${stats.averageTimeToHire} ngày`, change: '0 ngày', color: 'text-info', bg: 'bg-info/10' },
+    { icon: Award, label: 'Đã tuyển', value: stats.hiredCount.toString(), change: '+0', color: 'text-warning', bg: 'bg-warning/10' },
+  ];
 
   return (
     <div className="space-y-6">
@@ -37,12 +63,7 @@ export default function EmployerReports() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { icon: Users, label: 'Tổng ứng viên', value: '159', change: '+23%', color: 'text-primary', bg: 'bg-primary/10' },
-          { icon: Target, label: 'Tỷ lệ chuyển đổi', value: '8.3%', change: '+2.1%', color: 'text-success', bg: 'bg-success/10' },
-          { icon: TrendingUp, label: 'Thời gian tuyển TB', value: '18 ngày', change: '-3 ngày', color: 'text-info', bg: 'bg-info/10' },
-          { icon: Award, label: 'Đã tuyển', value: '28', change: '+5', color: 'text-warning', bg: 'bg-warning/10' },
-        ].map(stat => (
+        {kpiStats.map(stat => (
           <Card key={stat.label}>
             <CardContent className="p-5">
               <div className="flex items-center gap-3">
@@ -54,7 +75,7 @@ export default function EmployerReports() {
                   <p className="text-xs text-muted-foreground font-medium">{stat.label}</p>
                 </div>
               </div>
-              <p className="text-xs text-success mt-2">{stat.change} so với tháng trước</p>
+              <p className="text-xs text-muted-foreground mt-2">Dữ liệu thời gian thực</p>
             </CardContent>
           </Card>
         ))}
@@ -68,7 +89,7 @@ export default function EmployerReports() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={applicationsByMonth}>
+              <BarChart data={stats.applicationsByMonth}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis dataKey="month" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
                 <YAxis tick={{ fill: 'hsl(var(--muted-foreground))' }} />
@@ -89,7 +110,7 @@ export default function EmployerReports() {
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={conversionData} layout="vertical">
+            <BarChart data={stats.conversionData} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
               <XAxis type="number" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
               <YAxis dataKey="stage" type="category" width={80} tick={{ fill: 'hsl(var(--muted-foreground))' }} />

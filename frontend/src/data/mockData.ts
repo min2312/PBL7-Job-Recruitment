@@ -38,6 +38,7 @@ export interface Job {
   workLocation: string;
   workTime: string;
   isSaved?: boolean;
+  isApplied?: boolean;
   createdAt: string;
   categoryIds: number[];
   locationIds: number[];
@@ -62,6 +63,10 @@ export interface User {
   name: string;
   role: 'CANDIDATE' | 'EMPLOYER' | 'ADMIN';
   phone?: string;
+  profilePicture?: string;
+  cv_file?: string;
+  company?: Company;
+  description?: string;
   companyId?: number;
 }
 

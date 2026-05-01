@@ -208,6 +208,11 @@ export default function JobCard({
 				</div>
 
 				<div className="mt-4 flex flex-wrap gap-2">
+					{job.isApplied && (
+						<Badge className="bg-rose-100 text-rose-700 border-rose-200 text-xs font-bold">
+							Đã ứng tuyển
+						</Badge>
+					)}
 					<Badge className="bg-primary/10 text-primary border border-primary/20 text-xs font-semibold">
 						{job.salary}
 					</Badge>
