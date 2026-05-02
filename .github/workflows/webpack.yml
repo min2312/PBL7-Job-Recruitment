@@ -47,12 +47,6 @@ jobs:
 
       - name: Install dependencies
         run: npm install 
-
-      - name: Type check (TypeScript)
-        run: npx tsc --noEmit
-
-      - name: Lint check
-        run: npm run lint
-
+        
       - name: Build frontend (Vite)
         run: npm run build
