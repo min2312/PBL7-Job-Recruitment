@@ -107,7 +107,7 @@ export default function ApplyJobModal({
             Ứng tuyển công việc
           </DialogTitle>
           <DialogDescription className="text-slate-300">
-            Bạn đang ứng tuyển vị trí: <span className="text-white font-semibold">{jobTitle}</span>
+            Bạn đang ứng tuyển vị trí: <span className="text-white font-semibold line-clamp-2 inline-block align-top">{jobTitle}</span>
           </DialogDescription>
         </DialogHeader>
 
@@ -135,7 +135,7 @@ export default function ApplyJobModal({
                 <div className={`p-2 rounded-lg ${applyMethod === 'existing' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500'}`}>
                   <FileText className="w-6 h-6" />
                 </div>
-                <div className="flex-grow">
+                <div className="flex-grow min-w-0">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="existing" className={`font-bold text-base cursor-pointer ${!hasExistingCv ? 'text-slate-400' : 'text-slate-900'}`}>
                       Sử dụng CV đã tải lên
@@ -168,7 +168,7 @@ export default function ApplyJobModal({
                 <div className={`p-2 rounded-lg ${applyMethod === 'upload' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500'}`}>
                   <Upload className="w-6 h-6" />
                 </div>
-                <div className="flex-grow">
+                <div className="flex-grow min-w-0">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="upload" className="font-bold text-base text-slate-900 cursor-pointer">
                       Tải lên CV mới
@@ -190,10 +190,12 @@ export default function ApplyJobModal({
                         className="hidden"
                       />
                       {selectedFile ? (
-                        <div className="flex items-center justify-between p-2 bg-emerald-50 border border-emerald-200 rounded-lg">
-                          <div className="flex items-center gap-2 overflow-hidden">
+                        <div className="flex items-center justify-between p-2 bg-emerald-50 border border-emerald-200 rounded-lg w-full max-w-full overflow-hidden">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
                             <FileText className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                            <span className="text-sm font-medium text-emerald-700 truncate">{selectedFile.name}</span>
+                            <span className="text-sm font-medium text-emerald-700 truncate block">
+                              {selectedFile.name}
+                            </span>
                           </div>
                           <button 
                             onClick={(e) => {

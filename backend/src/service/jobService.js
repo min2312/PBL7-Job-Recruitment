@@ -557,6 +557,7 @@ const getJobByCompanyId = async ({
 				},
 			],
 			distinct: true,
+			order: [["createdAt", "DESC"]],
 		});
 
 		const jobsWithSavedStatus = await addSavedStatusToJobs(rows, userId);
@@ -872,7 +873,7 @@ async function searchJobs({
 
 		// Sort by newest first (deterministic)
 		let ordered = allRows.slice();
-		ordered.sort((a, b) => b.id - a.id);
+		ordered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
 		// Filter by salary/experience ranges in JS (range overlap)
 		const filtered = ordered.filter((job) => {
@@ -918,7 +919,7 @@ async function searchJobs({
 		distinct: true,
 		limit: pageSize,
 		offset,
-		order: [["id", "DESC"]],
+		order: [["createdAt", "DESC"]],
 	});
 
 	const jobsWithSavedStatus = await addSavedStatusToJobs(result.rows, userId);

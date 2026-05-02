@@ -1,4 +1,13 @@
 import os
+import sys
+
+# Đảm bảo in được tiếng Việt trên Windows
+if sys.stdout.encoding != 'utf-8':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except AttributeError:
+        pass
+
 import pandas as pd
 import numpy as np
 import xgboost as xgb
@@ -53,6 +62,10 @@ def fetch_data(days=None):
 def train_pipeline(days=None):
     os.makedirs(MODEL_DIR, exist_ok=True)
     df = fetch_data(days)
+    if df.empty:
+        print("-> Không có dữ liệu mới để huấn luyện. Bỏ qua bước này.")
+        return
+        
     print(f"-> Đã tải thành công {len(df)} dòng dữ liệu.")
 
     # Ép kiểu chữ thành số điểm (Score) ngay từ đầu để dễ bề dọn rác

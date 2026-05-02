@@ -21,12 +21,19 @@ engine = create_engine(f"mysql+pymysql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}
 def normalize_list_field(value):
     if not isinstance(value, str):
         return []
+    
+    # Dọn dẹp các cụm "và X nơi khác" hoặc "chi nhánh khác"
+    value = re.sub(r"và\s+\d+\s+nơi\s+khác.*", "", value, flags=re.IGNORECASE)
+    value = re.sub(r"và\s+\d+\s+chi\s+nhánh\s+khác.*", "", value, flags=re.IGNORECASE)
+    
     # Split by common delimiters
-    parts = re.split(r"[;,|\n]+", value)
+    parts = re.split(r"[;,|\n/]+", value)
     out = []
     for p in parts:
         clean = p.strip()
-        if clean:
+        # Loại bỏ các từ thừa phổ biến
+        clean = re.sub(r"^(Địa điểm|Nơi làm việc|Khu vực)\s*:\s*", "", clean, flags=re.IGNORECASE)
+        if clean and len(clean) < 50: # Tên tỉnh thành thường ngắn
             out.append(clean)
     return list(dict.fromkeys(out))
 
@@ -271,7 +278,7 @@ def main(csv_path):
                 "desc": parsed["description"],
                 "req": parsed["requirement"],
                 "ben": parsed["benefit"],
-                "wloc": row.get("location") or parsed["workLocation"],
+                "wloc": parsed["workLocation"] if parsed["workLocation"] else row.get("location"),
                 "wtime": parsed["workTime"],
                 "url": job_url,
                 "start": row.get("crawl_date")
