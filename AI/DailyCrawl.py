@@ -381,7 +381,7 @@ class DailyTopCVCrawler:
             "chi_tiet_cong_viec": full_description.strip(),
             "category": category_str,
 
-            "location": get_loose_value("Địa điểm"),
+            "location": re.sub(r"\s+và\s+\d+\s+nơi\s+khác.*", "", get_loose_value("Địa điểm"), flags=re.IGNORECASE).strip(),
             "muc_luong": muc_luong,
             "company_url": company_url,
             "company_intro": company_intro,

@@ -44,7 +44,7 @@ export const syncAllToNeo4j = async () => {
 			`UNWIND $batch AS data
 			 MERGE (u:User {id: data.id})
 			 SET u.email = data.email, u.fullName = data.fullName, u.role = data.role, u.status = data.status`,
-			{ batch: users.map(u => ({ ...u, fullName: u.fullName || u.name })) },
+			{ batch: users.map((u) => ({ ...u, fullName: u.fullName || u.name })) },
 		);
 
 		// 5. Sync Jobs
@@ -56,11 +56,13 @@ export const syncAllToNeo4j = async () => {
 			     j.experience = data.experience, j.education = data.education, 
 				 j.status = data.status, j.job_url = data.jobUrl,
 				 j.createdAt = datetime(data.createdAtIso)`,
-			{ 
-				batch: jobs.map(j => ({ 
-					...j, 
-					createdAtIso: j.createdAt ? new Date(j.createdAt).toISOString() : null 
-				})) 
+			{
+				batch: jobs.map((j) => ({
+					...j,
+					createdAtIso: j.createdAt
+						? new Date(j.createdAt).toISOString()
+						: null,
+				})),
 			},
 		);
 
@@ -69,7 +71,7 @@ export const syncAllToNeo4j = async () => {
 			`UNWIND $batch AS data
 			 MATCH (co:Company {id: data.companyId}), (j:Job {id: data.id})
 			 MERGE (co)-[:POSTED]->(j)`,
-			{ batch: jobs.filter(j => j.companyId) },
+			{ batch: jobs.filter((j) => j.companyId) },
 		);
 
 		// 7. Sync Job-BELONGS_TO->Category
@@ -97,11 +99,13 @@ export const syncAllToNeo4j = async () => {
 			 MATCH (u:User {id: data.userId}), (j:Job {id: data.jobId})
 			 MERGE (u)-[r:APPLIED_FOR]->(j)
 			 SET r.status = data.status, r.createdAt = datetime(data.createdAtIso)`,
-			{ 
-				batch: apps.map(a => ({ 
-					...a, 
-					createdAtIso: a.createdAt ? new Date(a.createdAt).toISOString() : null 
-				})) 
+			{
+				batch: apps.map((a) => ({
+					...a,
+					createdAtIso: a.createdAt
+						? new Date(a.createdAt).toISOString()
+						: null,
+				})),
 			},
 		);
 
@@ -120,7 +124,10 @@ export const syncRecentToNeo4j = async (days = 1) => {
 		const whereRecent = { updatedAt: { [Op.gte]: sinceDate } };
 
 		// 1. Sync Companies
-		const companies = await db.Company.findAll({ where: whereRecent, raw: true });
+		const companies = await db.Company.findAll({
+			where: whereRecent,
+			raw: true,
+		});
 		if (companies.length > 0) {
 			await session.run(
 				`UNWIND $batch AS data
@@ -155,7 +162,7 @@ export const syncRecentToNeo4j = async (days = 1) => {
 				`UNWIND $batch AS data
 				 MERGE (u:User {id: data.id})
 				 SET u.email = data.email, u.fullName = data.fullName, u.role = data.role, u.status = data.status`,
-				{ batch: users.map(u => ({ ...u, fullName: u.fullName || u.name })) },
+				{ batch: users.map((u) => ({ ...u, fullName: u.fullName || u.name })) },
 			);
 		}
 
@@ -169,28 +176,30 @@ export const syncRecentToNeo4j = async (days = 1) => {
 				     j.experience = data.experience, j.education = data.education, 
 					 j.status = data.status, j.job_url = data.jobUrl,
 					 j.createdAt = datetime(data.createdAtIso)`,
-				{ 
-					batch: jobs.map(j => ({ 
-						...j, 
-						createdAtIso: j.createdAt ? new Date(j.createdAt).toISOString() : null 
-					})) 
+				{
+					batch: jobs.map((j) => ({
+						...j,
+						createdAtIso: j.createdAt
+							? new Date(j.createdAt).toISOString()
+							: null,
+					})),
 				},
 			);
 
-			const jobIds = jobs.map(j => j.id);
+			const jobIds = jobs.map((j) => j.id);
 
 			// 6. Sync Company-POSTED->Job
 			await session.run(
 				`UNWIND $batch AS data
 				 MATCH (co:Company {id: data.companyId}), (j:Job {id: data.id})
 				 MERGE (co)-[:POSTED]->(j)`,
-				{ batch: jobs.filter(j => j.companyId) },
+				{ batch: jobs.filter((j) => j.companyId) },
 			);
 
 			// 7. Sync Job-BELONGS_TO->Category
-			const jobCats = await db.JobCategory.findAll({ 
-				where: { jobId: { [Op.in]: jobIds } }, 
-				raw: true 
+			const jobCats = await db.JobCategory.findAll({
+				where: { jobId: { [Op.in]: jobIds } },
+				raw: true,
 			});
 			if (jobCats.length > 0) {
 				await session.run(
@@ -202,9 +211,9 @@ export const syncRecentToNeo4j = async (days = 1) => {
 			}
 
 			// 8. Sync Job-LOCATED_IN->Location
-			const jobLocs = await db.JobLocation.findAll({ 
-				where: { jobId: { [Op.in]: jobIds } }, 
-				raw: true 
+			const jobLocs = await db.JobLocation.findAll({
+				where: { jobId: { [Op.in]: jobIds } },
+				raw: true,
 			});
 			if (jobLocs.length > 0) {
 				await session.run(
@@ -217,23 +226,31 @@ export const syncRecentToNeo4j = async (days = 1) => {
 		}
 
 		// 9. Sync User-APPLIED_FOR->Job
-		const apps = await db.Application.findAll({ where: whereRecent, raw: true });
+		const apps = await db.Application.findAll({
+			where: whereRecent,
+			raw: true,
+		});
 		if (apps.length > 0) {
 			await session.run(
 				`UNWIND $batch AS data
 				 MATCH (u:User {id: data.userId}), (j:Job {id: data.jobId})
 				 MERGE (u)-[r:APPLIED_FOR]->(j)
 				 SET r.status = data.status, r.createdAt = datetime(data.createdAtIso)`,
-				{ 
-					batch: apps.map(a => ({ 
-						...a, 
-						createdAtIso: a.createdAt ? new Date(a.createdAt).toISOString() : null 
-					})) 
+				{
+					batch: apps.map((a) => ({
+						...a,
+						createdAtIso: a.createdAt
+							? new Date(a.createdAt).toISOString()
+							: null,
+					})),
 				},
 			);
 		}
 
-		return { ok: true, message: `Incremental sync (last ${days} days) completed successfully` };
+		return {
+			ok: true,
+			message: `Incremental sync (last ${days} days) completed successfully`,
+		};
 	} catch (err) {
 		console.error("Neo4j incremental sync error:", err);
 		return { ok: false, error: err.message };
@@ -248,8 +265,8 @@ export const syncSingleJob = async (jobId) => {
 			include: [
 				{ model: db.Location, as: "locations" },
 				{ model: db.Category, as: "categories" },
-				{ model: db.Company, as: "Company" }
-			]
+				{ model: db.Company, as: "Company" },
+			],
 		});
 		if (!job) return { ok: false, error: "Job not found" };
 
@@ -271,8 +288,8 @@ export const syncSingleJob = async (jobId) => {
 				education: j.education,
 				status: j.status,
 				job_url: j.jobUrl,
-				createdAt: j.createdAt ? new Date(j.createdAt).toISOString() : null
-			}
+				createdAt: j.createdAt ? new Date(j.createdAt).toISOString() : null,
+			},
 		);
 
 		// 2. Sync Company Relation
@@ -280,7 +297,7 @@ export const syncSingleJob = async (jobId) => {
 			await session.run(
 				`MATCH (co:Company {id: $companyId}), (j:Job {id: $jobId})
 				 MERGE (co)-[:POSTED]->(j)`,
-				{ companyId: j.companyId, jobId: j.id }
+				{ companyId: j.companyId, jobId: j.id },
 			);
 		}
 
@@ -290,7 +307,7 @@ export const syncSingleJob = async (jobId) => {
 				await session.run(
 					`MATCH (j:Job {id: $jobId}), (cat:Category {id: $catId})
 					 MERGE (j)-[:BELONGS_TO]->(cat)`,
-					{ jobId: j.id, catId: cat.id }
+					{ jobId: j.id, catId: cat.id },
 				);
 			}
 		}
@@ -301,7 +318,7 @@ export const syncSingleJob = async (jobId) => {
 				await session.run(
 					`MATCH (j:Job {id: $jobId}), (loc:Location {id: $locId})
 					 MERGE (j)-[:LOCATED_IN]->(loc)`,
-					{ jobId: j.id, locId: loc.id }
+					{ jobId: j.id, locId: loc.id },
 				);
 			}
 		}
@@ -318,7 +335,9 @@ export const syncSingleJob = async (jobId) => {
 export const deleteJobNode = async (jobId) => {
 	const session = await getSession();
 	try {
-		await session.run(`MATCH (j:Job {id: $id}) DETACH DELETE j`, { id: parseInt(jobId) });
+		await session.run(`MATCH (j:Job {id: $id}) DETACH DELETE j`, {
+			id: parseInt(jobId),
+		});
 		return { ok: true };
 	} catch (err) {
 		console.error("deleteJobNode error:", err);
@@ -342,8 +361,8 @@ export const syncSingleUser = async (userId) => {
 				email: user.email,
 				fullName: user.fullName || user.name,
 				role: user.role,
-				status: user.status
-			}
+				status: user.status,
+			},
 		);
 		return { ok: true };
 	} catch (err) {
@@ -368,8 +387,8 @@ export const syncSingleApplication = async (applicationId) => {
 				userId: app.userId,
 				jobId: app.jobId,
 				status: app.status,
-				createdAt: app.createdAt ? new Date(app.createdAt).toISOString() : null
-			}
+				createdAt: app.createdAt ? new Date(app.createdAt).toISOString() : null,
+			},
 		);
 		return { ok: true };
 	} catch (err) {
@@ -386,7 +405,7 @@ export const deleteApplicationRel = async (userId, jobId) => {
 		await session.run(
 			`MATCH (u:User {id: $userId})-[r:APPLIED_FOR]->(j:Job {id: $jobId})
 			 DELETE r`,
-			{ userId: parseInt(userId), jobId: parseInt(jobId) }
+			{ userId: parseInt(userId), jobId: parseInt(jobId) },
 		);
 		return { ok: true };
 	} catch (err) {
@@ -409,8 +428,8 @@ export const syncSingleCompany = async (companyId) => {
 				id: company.id,
 				name: company.name,
 				logo: company.logo,
-				website: company.website
-			}
+				website: company.website,
+			},
 		);
 		return { ok: true };
 	} catch (err) {

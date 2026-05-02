@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import axiosClient from "@/services/axiosClient";
 import { toast } from "react-toastify";
 import { Loader2 } from "lucide-react";
+import { TruncatedLocations } from "./TruncatedLocations";
 
 interface JobPreviewPopupProps {
 	job: Job;
@@ -25,8 +26,8 @@ export default function JobPreviewPopup({
 	const [isCancelling, setIsCancelling] = useState(false);
 	
 	const company = (job as any).Company;
-	const firstLocation = (job as any).locations?.[0];
-	const headerLocationName = firstLocation?.name ?? null;
+	const locations = (job as any).locations?.map((l: any) => l.name) || [];
+	const headerLocationName = locations[0] ?? null;
 	const detailedLocation = job.workLocation || headerLocationName;
 
 	const handleCancelApply = async (e: React.MouseEvent) => {
@@ -104,9 +105,9 @@ export default function JobPreviewPopup({
 						<div className="flex items-center justify-center gap-1 mb-1">
 							<MapPin className="w-4 h-4 text-slate-600" />
 						</div>
-						<p className="text-sm font-semibold text-slate-900">
-							{headerLocationName || firstLocation?.name || "Chưa xác định"}
-						</p>
+						<div className="text-sm font-semibold text-slate-900">
+							<TruncatedLocations locations={locations} maxShow={1} />
+						</div>
 					</div>
 					<div className="text-center">
 						<div className="flex items-center justify-center gap-1 mb-1">
@@ -236,10 +237,14 @@ export default function JobPreviewPopup({
 						<h4 className="font-semibold text-slate-900 text-xs mb-2">
 							Địa điểm làm việc
 						</h4>
-						<p className="text-xs text-slate-600 flex items-center gap-1">
+						<div className="text-xs text-slate-600 flex items-center gap-1">
 							<MapPin className="w-3 h-3 text-slate-500 flex-shrink-0" />
-							<span className="whitespace-pre-line">{job.workLocation || detailedLocation || "Chưa xác định"}</span>
-						</p>
+							{job.workLocation ? (
+								<span className="whitespace-pre-line">{job.workLocation}</span>
+							) : (
+								<TruncatedLocations locations={locations} maxShow={1} className="text-xs" />
+							)}
+						</div>
 					</div>
 					<div>
 						<h4 className="font-semibold text-slate-900 text-xs mb-2">

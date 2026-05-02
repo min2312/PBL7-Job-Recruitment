@@ -36,6 +36,7 @@ import SearchBanner from "@/components/SearchBanner";
 import { toast } from "react-toastify";
 import axiosClient from "@/services/axiosClient";
 import ApplyJobModal from "@/components/ApplyJobModal";
+import { TruncatedLocations } from "@/components/TruncatedLocations";
 
 export default function JobDetailPage({ job: jobProp }: { job?: any }) {
 	const { id } = useParams();
@@ -252,11 +253,9 @@ export default function JobDetailPage({ job: jobProp }: { job?: any }) {
 									</div>
 									<div>
 										<p className="text-xs text-slate-500">Địa điểm</p>
-										<p className="font-semibold text-slate-900">
-											{locationNames.join(", ") ||
-												displayLocation ||
-												"Chưa xác định"}
-										</p>
+										<div className="font-semibold text-slate-900">
+											<TruncatedLocations locations={locationNames} />
+										</div>
 									</div>
 								</div>
 								<div className="flex items-center gap-3">
@@ -464,9 +463,13 @@ export default function JobDetailPage({ job: jobProp }: { job?: any }) {
 									<h3 className="font-bold text-slate-900 mb-3">
 										Địa điểm làm việc
 									</h3>
-									<p className="text-slate-700 text-sm mb-2">
-										{job.workLocation || displayLocation}
-									</p>
+									<div className="text-slate-700 text-sm mb-2">
+										{job.workLocation ? (
+											<p className="whitespace-pre-line">{job.workLocation}</p>
+										) : (
+											<TruncatedLocations locations={locationNames} maxShow={5} />
+										)}
+									</div>
 								</div>
 
 								{/* Thời gian làm việc */}
@@ -622,9 +625,9 @@ export default function JobDetailPage({ job: jobProp }: { job?: any }) {
 									<MapPin className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
 									<div>
 										<p className="text-xs text-slate-500">Địa điểm</p>
-										<p className="font-semibold text-slate-900">
-											{displayLocation}
-										</p>
+										<div className="font-semibold text-slate-900">
+											<TruncatedLocations locations={locationNames} maxShow={2} />
+										</div>
 									</div>
 								</div>
 							</div>
@@ -795,55 +798,37 @@ export default function JobDetailPage({ job: jobProp }: { job?: any }) {
 										2. Cần làm gì khi gặp việc làm, công ty không minh bạch:
 									</h4>
 									<ul className="space-y-2 text-sm text-slate-700">
-										<li className="flex gap-2">
-											<span className="text-slate-900 font-bold flex-shrink-0">
-												•
-											</span>
-											<span>
-												Kiểm tra thông tin về công ty, việc làm trước khi ứng
-												tuyển
-											</span>
-											<div>
-												<h3 className="font-bold text-slate-900 mb-3">
-													Địa điểm làm việc
-												</h3>
-												<p className="text-slate-700 text-sm mb-2 whitespace-pre-line">
-													{displayLocation ||
-														job.workLocation ||
-														detailedLocation ||
-														"Chưa xác định"}
-												</p>
+										<li className="flex flex-col gap-3">
+											<div className="flex gap-2">
+												<span className="text-slate-900 font-bold flex-shrink-0">•</span>
+												<span className="text-sm">Kiểm tra thông tin về công ty, việc làm trước khi ứng tuyển</span>
 											</div>
-
-											{/* Thời gian làm việc */}
-											<div>
-												<h3 className="font-bold text-slate-900 mb-3">
-													Thời gian làm việc
-												</h3>
-												<p className="text-slate-700 text-sm whitespace-pre-line">
-													{displayWorkTime || "Chưa xác định"}
-												</p>
+											<div className="pl-5 space-y-3">
+												<div>
+													<h4 className="font-bold text-slate-900 text-sm mb-1">Địa điểm làm việc:</h4>
+													<div className="text-slate-700 text-sm">
+														{job.workLocation ? (
+															<p className="whitespace-pre-line">{job.workLocation}</p>
+														) : (
+															<TruncatedLocations locations={locationNames} maxShow={3} />
+														)}
+													</div>
+												</div>
+												<div>
+													<h4 className="font-bold text-slate-900 text-sm mb-1">Thời gian làm việc:</h4>
+													<p className="text-slate-700 text-sm">{displayWorkTime || "Chưa xác định"}</p>
+												</div>
+												<div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 pt-2 border-t border-slate-100">
+													<div className="flex gap-1.5 items-center">
+														<span className="font-semibold text-xs text-slate-500 uppercase tracking-wider">Email:</span>
+														<a href="mailto:hotro@topcv.vn" className="text-teal-600 hover:underline text-sm font-medium">hotro@topcv.vn</a>
+													</div>
+													<div className="flex gap-1.5 items-center">
+														<span className="font-semibold text-xs text-slate-500 uppercase tracking-wider">Hotline:</span>
+														<a href="tel:02466805588" className="text-teal-600 hover:underline text-sm font-medium">(024) 6680 5588</a>
+													</div>
+												</div>
 											</div>
-											<span className="font-semibold flex-shrink-0">
-												Email:
-											</span>
-											<a
-												href="mailto:hotro@topcv.vn"
-												className="text-teal-600 hover:underline"
-											>
-												hotro@topcv.vn
-											</a>
-										</li>
-										<li className="flex gap-2">
-											<span className="font-semibold flex-shrink-0">
-												Hotline:
-											</span>
-											<a
-												href="tel:02466805588"
-												className="text-teal-600 hover:underline"
-											>
-												(024) 6680 5588
-											</a>
 										</li>
 									</ul>
 								</div>

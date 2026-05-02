@@ -12,7 +12,7 @@ const nonSecurePaths = [
 	//JOB
 	"/api/jobs/random",
 	"/api/jobs/:id",
-	"/api/jobs/company/:id",	
+	"/api/jobs/company/:id",
 	"/api/jobs/search",
 	//COMPANY
 	"/api/companies",
@@ -33,7 +33,7 @@ const nonSecurePaths = [
 	"/api/reset-otp/send",
 	"/api/reset-otp/verify",
 	"/api/reset-password",
-	//NEO4J	
+	//NEO4J
 	"/api/neo4j/heatmap",
 	"/api/neo4j/competition",
 	"/api/neo4j/market-demand",
@@ -42,7 +42,9 @@ const nonSecurePaths = [
 	"/api/neo4j/salary-by-industry",
 	"/api/neo4j/categories-paginated",
 	"/api/neo4j/market-summary",
-	"/api/neo4j/sync-all"
+	"/api/neo4j/sync-all",
+	"/api/neo4j/sync-new",
+	"/api/neo4j/training-dataset",
 ];
 
 const createSignedToken = (payload, secretKey, expiresIn) => {
