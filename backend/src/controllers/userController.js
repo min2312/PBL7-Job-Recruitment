@@ -101,8 +101,18 @@ let HandleEditUser = async (req, res) => {
 	let data = req.body;
 	let files = req.files; // From multer fields
 	let message = await userService.updateUser(data, files);
-	if (message && message.DT && message.DT.access_token && message.DT.refresh_token) {
-		setAuthCookies(res, "user", message.DT.access_token, message.DT.refresh_token);
+	if (
+		message &&
+		message.DT &&
+		message.DT.access_token &&
+		message.DT.refresh_token
+	) {
+		setAuthCookies(
+			res,
+			"user",
+			message.DT.access_token,
+			message.DT.refresh_token,
+		);
 	}
 	return res.status(200).json(message);
 };
@@ -135,8 +145,18 @@ let HandleUpdateProfile = async (req, res) => {
 		}
 		let message = await userService.updateUserProfile(data, fileImage);
 
-		if (message && message.DT && message.DT.access_token && message.DT.refresh_token) {
-			setAuthCookies(res, "user", message.DT.access_token, message.DT.refresh_token);
+		if (
+			message &&
+			message.DT &&
+			message.DT.access_token &&
+			message.DT.refresh_token
+		) {
+			setAuthCookies(
+				res,
+				"user",
+				message.DT.access_token,
+				message.DT.refresh_token,
+			);
 		}
 
 		return res.status(200).json(message);
@@ -303,8 +323,18 @@ let HandleRemoveFile = async (req, res) => {
 			});
 		}
 		let message = await userService.removeUserFile(req.user.id, type);
-		if (message && message.DT && message.DT.access_token && message.DT.refresh_token) {
-			setAuthCookies(res, "user", message.DT.access_token, message.DT.refresh_token);
+		if (
+			message &&
+			message.DT &&
+			message.DT.access_token &&
+			message.DT.refresh_token
+		) {
+			setAuthCookies(
+				res,
+				"user",
+				message.DT.access_token,
+				message.DT.refresh_token,
+			);
 		}
 		return res.status(200).json(message);
 	} catch (e) {
@@ -320,8 +350,18 @@ let HandleUpdateEmployerLogo = async (req, res) => {
 	try {
 		let file = req.files && req.files.logo ? req.files.logo[0] : null;
 		let message = await userService.updateEmployerLogo(req.user.id, file);
-		if (message && message.DT && message.DT.access_token && message.DT.refresh_token) {
-			setAuthCookies(res, "user", message.DT.access_token, message.DT.refresh_token);
+		if (
+			message &&
+			message.DT &&
+			message.DT.access_token &&
+			message.DT.refresh_token
+		) {
+			setAuthCookies(
+				res,
+				"user",
+				message.DT.access_token,
+				message.DT.refresh_token,
+			);
 		}
 		return res.status(200).json(message);
 	} catch (e) {
@@ -336,8 +376,18 @@ let HandleUpdateEmployerLogo = async (req, res) => {
 let HandleDeleteEmployerLogo = async (req, res) => {
 	try {
 		let message = await userService.deleteEmployerLogo(req.user.id);
-		if (message && message.DT && message.DT.access_token && message.DT.refresh_token) {
-			setAuthCookies(res, "user", message.DT.access_token, message.DT.refresh_token);
+		if (
+			message &&
+			message.DT &&
+			message.DT.access_token &&
+			message.DT.refresh_token
+		) {
+			setAuthCookies(
+				res,
+				"user",
+				message.DT.access_token,
+				message.DT.refresh_token,
+			);
 		}
 		return res.status(200).json(message);
 	} catch (e) {

@@ -17,32 +17,39 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, r2_score
 
-API_URL = 'http://localhost:8081/api/neo4j/training-dataset' # Đổi port nếu cần
-MODEL_DIR = 'models'
+# Thư viện cho hệ thống gợi ý (Chỉ thêm mới)
+try:
+    from sentence_transformers import SentenceTransformer
+    import faiss
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.feature_extraction.text import TfidfVectorizer
+except ImportError:
+    pass
+
+# Cấu hình đường dẫn (Phân chia 2 khu vực AI)
+BASE_URL = os.getenv('BACKEND_URL', 'http://localhost:8081')
+SALARY_API = f'{BASE_URL}/api/neo4j/training-dataset'
+RECOMMEND_API = f'{BASE_URL}/api/neo4j/recommendation-dataset'
+
+MODEL_SALARY_DIR = 'models/salary'
+MODEL_REC_DIR = 'models/recommendation'
 
 LEVEL_MAPPING = {
-    'Thực tập sinh': 1,
-    'Nhân viên': 2,
-    'Trưởng nhóm': 3,
-    'Quản lý / Giám sát': 4,
-    'Trưởng/Phó phòng': 5,
-    'Phó giám đốc': 6,
-    'Giám đốc': 7
+    'Thực tập sinh': 1, 'Nhân viên': 2, 'Trưởng nhóm': 3,
+    'Quản lý / Giám sát': 4, 'Trưởng/Phó phòng': 5,
+    'Phó giám đốc': 6, 'Giám đốc': 7
 }
 
 EDU_MAPPING = {
-    'Không yêu cầu': 0,
-    'Trung học cơ sở (Cấp 2) trở lên': 1,
-    'Trung học phổ thông (Cấp 3) trở lên': 2,
-    'Trung cấp trở lên': 3,
-    'Cao Đẳng trở lên': 4,
-    'Đại Học trở lên': 5
+    'Không yêu cầu': 0, 'Trung học cơ sở (Cấp 2) trở lên': 1,
+    'Trung học phổ thông (Cấp 3) trở lên': 2, 'Trung cấp trở lên': 3,
+    'Cao Đẳng trở lên': 4, 'Đại Học trở lên': 5
 }
 
 def fetch_data(days=None):
-    url = API_URL
+    url = SALARY_API
     if days:
-        url = f"{API_URL}?days={days}"
+        url = f"{SALARY_API}?days={days}"
     
     print(f"1. Đang gọi API lấy dữ liệu ({'Tất cả' if not days else f'Mới trong {days} ngày'})...")
     try:
@@ -56,11 +63,13 @@ def fetch_data(days=None):
     except Exception as e:
         print(f"Lỗi API ({e}). Đang load tạm từ dataset.json nội bộ...")
         import json
-        with open('dataset.json', 'r', encoding='utf-8') as f:
-            return pd.DataFrame(json.load(f)['data'])
+        if os.path.exists('dataset.json'):
+            with open('dataset.json', 'r', encoding='utf-8') as f:
+                return pd.DataFrame(json.load(f)['data'])
+        return pd.DataFrame()
 
 def train_pipeline(days=None):
-    os.makedirs(MODEL_DIR, exist_ok=True)
+    os.makedirs(MODEL_SALARY_DIR, exist_ok=True)
     df = fetch_data(days)
     if df.empty:
         print("-> Không có dữ liệu mới để huấn luyện. Bỏ qua bước này.")
@@ -102,16 +111,16 @@ def train_pipeline(days=None):
     for col in categorical_cols:
         X[col] = X[col].astype('category')
 
-    joblib.dump(category_mapping := {col: X[col].cat.categories.tolist() for col in categorical_cols}, os.path.join(MODEL_DIR, 'category_mapping.pkl'))
-    joblib.dump(LEVEL_MAPPING, os.path.join(MODEL_DIR, 'level_mapping.pkl'))
-    joblib.dump(EDU_MAPPING, os.path.join(MODEL_DIR, 'edu_mapping.pkl'))
+    joblib.dump({col: X[col].cat.categories.tolist() for col in categorical_cols}, os.path.join(MODEL_SALARY_DIR, 'category_mapping.pkl'))
+    joblib.dump(LEVEL_MAPPING, os.path.join(MODEL_SALARY_DIR, 'level_mapping.pkl'))
+    joblib.dump(EDU_MAPPING, os.path.join(MODEL_SALARY_DIR, 'edu_mapping.pkl'))
 
     X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
 
     # BƯỚC 3: HUẤN LUYỆN TĂNG CƯỜNG (INCREMENTAL)
     monotone_constraints = {'level_score': 1, 'experience_years': 1, 'edu_score': 1}
     
-    model_path = os.path.join(MODEL_DIR, 'salary_predictor.pkl')
+    model_path = os.path.join(MODEL_SALARY_DIR, 'salary_predictor.pkl')
     existing_model = None
     if os.path.exists(model_path):
         print(f"-> Tìm thấy mô hình cũ, sẽ huấn luyện tiếp (Incremental Training)...")
@@ -157,20 +166,110 @@ def train_pipeline(days=None):
         plt.plot(x_axis, results['validation_1']['rmse'], label='Val Loss')
         plt.legend()
         plt.title('Training Progress')
-        plt.savefig(os.path.join(MODEL_DIR, 'loss_chart.png'))
+        plt.savefig(os.path.join(MODEL_SALARY_DIR, 'loss_chart.png'))
 
     joblib.dump(model, model_path)
     print(f"-> Đã xuất mô hình mới. Xong!")
 
+# --- LOGIC GỢI Ý (RECO) ĐƯỢC TÁCH BIỆT ---
+from reco_utils import clean_text, remove_accents
+from sklearn.preprocessing import normalize
+
+def update_recommendation_system(days=None):
+    print("\n[RECO] Đang cập nhật hệ thống gợi ý...")
+    os.makedirs(MODEL_REC_DIR, exist_ok=True)
+    
+    url = RECOMMEND_API
+    if days: url = f"{RECOMMEND_API}?days={days}"
+    
+    try:
+        r = requests.get(url)
+        data = r.json().get('data', [])
+        if not data:
+            print("-> Không có job mới để cập nhật gợi ý.")
+            return
+        new_df = pd.DataFrame(data)
+    except Exception as e:
+        print(f"-> Lỗi khi lấy dữ liệu gợi ý: {e}")
+        return
+
+    df_path = os.path.join(MODEL_REC_DIR, 'df.pkl')
+    index_path = os.path.join(MODEL_REC_DIR, 'faiss.index')
+    
+    if os.path.exists(df_path):
+        old_df = joblib.load(df_path)
+        new_df = new_df[~new_df['id'].isin(old_df['id'])]
+        if new_df.empty:
+            print("-> Tất cả job mới đã tồn tại trong Index.")
+            return
+        combined_df = pd.concat([old_df, new_df], ignore_index=True)
+    else:
+        combined_df = new_df
+
+    # Đảm bảo có category_clean
+    combined_df['category_clean'] = combined_df['category'].apply(clean_text)
+    combined_df['job_title_clean'] = combined_df['job_title'].apply(clean_text)
+
+    print(f"-> Đang đánh chỉ mục cho {len(new_df)} job mới...")
+    model_st = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+    
+    # Notebook logic: job_title + chi_tiet_cong_viec
+    new_texts = (new_df['job_title'].fillna('') + " " + new_df['chi_tiet_cong_viec'].fillna('')).tolist()
+    # QUAN TRỌNG: normalize_embeddings=True
+    new_embeddings = model_st.encode(new_texts, normalize_embeddings=True).astype('float32')
+
+    if os.path.exists(index_path):
+        index = faiss.read_index(index_path)
+        index.add(new_embeddings)
+    else:
+        index = faiss.IndexFlatIP(new_embeddings.shape[1])
+        index.add(new_embeddings)
+
+    # 1. Train category classifier (clf) - Notebook: job_title_clean -> category
+    print("-> Đang huấn luyện bộ phân loại ngành...")
+    vectorizer_cls = TfidfVectorizer(max_features=5000, token_pattern=r"(?u)\b\w+\b", ngram_range=(1,2))
+    X_vec = vectorizer_cls.fit_transform(combined_df['job_title_clean'])
+    clf = LogisticRegression(max_iter=1000)
+    clf.fit(X_vec, combined_df['category'])
+
+    # 2. Tạo cat_vectorizer (để tìm ngành tương đương)
+    print("-> Đang tạo bộ vector hóa ngành nghề...")
+    unique_cats = combined_df['category_clean'].unique()
+    cat_vectorizer = TfidfVectorizer(ngram_range=(1,2))
+    cat_tfidf = cat_vectorizer.fit_transform(unique_cats)
+    cat_tfidf = normalize(cat_tfidf)
+
+    # 3. Location embeddings (optional but good to have)
+    print("-> Đang tạo embedding vị trí...")
+    location_embeddings = model_st.encode(combined_df['location'].fillna('').tolist(), normalize_embeddings=True)
+
+    # Save all
+    faiss.write_index(index, index_path)
+    joblib.dump(combined_df, df_path)
+    joblib.dump(clf, os.path.join(MODEL_REC_DIR, 'clf.pkl'))
+    joblib.dump(vectorizer_cls, os.path.join(MODEL_REC_DIR, 'vectorizer_cls.pkl'))
+    joblib.dump(cat_vectorizer, os.path.join(MODEL_REC_DIR, 'cat_vectorizer.pkl'))
+    joblib.dump(cat_tfidf, os.path.join(MODEL_REC_DIR, 'cat_tfidf.pkl'))
+    joblib.dump(unique_cats, os.path.join(MODEL_REC_DIR, 'unique_cats.pkl'))
+    joblib.dump(location_embeddings, os.path.join(MODEL_REC_DIR, 'location_embeddings.pkl'))
+    
+    print("-> Cập nhật hệ thống gợi ý hoàn tất!")
+
 if __name__ == "__main__":
-    import sys
     days_arg = None
     if len(sys.argv) > 1:
         try: days_arg = int(sys.argv[1])
         except: pass
     
-    model_path = os.path.join(MODEL_DIR, 'salary_predictor.pkl')
-    if os.path.exists(model_path) and days_arg is None:
-        days_arg = 1 # Mặc định lấy data ngày qua để update nếu đã có model
-        
+    # 1. Huấn luyện Lương (Giữ nguyên logic của bạn)
+    model_salary_path = os.path.join(MODEL_SALARY_DIR, 'salary_predictor.pkl')
+    if os.path.exists(model_salary_path) and days_arg is None:
+        days_arg = 1 # Mặc định của bạn
+    
     train_pipeline(days=days_arg)
+    
+    # 2. Cập nhật Gợi ý (Phần thêm mới)
+    try:
+        update_recommendation_system(days=days_arg)
+    except Exception as e:
+        print(f"Cảnh báo: Lỗi cập nhật gợi ý: {e}")

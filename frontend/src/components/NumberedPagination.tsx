@@ -13,10 +13,7 @@ interface NumberedPaginationProps {
  * Shows first pages, last pages, current page neighborhood, and ellipses.
  * Example: [1, 2, 3, '...', 8, 9, 10, '...', 33, 34]
  */
-function getPageNumbers(
-	current: number,
-	total: number,
-): (number | "...")[] {
+function getPageNumbers(current: number, total: number): (number | "...")[] {
 	if (total <= 7) {
 		return Array.from({ length: total }, (_, i) => i + 1);
 	}
@@ -60,12 +57,7 @@ export default function NumberedPagination({
 	const pages = getPageNumbers(currentPage, totalPages);
 
 	return (
-		<div
-			className={cn(
-				"flex items-center justify-center gap-1",
-				className,
-			)}
-		>
+		<div className={cn("flex items-center justify-center gap-1", className)}>
 			{/* Previous */}
 			<button
 				onClick={() => {

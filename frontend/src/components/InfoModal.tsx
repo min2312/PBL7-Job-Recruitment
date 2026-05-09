@@ -1,9 +1,9 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, AlertTriangle, X } from "lucide-react";
+import { Loader2, CheckCircle2, X, Info } from "lucide-react";
 import { Button } from "./ui/button";
 
-interface ConfirmModalProps {
+interface InfoModalProps {
 	isOpen: boolean;
 	onClose: () => void;
 	onConfirm: () => Promise<void>;
@@ -12,23 +12,34 @@ interface ConfirmModalProps {
 	confirmText?: string;
 	cancelText?: string;
 	isLoading?: boolean;
+	variant?: "success" | "info";
 }
 
-const ConfirmModal: React.FC<ConfirmModalProps> = ({
+const InfoModal: React.FC<InfoModalProps> = ({
 	isOpen,
 	onClose,
 	onConfirm,
 	title,
 	description,
-	confirmText = "Xác nhận xóa",
+	confirmText = "Xác nhận",
 	cancelText = "Hủy bỏ",
 	isLoading = false,
+	variant = "info",
 }) => {
+	const colors = {
+		success: "text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400",
+		info: "text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400",
+	};
+
+	const buttonColors = {
+		success: "bg-emerald-600 hover:bg-emerald-700",
+		info: "bg-blue-600 hover:bg-blue-700",
+	};
+
 	return (
 		<AnimatePresence>
 			{isOpen && (
 				<div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-					{/* Backdrop */}
 					<motion.div
 						initial={{ opacity: 0 }}
 						animate={{ opacity: 1 }}
@@ -37,7 +48,6 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
 						className="absolute inset-0 bg-black/60 backdrop-blur-sm"
 					/>
 
-					{/* Modal Content */}
 					<motion.div
 						initial={{ opacity: 0, scale: 0.9, y: 20 }}
 						animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -46,8 +56,8 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
 					>
 						<div className="p-6">
 							<div className="flex items-center justify-between mb-4">
-								<div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center text-red-600 dark:text-red-400">
-									<AlertTriangle className="w-6 h-6" />
+								<div className={`w-12 h-12 rounded-full flex items-center justify-center ${colors[variant]}`}>
+									{variant === "success" ? <CheckCircle2 className="w-6 h-6" /> : <Info className="w-6 h-6" />}
 								</div>
 								{!isLoading && (
 									<button
@@ -74,8 +84,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
 									{cancelText}
 								</Button>
 								<Button
-									variant="destructive"
-									className="flex-1 bg-red-600 hover:bg-red-700 text-white gap-2"
+									className={`flex-1 text-white gap-2 ${buttonColors[variant]}`}
 									onClick={onConfirm}
 									disabled={isLoading}
 								>
@@ -88,11 +97,10 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
 							</div>
 						</div>
 
-						{/* Progress Bar for loading */}
 						{isLoading && (
 							<div className="h-1 w-full bg-muted overflow-hidden">
 								<motion.div
-									className="h-full bg-red-600"
+									className={`h-full ${variant === "success" ? "bg-emerald-600" : "bg-blue-600"}`}
 									animate={{
 										x: ["-100%", "100%"],
 									}}
@@ -111,4 +119,4 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
 	);
 };
 
-export default ConfirmModal;
+export default InfoModal;

@@ -2,6 +2,7 @@ import db from "../models/index";
 import { Op } from "sequelize";
 import neo4j from "neo4j-driver";
 import { waitForNeo4j, getWriteSession } from "../config/connectNeo4j";
+import { parseSalary } from "./neo4jService";
 
 const getSession = async () => {
 	await waitForNeo4j();
@@ -43,7 +44,7 @@ export const syncAllToNeo4j = async () => {
 		await session.run(
 			`UNWIND $batch AS data
 			 MERGE (u:User {id: data.id})
-			 SET u.email = data.email, u.fullName = data.fullName, u.role = data.role, u.status = data.status`,
+			 SET u.email = data.email, u.fullName = data.fullName, u.role = data.role, u.isActive = data.is_active`,
 			{ batch: users.map((u) => ({ ...u, fullName: u.fullName || u.name })) },
 		);
 
@@ -55,14 +56,22 @@ export const syncAllToNeo4j = async () => {
 			 SET j.title = data.title, j.salary = data.salary, j.level = data.level, 
 			     j.experience = data.experience, j.education = data.education, 
 				 j.status = data.status, j.job_url = data.jobUrl,
-				 j.createdAt = datetime(data.createdAtIso)`,
+				 j.salary_min = data.salary_min, j.salary_max = data.salary_max,
+				 j.createdAt = datetime(data.createdAtIso) `,
 			{
-				batch: jobs.map((j) => ({
-					...j,
-					createdAtIso: j.createdAt
-						? new Date(j.createdAt).toISOString()
-						: null,
-				})),
+				batch: jobs.map((j) => {
+					const parsed = parseSalary(j.salary);
+					return {
+						...j,
+						salary_min:
+							parsed.min !== null ? neo4j.int(parsed.min) : null,
+						salary_max:
+							parsed.max !== null ? neo4j.int(parsed.max) : null,
+						createdAtIso: j.createdAt
+							? new Date(j.createdAt).toISOString()
+							: null,
+					};
+				}),
 			},
 		);
 
@@ -161,7 +170,7 @@ export const syncRecentToNeo4j = async (days = 1) => {
 			await session.run(
 				`UNWIND $batch AS data
 				 MERGE (u:User {id: data.id})
-				 SET u.email = data.email, u.fullName = data.fullName, u.role = data.role, u.status = data.status`,
+				 SET u.email = data.email, u.fullName = data.fullName, u.role = data.role, u.isActive = data.is_active`,
 				{ batch: users.map((u) => ({ ...u, fullName: u.fullName || u.name })) },
 			);
 		}
@@ -175,14 +184,22 @@ export const syncRecentToNeo4j = async (days = 1) => {
 				 SET j.title = data.title, j.salary = data.salary, j.level = data.level, 
 				     j.experience = data.experience, j.education = data.education, 
 					 j.status = data.status, j.job_url = data.jobUrl,
+					 j.salary_min = data.salary_min, j.salary_max = data.salary_max,
 					 j.createdAt = datetime(data.createdAtIso)`,
 				{
-					batch: jobs.map((j) => ({
-						...j,
-						createdAtIso: j.createdAt
-							? new Date(j.createdAt).toISOString()
-							: null,
-					})),
+					batch: jobs.map((j) => {
+						const parsed = parseSalary(j.salary);
+						return {
+							...j,
+							salary_min:
+								parsed.min !== null ? neo4j.int(parsed.min) : null,
+							salary_max:
+								parsed.max !== null ? neo4j.int(parsed.max) : null,
+							createdAtIso: j.createdAt
+								? new Date(j.createdAt).toISOString()
+								: null,
+						};
+					}),
 				},
 			);
 
@@ -278,6 +295,7 @@ export const syncSingleJob = async (jobId) => {
 			 SET j.title = $title, j.salary = $salary, j.level = $level, 
 			     j.experience = $experience, j.education = $education, 
 				 j.status = $status, j.job_url = $job_url,
+				 j.salary_min = $salary_min, j.salary_max = $salary_max,
 				 j.createdAt = datetime($createdAt)`,
 			{
 				id: j.id,
@@ -288,6 +306,14 @@ export const syncSingleJob = async (jobId) => {
 				education: j.education,
 				status: j.status,
 				job_url: j.jobUrl,
+				salary_min:
+					parseSalary(j.salary).min !== null
+						? neo4j.int(parseSalary(j.salary).min)
+						: null,
+				salary_max:
+					parseSalary(j.salary).max !== null
+						? neo4j.int(parseSalary(j.salary).max)
+						: null,
 				createdAt: j.createdAt ? new Date(j.createdAt).toISOString() : null,
 			},
 		);
@@ -355,18 +381,33 @@ export const syncSingleUser = async (userId) => {
 
 		await session.run(
 			`MERGE (u:User {id: $id})
-			 SET u.email = $email, u.fullName = $fullName, u.role = $role, u.status = $status`,
+			 SET u.email = $email, u.fullName = $fullName, u.role = $role, u.isActive = $isActive`,
 			{
 				id: user.id,
 				email: user.email,
 				fullName: user.fullName || user.name,
 				role: user.role,
-				status: user.status,
+				isActive: user.is_active,
 			},
 		);
 		return { ok: true };
 	} catch (err) {
 		console.error("syncSingleUser error:", err);
+		return { ok: false, error: err.message };
+	} finally {
+		await session.close();
+	}
+};
+
+export const deleteUserNode = async (userId) => {
+	const session = await getSession();
+	try {
+		await session.run(`MATCH (u:User {id: $id}) DETACH DELETE u`, {
+			id: parseInt(userId),
+		});
+		return { ok: true };
+	} catch (err) {
+		console.error("deleteUserNode error:", err);
 		return { ok: false, error: err.message };
 	} finally {
 		await session.close();

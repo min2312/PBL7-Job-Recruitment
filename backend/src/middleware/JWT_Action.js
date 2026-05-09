@@ -45,6 +45,7 @@ const nonSecurePaths = [
 	"/api/neo4j/sync-all",
 	"/api/neo4j/sync-new",
 	"/api/neo4j/training-dataset",
+	"/api/neo4j/recommendation-dataset",
 ];
 
 const createSignedToken = (payload, secretKey, expiresIn) => {

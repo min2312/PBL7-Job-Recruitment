@@ -12,7 +12,11 @@ import { checkUserJWT, CreateJWT } from "../middleware/JWT_Action";
 import checkExpiredSubscriptions from "../middleware/checkExpiredSubscriptions";
 import passport from "passport";
 // import apiController from "../controllers/apiController";
-import { uploadUserFiles, uploadApplicationFiles, uploadCompanyFiles } from "../middleware/Cloudinary_Multer";
+import {
+	uploadUserFiles,
+	uploadApplicationFiles,
+	uploadCompanyFiles,
+} from "../middleware/Cloudinary_Multer";
 // import socialController from "../controllers/socialController.js";
 import {
 	sendResetOTP,
@@ -38,15 +42,11 @@ let initWebRoutes = (app) => {
 		adminController.HandleRefreshAdminToken,
 	);
 	router.get("/api/get-all-user", userController.HandleGetAllUser);
-	router.put(
-		"/api/edit-user",
-		uploadUserFiles,
-		userController.HandleEditUser
-	);
+	router.put("/api/edit-user", uploadUserFiles, userController.HandleEditUser);
 	router.put(
 		"/api/update-profile",
 		uploadUserFiles,
-		userController.HandleEditUser
+		userController.HandleEditUser,
 	);
 	router.post("/api/register", userController.HandleCreateNewUser);
 	router.post("/api/change-password", userController.HandleChangePassword);
@@ -77,15 +77,25 @@ let initWebRoutes = (app) => {
 	// // router.post("/payment", apiController.HandlePaymentMoMo);
 
 	// //ADMIN
-	// router.get("/api/admin/get-all-users", adminController.HandleGetAllUsers);
-	// router.post("/api/admin/suspend-user", adminController.HandleSuspendUser);
-	// router.post("/api/admin/activate-user", adminController.HandleActivateUser);
-	// router.delete("/api/admin/delete-user", adminController.HandleDeleteUser);
-	// router.get("/api/admin/get-all-posts", adminController.HandleGetAllPosts);
-	// router.post("/api/admin/block-post", adminController.HandleBlockPost);
-	// router.post("/api/admin/unblock-post", adminController.HandleUnblockPost);
-	// router.delete("/api/admin/delete-post", adminController.HandleDeletePost);
-	// router.get("/api/admin/statistics", adminController.HandleGetStatistics);
+	// ADMIN
+	router.get("/api/admin/users", adminController.HandleGetAllUsers);
+	router.post("/api/admin/users/suspend", adminController.HandleSuspendUser);
+	router.post("/api/admin/users/activate", adminController.HandleActivateUser);
+	router.delete("/api/admin/users/delete", adminController.HandleDeleteUser);
+	router.get("/api/admin/jobs", adminController.HandleGetAllJobs);
+	router.post("/api/admin/jobs/status", adminController.HandleUpdateJobStatus);
+	router.delete("/api/admin/jobs/delete", adminController.HandleDeleteJob);
+	router.get("/api/admin/companies", adminController.HandleGetAllCompanies);
+	router.get(
+		"/api/admin/applications",
+		adminController.HandleGetAllApplications,
+	);
+	router.get("/api/admin/statistics", adminController.HandleGetStatistics);
+	router.get(
+		"/api/admin/companies/:id",
+		adminController.HandleGetCompanyDetail,
+	);
+	router.get("/api/admin/jobs/:id", adminController.HandleGetJobDetail);
 
 	//COMPANY
 	router.get("/api/companies", companyController.getAllCompanies);
@@ -97,32 +107,48 @@ let initWebRoutes = (app) => {
 	router.get("/api/jobs/company/:id", jobController.getJobByCompanyId);
 	router.get("/api/jobs/:id", jobController.getJobById);
 	router.post("/api/jobs/save", jobController.saveOrUnsaveJob);
-	router.post(
-		"/api/jobs/create",
-		jobController.HandleCreateJob
-	);
-	router.put(
-		"/api/jobs/update/:id",
-		jobController.HandleUpdateJob
-	);
-	router.delete(
-		"/api/jobs/delete/:id",
-		jobController.HandleDeleteJob
-	);
+	router.post("/api/jobs/create", jobController.HandleCreateJob);
+	router.put("/api/jobs/update/:id", jobController.HandleUpdateJob);
+	router.delete("/api/jobs/delete/:id", jobController.HandleDeleteJob);
 	router.get("/api/employer/jobs", jobController.HandleGetEmployerJobs);
 	router.post(
 		"/api/jobs/apply",
 		uploadApplicationFiles,
-		applicationController.HandleApplyJob
+		applicationController.HandleApplyJob,
 	);
-	router.delete("/api/jobs/cancel-apply", applicationController.HandleCancelApplication);
-	router.get("/api/my-applications", applicationController.HandleGetMyApplications);
-	router.get("/api/employer/applications", applicationController.HandleGetEmployerApplications);
-	router.get("/api/employer/applications/:id", applicationController.HandleGetApplicationById);
-	router.put("/api/employer/applications/status", applicationController.HandleUpdateApplicationStatus);
-	router.post("/api/employer/update-logo", uploadCompanyFiles, userController.HandleUpdateEmployerLogo);
-	router.delete("/api/employer/delete-logo", userController.HandleDeleteEmployerLogo);
-	router.get("/api/employer/statistics", employerController.HandleGetStatistics);
+	router.delete(
+		"/api/jobs/cancel-apply",
+		applicationController.HandleCancelApplication,
+	);
+	router.get(
+		"/api/my-applications",
+		applicationController.HandleGetMyApplications,
+	);
+	router.get(
+		"/api/employer/applications",
+		applicationController.HandleGetEmployerApplications,
+	);
+	router.get(
+		"/api/employer/applications/:id",
+		applicationController.HandleGetApplicationById,
+	);
+	router.put(
+		"/api/employer/applications/status",
+		applicationController.HandleUpdateApplicationStatus,
+	);
+	router.post(
+		"/api/employer/update-logo",
+		uploadCompanyFiles,
+		userController.HandleUpdateEmployerLogo,
+	);
+	router.delete(
+		"/api/employer/delete-logo",
+		userController.HandleDeleteEmployerLogo,
+	);
+	router.get(
+		"/api/employer/statistics",
+		employerController.HandleGetStatistics,
+	);
 	// CATEGORY
 	router.get("/api/categories", categoryController.getAllCategories);
 	// LOCATION
@@ -150,6 +176,10 @@ let initWebRoutes = (app) => {
 		"/api/neo4j/training-dataset",
 		neo4jController.HandleBuildTrainingDataset,
 	); //tập dữ liệu dùng cho train XGBoost
+	router.get(
+		"/api/neo4j/recommendation-dataset",
+		neo4jController.HandleGetRecommendationDataset,
+	); //tập dữ liệu dùng cho indexing FAISS
 	router.post(
 		"/api/neo4j/salary-backfill", //backfill dữ liệu lương đã có trong SQL sang Neo4j
 		neo4jController.HandleBackfillSalary,
