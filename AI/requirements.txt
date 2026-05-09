@@ -14,6 +14,10 @@ neo4j
 seleniumbase
 beautifulsoup4
 lxml
-cloudscrape
+cloudscraper
 fake_useragent
 bcrypt
+sentence-transformers
+faiss-cpu
+numpy
+flask-cors

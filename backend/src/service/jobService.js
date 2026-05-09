@@ -156,7 +156,13 @@ async function fetchRandomJobsByLocation({
 		{
 			model: db.Company,
 			as: "Company",
-			required: false,
+			required: true,
+			include: [{
+				model: db.User,
+				as: "users",
+				where: { role: 'EMPLOYER', is_active: true },
+				required: true
+			}]
 		},
 	];
 
@@ -554,6 +560,13 @@ const getJobByCompanyId = async ({
 				{
 					model: db.Company,
 					as: "Company",
+					required: true,
+					include: [{
+						model: db.User,
+						as: "users",
+						where: { role: 'EMPLOYER', is_active: true },
+						required: true
+					}]
 				},
 			],
 			distinct: true,
@@ -590,6 +603,13 @@ const getJobById = async (jobId, userId = null) => {
 				{
 					model: db.Company,
 					as: "Company",
+					required: true,
+					include: [{
+						model: db.User,
+						as: "users",
+						where: { role: 'EMPLOYER', is_active: true },
+						required: true
+					}]
 				},
 			],
 		});
@@ -712,7 +732,13 @@ async function searchJobs({
 		{
 			model: db.Company,
 			as: "Company",
-			required: false,
+			required: true,
+			include: [{
+				model: db.User,
+				as: "users",
+				where: { role: 'EMPLOYER', is_active: true },
+				required: true
+			}]
 		},
 	];
 

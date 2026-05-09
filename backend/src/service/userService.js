@@ -52,6 +52,11 @@ let HandleUserLogin = (email, password) => {
 					raw: true,
 				});
 				if (user) {
+					if (user.is_active === false || user.is_active === 0) {
+						userData.errCode = 4;
+						userData.errMessage = `Your account has been deactivated. Please contact support.`;
+						return resolve(userData);
+					}
 					let check = await bcrypt.compareSync(password, user.password);
 					if (check) {
 						if(user.role === "EMPLOYER"){
@@ -588,6 +593,12 @@ let HandleFirebaseLogin = (idToken) => {
 					user.profilePicture = picture;
 					if (!user.name) user.name = name;
 				}
+			}
+
+			if (user.is_active === false || user.is_active === 0) {
+				userData.errCode = 4;
+				userData.errMessage = `Your account has been deactivated. Please contact support.`;
+				return resolve(userData);
 			}
 
 			if (user.role === "EMPLOYER") {

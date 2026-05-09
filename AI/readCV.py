@@ -8,15 +8,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-MODEL_DIR = 'models'
+from ai_utils import generate_with_rotation
 
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel('gemini-2.5-flash') 
-else:
-    print("⚠️ CẢNH BÁO: Chưa tìm thấy GEMINI_API_KEY trong file .env!")
-    model = None
+MODEL_DIR = 'models/salary'
 
 def get_all_valid_mappings():
     """Hàm chui vào thư mục models/ lấy TOÀN BỘ danh sách chuẩn để ép Gemini"""
@@ -54,10 +48,6 @@ def extract_text_from_pdf(pdf_path):
 
 def parse_cv_with_ai(raw_text):
     """Hàm dùng AI để đọc hiểu và xuất JSON"""
-    if not model:
-        print("Lỗi: Không có model AI vì thiếu API Key.")
-        return None
-
     print("Đang nhờ AI phân tích dữ liệu CV và đối chiếu với Models...")
     
     # Kéo toàn bộ list chuẩn từ Model ra
@@ -94,8 +84,7 @@ def parse_cv_with_ai(raw_text):
     prompt = f"{system_prompt}\n\nNỘI DUNG CV:\n{raw_text}"
 
     try:
-        response = model.generate_content(prompt)
-        result_text = response.text
+        result_text = generate_with_rotation(prompt, model_name="gemini-2.5-flash")
         
         result_text = re.sub(r'```json\n?', '', result_text)
         result_text = re.sub(r'```\n?', '', result_text).strip()
@@ -105,7 +94,6 @@ def parse_cv_with_ai(raw_text):
 
     except Exception as e:
         print(f"AI không thể bóc tách hoặc JSON lỗi: {e}")
-        print("Raw response:", response.text if response else "No response")
         return None
 
 if __name__ == "__main__":

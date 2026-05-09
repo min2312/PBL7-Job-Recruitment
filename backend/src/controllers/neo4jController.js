@@ -32,11 +32,14 @@ export const HandleGetJobHeatmap = async (req, res) => {
 
 export const HandleGetCategoryCompetition = async (req, res) => {
 	try {
-		const data = await neo4jService.buildCompetition();
+		const category = req.query.category || "";
+		const location = req.query.location || "";
+		const data = await neo4jService.buildCompetition(category, location);
 		const top = data[0] || null;
 		let message = "Không đủ dữ liệu để xác định tỷ lệ cạnh tranh";
 		if (top) {
-			message = `Ngành '${top.category}' đang có tỷ lệ cạnh tranh khốc liệt nhất: Trung bình 1 vị trí có tới ${Number(top.ratio).toFixed(1)} ứng viên nộp CV (Tỷ lệ chọi 1:${Number(top.ratio).toFixed(0)}).`;
+			const locationText = location ? `tại '${location}'` : "trên toàn quốc";
+			message = `Ngành '${top.category}' ${locationText} đang có tỷ lệ cạnh tranh khốc liệt nhất: Trung bình 1 vị trí có tới ${Number(top.ratio).toFixed(1)} ứng viên nộp CV (Tỷ lệ chọi 1:${Number(top.ratio).toFixed(0)}).`;
 		}
 
 		return res
@@ -96,7 +99,11 @@ export const HandleGetHiringCriteria = async (req, res) => {
 		const categoryName = req.query.category || "";
 		const locationName = req.query.location || "";
 
-		const rows = await neo4jService.buildHiringCriteria(categoryName, locationName, 20);
+		const rows = await neo4jService.buildHiringCriteria(
+			categoryName,
+			locationName,
+			20,
+		);
 		const top = rows[0] || null;
 		let message =
 			"Không đủ dữ liệu để xây dựng bức tranh tiêu chuẩn tuyển dụng";
@@ -104,11 +111,14 @@ export const HandleGetHiringCriteria = async (req, res) => {
 		if (top && top.experience && top.education) {
 			const total = rows.reduce((sum, r) => sum + r.count, 0);
 			const percent = total > 0 ? ((top.count / total) * 100).toFixed(0) : 0;
-			
+
 			let locationText = locationName ? ` tại '${locationName}'` : "";
 			let categoryText = categoryName ? ` ngành '${categoryName}'` : "";
-			let contextText = (!categoryName && !locationName) ? " trên toàn thị trường" : `${categoryText}${locationText}`;
-			
+			let contextText =
+				!categoryName && !locationName
+					? " trên toàn thị trường"
+					: `${categoryText}${locationText}`;
+
 			message = `Đối với vị trí '${top.level || "Trưởng/Phó phòng"}'${contextText}, ${percent}% các công ty yêu cầu kinh nghiệm '${top.experience}' và bằng '${top.education}'.`;
 		}
 
@@ -163,14 +173,21 @@ export const HandleGetSalaryByIndustry = async (req, res) => {
 	try {
 		const categoryName = req.query.category || "";
 		const locationName = req.query.location || "";
-		
-		const data = await neo4jService.buildSalaryByIndustry(categoryName, locationName);
-		
+
+		const data = await neo4jService.buildSalaryByIndustry(
+			categoryName,
+			locationName,
+		);
+
 		let locationText = locationName ? ` tại '${locationName}'` : "";
-		let categoryText = categoryName ? `ngành '${categoryName}'` : "các nhóm ngành có nhu cầu tuyển dụng cao nhất";
+		let categoryText = categoryName
+			? `ngành '${categoryName}'`
+			: "các nhóm ngành có nhu cầu tuyển dụng cao nhất";
 		let message = `Thống kê phổ lương trung bình của ${categoryText}${locationText}.`;
-		
-		return res.status(200).json({ errCode: 0, errMessage: "OK", data: { rows: data, message } });
+
+		return res
+			.status(200)
+			.json({ errCode: 0, errMessage: "OK", data: { rows: data, message } });
 	} catch (error) {
 		console.error(error);
 		return res.status(500).json({
@@ -185,6 +202,21 @@ export const HandleBuildTrainingDataset = async (req, res) => {
 	try {
 		const days = req.query.days ? Number(req.query.days) : null;
 		const rows = await neo4jService.buildTrainingDataset(days);
+		return res.status(200).json({ errCode: 0, errMessage: "OK", data: rows });
+	} catch (error) {
+		console.error(error);
+		return res.status(500).json({
+			errCode: -1,
+			errMessage: "Error from server",
+			error: error.message,
+		});
+	}
+};
+
+export const HandleGetRecommendationDataset = async (req, res) => {
+	try {
+		const days = req.query.days ? Number(req.query.days) : null;
+		const rows = await neo4jService.getRecommendationDataset(days);
 		return res.status(200).json({ errCode: 0, errMessage: "OK", data: rows });
 	} catch (error) {
 		console.error(error);

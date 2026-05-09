@@ -116,20 +116,77 @@ const getAdminAccount = async (req, res) => {
 };
 
 //DASHBOARD ADMIN CONTROLLERS
+// DASHBOARD ADMIN CONTROLLERS
 const HandleGetAllUsers = async (req, res) => {
 	try {
-		const users = await adminService.getAllUsers();
+		const page = parseInt(req.query.page) || 1;
+		const limit = parseInt(req.query.limit) || 10;
+		const search = req.query.search || "";
+		const role = req.query.role || "ALL";
+
+		const data = await adminService.getAllUsersPaginated(page, limit, search, role);
 		return res.status(200).json({
 			errCode: 0,
 			errMessage: "OK",
-			data: users,
+			data,
 		});
 	} catch (error) {
 		console.log(error);
-		return res.status(500).json({
-			errCode: -1,
-			errMessage: "Error from server",
+		return res.status(500).json({ errCode: -1, errMessage: "Error from server" });
+	}
+};
+
+const HandleGetAllJobs = async (req, res) => {
+	try {
+		const page = parseInt(req.query.page) || 1;
+		const limit = parseInt(req.query.limit) || 10;
+		const search = req.query.search || "";
+		const status = req.query.status || "ALL";
+
+		const data = await adminService.getAllJobsPaginated(page, limit, search, status);
+		return res.status(200).json({
+			errCode: 0,
+			errMessage: "OK",
+			data,
 		});
+	} catch (error) {
+		console.log(error);
+		return res.status(500).json({ errCode: -1, errMessage: "Error from server" });
+	}
+};
+
+const HandleGetAllCompanies = async (req, res) => {
+	try {
+		const page = parseInt(req.query.page) || 1;
+		const limit = parseInt(req.query.limit) || 10;
+		const search = req.query.search || "";
+
+		const data = await adminService.getAllCompaniesPaginated(page, limit, search);
+		return res.status(200).json({
+			errCode: 0,
+			errMessage: "OK",
+			data,
+		});
+	} catch (error) {
+		console.log(error);
+		return res.status(500).json({ errCode: -1, errMessage: "Error from server" });
+	}
+};
+
+const HandleGetAllApplications = async (req, res) => {
+	try {
+		const page = parseInt(req.query.page) || 1;
+		const limit = parseInt(req.query.limit) || 10;
+
+		const data = await adminService.getAllApplicationsPaginated(page, limit);
+		return res.status(200).json({
+			errCode: 0,
+			errMessage: "OK",
+			data,
+		});
+	} catch (error) {
+		console.log(error);
+		return res.status(500).json({ errCode: -1, errMessage: "Error from server" });
 	}
 };
 
@@ -137,19 +194,12 @@ const HandleSuspendUser = async (req, res) => {
 	try {
 		const { userId } = req.body;
 		if (!userId) {
-			return res.status(400).json({
-				errCode: 1,
-				errMessage: "Missing required parameter: userId",
-			});
+			return res.status(400).json({ errCode: 1, errMessage: "Missing required parameter: userId" });
 		}
 		const result = await adminService.suspendUser(userId);
 		return res.status(200).json(result);
 	} catch (error) {
-		console.log(error);
-		return res.status(500).json({
-			errCode: -1,
-			errMessage: "Error from server",
-		});
+		return res.status(500).json({ errCode: -1, errMessage: "Error from server" });
 	}
 };
 
@@ -157,19 +207,12 @@ const HandleActivateUser = async (req, res) => {
 	try {
 		const { userId } = req.body;
 		if (!userId) {
-			return res.status(400).json({
-				errCode: 1,
-				errMessage: "Missing required parameter: userId",
-			});
+			return res.status(400).json({ errCode: 1, errMessage: "Missing required parameter: userId" });
 		}
 		const result = await adminService.activateUser(userId);
 		return res.status(200).json(result);
 	} catch (error) {
-		console.log(error);
-		return res.status(500).json({
-			errCode: -1,
-			errMessage: "Error from server",
-		});
+		return res.status(500).json({ errCode: -1, errMessage: "Error from server" });
 	}
 };
 
@@ -177,96 +220,38 @@ const HandleDeleteUser = async (req, res) => {
 	try {
 		const { userId } = req.body;
 		if (!userId) {
-			return res.status(400).json({
-				errCode: 1,
-				errMessage: "Missing required parameter: userId",
-			});
+			return res.status(400).json({ errCode: 1, errMessage: "Missing required parameter: userId" });
 		}
 		const result = await adminService.deleteUser(userId);
 		return res.status(200).json(result);
 	} catch (error) {
-		console.log(error);
-		return res.status(500).json({
-			errCode: -1,
-			errMessage: "Error from server",
-		});
+		return res.status(500).json({ errCode: -1, errMessage: "Error from server" });
 	}
 };
 
-const HandleGetAllPosts = async (req, res) => {
+const HandleUpdateJobStatus = async (req, res) => {
 	try {
-		const posts = await adminService.getAllPosts();
-		return res.status(200).json({
-			errCode: 0,
-			errMessage: "OK",
-			data: posts,
-		});
-	} catch (error) {
-		console.log(error);
-		return res.status(500).json({
-			errCode: -1,
-			errMessage: "Error from server",
-		});
-	}
-};
-
-const HandleBlockPost = async (req, res) => {
-	try {
-		const { postId } = req.body;
-		if (!postId) {
-			return res.status(400).json({
-				errCode: 1,
-				errMessage: "Missing required parameter: postId",
-			});
+		const { jobId, status } = req.body;
+		if (!jobId || !status) {
+			return res.status(400).json({ errCode: 1, errMessage: "Missing required parameters" });
 		}
-		const result = await adminService.blockPost(postId);
+		const result = await adminService.updateJobStatus(jobId, status);
 		return res.status(200).json(result);
 	} catch (error) {
-		console.log(error);
-		return res.status(500).json({
-			errCode: -1,
-			errMessage: "Error from server",
-		});
+		return res.status(500).json({ errCode: -1, errMessage: "Error from server" });
 	}
 };
 
-const HandleUnblockPost = async (req, res) => {
+const HandleDeleteJob = async (req, res) => {
 	try {
-		const { postId } = req.body;
-		if (!postId) {
-			return res.status(400).json({
-				errCode: 1,
-				errMessage: "Missing required parameter: postId",
-			});
+		const { jobId } = req.body;
+		if (!jobId) {
+			return res.status(400).json({ errCode: 1, errMessage: "Missing required parameter: jobId" });
 		}
-		const result = await adminService.unblockPost(postId);
+		const result = await adminService.deleteJob(jobId);
 		return res.status(200).json(result);
 	} catch (error) {
-		console.log(error);
-		return res.status(500).json({
-			errCode: -1,
-			errMessage: "Error from server",
-		});
-	}
-};
-
-const HandleDeletePost = async (req, res) => {
-	try {
-		const { postId } = req.body;
-		if (!postId) {
-			return res.status(400).json({
-				errCode: 1,
-				errMessage: "Missing required parameter: postId",
-			});
-		}
-		const result = await adminService.deletePost(postId);
-		return res.status(200).json(result);
-	} catch (error) {
-		console.log(error);
-		return res.status(500).json({
-			errCode: -1,
-			errMessage: "Error from server",
-		});
+		return res.status(500).json({ errCode: -1, errMessage: "Error from server" });
 	}
 };
 
@@ -280,26 +265,54 @@ const HandleGetStatistics = async (req, res) => {
 		});
 	} catch (error) {
 		console.log(error);
-		return res.status(500).json({
-			errCode: -1,
-			errMessage: "Error from server",
+		return res.status(500).json({ errCode: -1, errMessage: "Error from server" });
+	}
+};
+
+const HandleGetCompanyDetail = async (req, res) => {
+	try {
+		const { id } = req.params;
+		const data = await adminService.getCompanyDetail(id);
+		return res.status(200).json({
+			errCode: 0,
+			errMessage: "OK",
+			data,
 		});
+	} catch (error) {
+		return res.status(500).json({ errCode: -1, errMessage: "Error from server" });
+	}
+};
+
+const HandleGetJobDetail = async (req, res) => {
+	try {
+		const { id } = req.params;
+		const data = await adminService.getJobDetail(id);
+		return res.status(200).json({
+			errCode: 0,
+			errMessage: "OK",
+			data,
+		});
+	} catch (error) {
+		return res.status(500).json({ errCode: -1, errMessage: "Error from server" });
 	}
 };
 
 module.exports = {
-	HandleLoginAdmin: HandleLoginAdmin,
-	HandleLogOut: HandleLogOut,
-	HandleRefreshAdminToken: HandleRefreshAdminToken,
-	getAdminAccount: getAdminAccount,
+	HandleLoginAdmin,
+	HandleLogOut,
+	HandleRefreshAdminToken,
+	getAdminAccount,
 
-	HandleGetAllUsers: HandleGetAllUsers,
-	HandleSuspendUser: HandleSuspendUser,
-	HandleActivateUser: HandleActivateUser,
-	HandleDeleteUser: HandleDeleteUser,
-	HandleGetAllPosts: HandleGetAllPosts,
-	HandleBlockPost: HandleBlockPost,
-	HandleUnblockPost: HandleUnblockPost,
-	HandleDeletePost: HandleDeletePost,
-	HandleGetStatistics: HandleGetStatistics,
+	HandleGetAllUsers,
+	HandleSuspendUser,
+	HandleActivateUser,
+	HandleDeleteUser,
+	HandleGetAllJobs,
+	HandleUpdateJobStatus,
+	HandleDeleteJob,
+	HandleGetAllCompanies,
+	HandleGetAllApplications,
+	HandleGetStatistics,
+	HandleGetCompanyDetail,
+	HandleGetJobDetail,
 };

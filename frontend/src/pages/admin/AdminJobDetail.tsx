@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { jobs, applications, getCompanyById, getLocationById, users } from '@/data/mockData';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import {
   ArrowLeft, Trash2, Briefcase, MapPin, DollarSign, Users as UsersIcon,
-  Clock, Building2, FileText, Star, Gift, CalendarDays, Mail, Download, MoreVertical, Eye, AlertCircle
+  Clock, Building2, FileText, Star, Gift, CalendarDays, Mail, Download, MoreVertical, Eye, AlertCircle, Loader2
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -34,21 +33,61 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import axiosClient from '@/services/axiosClient';
+import { toast } from 'sonner';
 
 export default function AdminJobDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
-  const job = jobs.find(j => j.id === Number(id));
+  const [loading, setLoading] = useState(true);
+  const [job, setJob] = useState<any>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-  // Scroll to top on mount
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, []);
+    fetchJobDetail();
+  }, [id]);
+
+  const fetchJobDetail = async () => {
+    setLoading(true);
+    try {
+      const res = await axiosClient.get(`/api/admin/jobs/${id}`);
+      if (res.data.errCode === 0) {
+        setJob(res.data.data);
+      } else {
+        toast.error("Không tìm thấy thông tin công việc");
+      }
+    } catch (error) {
+      console.error("Error fetching job detail:", error);
+      toast.error("Lỗi khi tải chi tiết công việc");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      const res = await axiosClient.delete('/api/admin/jobs/delete', {
+        data: { jobId: id }
+      });
+      if (res.data.errCode === 0) {
+        toast.success("Đã xóa tin tuyển dụng");
+        navigate('/admin/jobs');
+      }
+    } catch (error) {
+      toast.error("Xóa thất bại");
+    }
+    setShowDeleteDialog(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <Loader2 className="w-10 h-10 text-primary animate-spin mb-4" />
+        <p className="text-muted-foreground font-medium">Đang tải dữ liệu...</p>
+      </div>
+    );
+  }
 
   if (!job) {
     return (
@@ -62,9 +101,9 @@ export default function AdminJobDetail() {
     );
   }
 
-  const company = getCompanyById(job.companyId);
-  const locationNames = job.locationIds.map(id => getLocationById(id)?.name).filter(Boolean);
-  const jobApps = applications.filter(a => a.jobId === job.id);
+  const company = job.Company;
+  const jobApps = job.Applications || [];
+  const locationNames = job.locations?.map((l: any) => l.name) || [];
 
   // Tính toán trạng thái công việc
   const isExpired = job.endDate && new Date(job.endDate) < new Date();
@@ -79,12 +118,6 @@ export default function AdminJobDetail() {
   };
 
   const jobStatus = getJobStatus();
-
-  const handleDelete = () => {
-    // TODO: Implement delete functionality
-    setShowDeleteDialog(false);
-    navigate('/admin/jobs');
-  };
 
   return (
     <div className="space-y-6">
@@ -131,7 +164,7 @@ export default function AdminJobDetail() {
                   <span className="flex items-center gap-1.5">
                     <MapPin className="w-4 h-4" /> {locationNames.join(', ')}
                   </span>
-                  {daysLeft && (
+                  {daysLeft !== null && (
                     <span className={`flex items-center gap-1.5 ${isExpired ? 'text-red-500' : 'text-emerald-500'}`}>
                       <CalendarDays className="w-4 h-4" />
                       {isExpired ? 'Hết hạn' : `Còn ${daysLeft} ngày`}
@@ -172,12 +205,12 @@ export default function AdminJobDetail() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-medium">Ngày đăng</p>
-                <p className="text-sm font-medium text-foreground mt-1">{job.createdAt}</p>
+                <p className="text-sm font-medium text-foreground mt-1">{new Date(job.createdAt).toLocaleDateString('vi-VN')}</p>
               </div>
               {job.endDate && (
                 <div>
                   <p className="text-xs text-muted-foreground font-medium">Hạn chót</p>
-                  <p className="text-sm font-medium text-foreground mt-1">{job.endDate}</p>
+                  <p className="text-sm font-medium text-foreground mt-1">{new Date(job.endDate).toLocaleDateString('vi-VN')}</p>
                 </div>
               )}
             </div>
@@ -309,8 +342,8 @@ export default function AdminJobDetail() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {jobApps.map(app => {
-                        const candidate = users.find(u => u.id === app.userId);
+                      {jobApps.map((app: any) => {
+                        const candidate = app.User;
 
                         return (
                           <TableRow key={app.id} className="hover:bg-muted/40">
@@ -331,7 +364,7 @@ export default function AdminJobDetail() {
                               </div>
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground">
-                              {app.createdAt}
+                              {new Date(app.createdAt).toLocaleDateString('vi-VN')}
                             </TableCell>
                             <TableCell>
                               <Badge variant="outline" className="capitalize">
