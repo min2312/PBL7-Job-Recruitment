@@ -11,6 +11,18 @@ module.exports = (sequelize, DataTypes) => {
 				as: "saved_jobs",
 			});
 			User.belongsTo(models.Company, { foreignKey: "company_id", as: "company" });
+			User.hasMany(models.Notification, {
+				foreignKey: "receiver_id",
+				as: "notifications",
+			});
+			User.hasMany(models.Interview, {
+				foreignKey: "candidate_id",
+				as: "candidate_interviews",
+			});
+			User.hasMany(models.Interview, {
+				foreignKey: "employer_id",
+				as: "employer_interviews",
+			});
 		}
 	}
 

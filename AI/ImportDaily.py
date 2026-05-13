@@ -179,7 +179,7 @@ def link_relation(job_id, table, job_id_col, other_id_col, other_id):
 
 def create_recruiter_account(conn, company_id, company_name):
     """Creates a default employer account for the company if it doesn't exist."""
-    email = f"hr.{company_id}@pbl7.com"
+    email = f"hr.{company_id}@yopmail.com"
     # Check if user already exists
     exists = conn.execute(text("SELECT id FROM users WHERE email = :email"), {"email": email}).fetchone()
     if exists:

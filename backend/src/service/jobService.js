@@ -367,10 +367,24 @@ async function fetchRandomJobsByLocation({
 			where: jobWhere,
 			include,
 			distinct: true,
+            attributes: {
+                include: [
+                    [db.sequelize.literal('CASE WHEN `Job`.`featured_until` IS NOT NULL AND `Job`.`featured_until` > NOW() THEN 1 ELSE 0 END'), 'isFeatured']
+                ]
+            }
 		});
 
 		// Sort deterministically if seed provided, otherwise shuffle
 		let ordered = allRows.slice();
+        
+        // Push featured items to the top first
+        const now = new Date();
+        ordered.sort((a, b) => {
+            const aFeatured = a.featuredUntil && new Date(a.featuredUntil) > now ? 1 : 0;
+            const bFeatured = b.featuredUntil && new Date(b.featuredUntil) > now ? 1 : 0;
+            return bFeatured - aFeatured; // 1 before 0
+        });
+
 		if (seed) {
 			ordered.sort((a, b) => {
 				const ha = crypto
@@ -461,9 +475,12 @@ async function fetchRandomJobsByLocation({
 
 	// Determine ordering: deterministic by seed if provided, else random
 	let orderOption;
+    const featuredOrder = [db.sequelize.literal('isFeatured'), 'DESC'];
+
 	if (seed) {
 		// Use MD5(CONCAT(CAST(Job.id AS CHAR), seed)) for MySQL deterministic ordering
 		orderOption = [
+            featuredOrder,
 			[
 				db.sequelize.literal(
 					`MD5(CONCAT(CAST(\`Job\`.\`id\` AS CHAR), '${seed}'))`,
@@ -472,13 +489,21 @@ async function fetchRandomJobsByLocation({
 			],
 		];
 	} else {
-		orderOption = db.sequelize.random();
+		orderOption = [
+            featuredOrder,
+            db.sequelize.fn('RAND')
+        ];
 	}
 
 	const result = await db.Job.findAndCountAll({
 		where: jobWhere,
 		include,
 		distinct: true,
+        attributes: {
+            include: [
+                [db.sequelize.literal('CASE WHEN `Job`.`featured_until` IS NOT NULL AND `Job`.`featured_until` > NOW() THEN 1 ELSE 0 END'), 'isFeatured']
+            ]
+        },
 		limit: pageSize,
 		offset,
 		order: orderOption,
@@ -547,7 +572,8 @@ const getJobByCompanyId = async ({
 							WHERE app.job_id = Job.id
 						)`),
 						"applicantCount"
-					]
+					],
+                    [db.sequelize.literal('CASE WHEN `Job`.`featured_until` IS NOT NULL AND `Job`.`featured_until` > NOW() THEN 1 ELSE 0 END'), 'isFeatured']
 				]
 			},
 			include: [
@@ -570,7 +596,10 @@ const getJobByCompanyId = async ({
 				},
 			],
 			distinct: true,
-			order: [["createdAt", "DESC"]],
+			order: [
+                [db.sequelize.literal('isFeatured'), "DESC"],
+                ["createdAt", "DESC"]
+            ],
 		});
 
 		const jobsWithSavedStatus = await addSavedStatusToJobs(rows, userId);
@@ -895,11 +924,21 @@ async function searchJobs({
 			where: jobWhere,
 			include,
 			distinct: true,
+			attributes: {
+				include: [
+					[db.sequelize.literal('CASE WHEN `Job`.`featured_until` IS NOT NULL AND `Job`.`featured_until` > NOW() THEN 1 ELSE 0 END'), 'isFeatured']
+				]
+			}
 		});
 
-		// Sort by newest first (deterministic)
+		// Sort by featured first, then newest first (deterministic)
 		let ordered = allRows.slice();
-		ordered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+		ordered.sort((a, b) => {
+			const aFeatured = a.get ? a.get('isFeatured') : a.isFeatured;
+			const bFeatured = b.get ? b.get('isFeatured') : b.isFeatured;
+			if (bFeatured !== aFeatured) return bFeatured - aFeatured;
+			return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+		});
 
 		// Filter by salary/experience ranges in JS (range overlap)
 		const filtered = ordered.filter((job) => {
@@ -938,14 +977,22 @@ async function searchJobs({
 		};
 	}
 
-	// No in-memory filtering needed – query DB directly with deterministic order
+	// No in-memory filtering needed – query DB directly with featured priority and newest first
 	const result = await db.Job.findAndCountAll({
 		where: jobWhere,
 		include,
 		distinct: true,
+		attributes: {
+			include: [
+				[db.sequelize.literal('CASE WHEN `Job`.`featured_until` IS NOT NULL AND `Job`.`featured_until` > NOW() THEN 1 ELSE 0 END'), 'isFeatured']
+			]
+		},
 		limit: pageSize,
 		offset,
-		order: [["createdAt", "DESC"]],
+		order: [
+			[db.sequelize.literal('isFeatured'), "DESC"],
+			["createdAt", "DESC"]
+		],
 	});
 
 	const jobsWithSavedStatus = await addSavedStatusToJobs(result.rows, userId);

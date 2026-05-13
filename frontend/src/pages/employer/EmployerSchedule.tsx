@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import NumberedPagination from "@/components/NumberedPagination";
 import { Input } from "@/components/ui/input";
@@ -37,32 +37,63 @@ import {
 	User2,
 	Briefcase,
 	Bell,
+	Loader2,
 } from "lucide-react";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { applications, users, jobs } from "@/data/mockData";
+import axiosClient from "@/services/axiosClient";
 import { useAuth } from "@/hooks/useAuth";
+import { toast } from "react-toastify";
 
 interface Interview {
 	id: number;
 	candidateName: string;
 	candidateId: number;
+	jobId: number;
 	jobTitle: string;
 	date: string;
 	time: string;
 	type: "online" | "offline";
-	status: "scheduled" | "completed" | "cancelled";
+	status:
+		| "pending"
+		| "accepted"
+		| "scheduled"
+		| "completed"
+		| "cancelled"
+		| "declined"
+		| "expired";
 	link?: string;
 	location?: string;
+	candidateAvatar?: string;
 }
 
 const statusConfig: Record<
 	string,
 	{ label: string; className: string; dotColor: string }
 > = {
-	scheduled: {
-		label: "Đã lên lịch",
+	pending: {
+		label: "Chờ xác nhận",
+		className: "bg-yellow-50 text-yellow-600 border-yellow-200",
+		dotColor: "bg-yellow-500",
+	},
+	accepted: {
+		label: "Đã đồng ý",
 		className: "bg-blue-50 text-blue-600 border-blue-200",
 		dotColor: "bg-blue-500",
+	},
+	scheduled: {
+		label: "Đã lên lịch",
+		className: "bg-indigo-50 text-indigo-600 border-indigo-200",
+		dotColor: "bg-indigo-500",
 	},
 	completed: {
 		label: "Hoàn thành",
@@ -73,6 +104,16 @@ const statusConfig: Record<
 		label: "Đã hủy",
 		className: "bg-red-50 text-red-500 border-red-200",
 		dotColor: "bg-red-500",
+	},
+	declined: {
+		label: "Từ chối",
+		className: "bg-slate-50 text-slate-500 border-slate-200",
+		dotColor: "bg-slate-400",
+	},
+	expired: {
+		label: "Hết hạn",
+		className: "bg-gray-50 text-gray-400 border-gray-200",
+		dotColor: "bg-gray-300",
 	},
 };
 
@@ -91,64 +132,6 @@ const getTodayStr = () => {
 };
 const TODAY = getTodayStr();
 
-const initialInterviews: Interview[] = [
-	{
-		id: 1,
-		candidateId: 1,
-		candidateName: "Nguyễn Văn A",
-		jobTitle: "Frontend Developer",
-		date: "2026-04-07",
-		time: "09:00",
-		type: "online",
-		status: "scheduled",
-		link: "https://meet.google.com/abc-xyz",
-	},
-	{
-		id: 2,
-		candidateId: 2,
-		candidateName: "Hoàng Văn E",
-		jobTitle: "Backend .NET Developer",
-		date: "2026-04-07",
-		time: "14:00",
-		type: "offline",
-		status: "scheduled",
-		location: "Phòng họp A, Tầng 3",
-	},
-	{
-		id: 3,
-		candidateId: 2,
-		candidateName: "Trần Thị B",
-		jobTitle: "Python Developer",
-		date: TODAY,
-		time: "10:30",
-		type: "online",
-		status: "scheduled",
-		link: "https://zoom.us/j/123456",
-	},
-	{
-		id: 4,
-		candidateId: 1,
-		candidateName: "Nguyễn Văn A",
-		jobTitle: "Kế Toán Tổng Hợp",
-		date: TODAY,
-		time: "14:00",
-		type: "offline",
-		status: "scheduled",
-		location: "Phòng họp B, Tầng 2",
-	},
-	{
-		id: 5,
-		candidateId: 3,
-		candidateName: "Phạm Thị D",
-		jobTitle: ".NET Developer",
-		date: "2026-04-05",
-		time: "15:00",
-		type: "offline",
-		status: "completed",
-		location: "Văn phòng chính",
-	},
-];
-
 // ---------- Edit Dialog ----------
 interface EditDialogProps {
 	interview: Interview;
@@ -159,15 +142,39 @@ interface EditDialogProps {
 
 function EditDialog({ interview, open, onClose, onSave }: EditDialogProps) {
 	const [form, setForm] = useState<Interview>({ ...interview });
+	const [isSubmitting, setIsSubmitting] = useState(false);
+
+	// Sync form when interview changes
+	useEffect(() => {
+		if (interview) {
+			setForm({ ...interview });
+		}
+	}, [interview, open]);
 
 	const set = (key: keyof Interview, value: string) =>
 		setForm((prev) => ({ ...prev, [key]: value }));
+
+	const handleSave = async () => {
+		// Validation: Chặn ngày quá khứ
+		const selectedDateTime = new Date(`${form.date}T${form.time}`);
+		if (selectedDateTime < new Date()) {
+			toast.error("Thời gian phỏng vấn không được ở trong quá khứ!");
+			return;
+		}
+
+		setIsSubmitting(true);
+		try {
+			await onSave(form);
+		} finally {
+			setIsSubmitting(false);
+		}
+	};
 
 	return (
 		<Dialog
 			open={open}
 			onOpenChange={(v) => {
-				if (!v) onClose();
+				if (!v && !isSubmitting) onClose();
 			}}
 		>
 			<DialogContent className="max-w-lg">
@@ -188,6 +195,7 @@ function EditDialog({ interview, open, onClose, onSave }: EditDialogProps) {
 							value={form.candidateName}
 							onChange={(e) => set("candidateName", e.target.value)}
 							placeholder="Tên ứng viên"
+							disabled
 						/>
 					</div>
 
@@ -200,6 +208,7 @@ function EditDialog({ interview, open, onClose, onSave }: EditDialogProps) {
 							value={form.jobTitle}
 							onChange={(e) => set("jobTitle", e.target.value)}
 							placeholder="Vị trí ứng tuyển"
+							disabled
 						/>
 					</div>
 
@@ -212,7 +221,9 @@ function EditDialog({ interview, open, onClose, onSave }: EditDialogProps) {
 							<Input
 								type="date"
 								value={form.date}
+								min={TODAY}
 								onChange={(e) => set("date", e.target.value)}
+								disabled={isSubmitting}
 							/>
 						</div>
 						<div className="space-y-1.5">
@@ -223,6 +234,7 @@ function EditDialog({ interview, open, onClose, onSave }: EditDialogProps) {
 								type="time"
 								value={form.time}
 								onChange={(e) => set("time", e.target.value)}
+								disabled={isSubmitting}
 							/>
 						</div>
 					</div>
@@ -235,6 +247,7 @@ function EditDialog({ interview, open, onClose, onSave }: EditDialogProps) {
 						<Select
 							value={form.type}
 							onValueChange={(v) => set("type", v as "online" | "offline")}
+							disabled={isSubmitting}
 						>
 							<SelectTrigger>
 								<SelectValue />
@@ -264,6 +277,7 @@ function EditDialog({ interview, open, onClose, onSave }: EditDialogProps) {
 								value={form.link || ""}
 								onChange={(e) => set("link", e.target.value)}
 								placeholder="https://meet.google.com/..."
+								disabled={isSubmitting}
 							/>
 						</div>
 					) : (
@@ -275,42 +289,31 @@ function EditDialog({ interview, open, onClose, onSave }: EditDialogProps) {
 								value={form.location || ""}
 								onChange={(e) => set("location", e.target.value)}
 								placeholder="Phòng họp A, Tầng 3..."
+								disabled={isSubmitting}
 							/>
 						</div>
 					)}
 
-					{/* Status */}
-					<div className="space-y-1.5">
-						<Label className="text-xs font-medium text-muted-foreground">
-							Trạng thái
-						</Label>
-						<Select
-							value={form.status}
-							onValueChange={(v) => set("status", v as Interview["status"])}
-						>
-							<SelectTrigger>
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="scheduled">Đã lên lịch</SelectItem>
-								<SelectItem value="completed">Hoàn thành</SelectItem>
-								<SelectItem value="cancelled">Đã hủy</SelectItem>
-							</SelectContent>
-						</Select>
-					</div>
-
 					<div className="flex gap-2 pt-2">
-						<Button variant="outline" className="flex-1" onClick={onClose}>
+						<Button
+							variant="outline"
+							className="flex-1"
+							onClick={onClose}
+							disabled={isSubmitting}
+						>
 							<X className="w-4 h-4 mr-1.5" /> Hủy
 						</Button>
 						<Button
 							className="flex-1"
-							onClick={() => {
-								onSave(form);
-								onClose();
-							}}
+							onClick={handleSave}
+							disabled={isSubmitting}
 						>
-							<CheckCircle2 className="w-4 h-4 mr-1.5" /> Lưu thay đổi
+							{isSubmitting ? (
+								<Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+							) : (
+								<CheckCircle2 className="w-4 h-4 mr-1.5" />
+							)}
+							{isSubmitting ? "Đang lưu..." : "Lưu thay đổi"}
 						</Button>
 					</div>
 				</div>
@@ -350,12 +353,15 @@ function CreateDialog({
 	const [type, setType] = useState<"online" | "offline">("online");
 	const [link, setLink] = useState("");
 	const [location, setLocation] = useState("");
+	const [isSubmitting, setIsSubmitting] = useState(false);
 
 	// Auto-fill if preFilledCandidate is provided
 	useEffect(() => {
 		if (preFilledCandidate && open) {
 			const matching = availableCandidates.find(
-				(c) => c.userId === preFilledCandidate.candidateId,
+				(c) =>
+					c.userId === preFilledCandidate.candidateId &&
+					c.jobId === preFilledCandidate.jobId,
 			);
 			if (matching) {
 				setSelectedApp(`${matching.userId}-${matching.jobId}`);
@@ -367,36 +373,42 @@ function CreateDialog({
 		(c) => `${c.userId}-${c.jobId}` === selectedApp,
 	);
 
-	const handleSubmit = () => {
+	const handleSubmit = async () => {
 		if (!selectedCandidate || !date || !time) return;
-		const newInterview: Interview = {
-			id: Date.now(),
-			candidateId: selectedCandidate.userId,
-			candidateName: selectedCandidate.userName,
-			jobTitle: selectedCandidate.jobTitle,
-			date,
-			time,
-			type,
-			status: "scheduled",
-			link: type === "online" ? link : undefined,
-			location: type === "offline" ? location : undefined,
-		};
-		onAdd(newInterview);
-		// Reset
-		setSelectedApp("");
-		setDate("");
-		setTime("");
-		setType("online");
-		setLink("");
-		setLocation("");
-		onClose();
+		setIsSubmitting(true);
+		try {
+			const newInterview: Interview = {
+				id: Date.now(),
+				candidateId: selectedCandidate.userId,
+				candidateName: selectedCandidate.userName,
+				jobId: selectedCandidate.jobId,
+				jobTitle: selectedCandidate.jobTitle,
+				date,
+				time,
+				type,
+				status: "scheduled",
+				link: type === "online" ? link : undefined,
+				location: type === "offline" ? location : undefined,
+			};
+			await onAdd(newInterview);
+			// Reset
+			setSelectedApp("");
+			setDate("");
+			setTime("");
+			setType("online");
+			setLink("");
+			setLocation("");
+			onClose();
+		} finally {
+			setIsSubmitting(false);
+		}
 	};
 
 	return (
 		<Dialog
 			open={open}
 			onOpenChange={(v) => {
-				if (!v) onClose();
+				if (!v && !isSubmitting) onClose();
 			}}
 		>
 			<DialogContent className="max-w-lg">
@@ -413,7 +425,11 @@ function CreateDialog({
 						<Label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
 							<User2 className="w-3.5 h-3.5" /> Chọn ứng viên đã ứng tuyển
 						</Label>
-						<Select value={selectedApp} onValueChange={setSelectedApp}>
+						<Select
+							value={selectedApp}
+							onValueChange={setSelectedApp}
+							disabled={isSubmitting}
+						>
 							<SelectTrigger>
 								<SelectValue placeholder="Chọn ứng viên..." />
 							</SelectTrigger>
@@ -460,7 +476,9 @@ function CreateDialog({
 							<Input
 								type="date"
 								value={date}
+								min={TODAY}
 								onChange={(e) => setDate(e.target.value)}
+								disabled={isSubmitting}
 							/>
 						</div>
 						<div className="space-y-1.5">
@@ -471,6 +489,7 @@ function CreateDialog({
 								type="time"
 								value={time}
 								onChange={(e) => setTime(e.target.value)}
+								disabled={isSubmitting}
 							/>
 						</div>
 					</div>
@@ -483,24 +502,28 @@ function CreateDialog({
 						<div className="grid grid-cols-2 gap-2">
 							<button
 								type="button"
+								disabled={isSubmitting}
 								onClick={() => setType("online")}
 								className={cn(
 									"flex items-center justify-center gap-2 rounded-lg border-2 py-2.5 text-sm font-medium transition-all",
 									type === "online"
 										? "border-violet-500 bg-violet-50 text-violet-700"
 										: "border-border text-muted-foreground hover:border-muted-foreground/40",
+									isSubmitting && "opacity-50 cursor-not-allowed",
 								)}
 							>
 								<Video className="w-4 h-4" /> Online
 							</button>
 							<button
 								type="button"
+								disabled={isSubmitting}
 								onClick={() => setType("offline")}
 								className={cn(
 									"flex items-center justify-center gap-2 rounded-lg border-2 py-2.5 text-sm font-medium transition-all",
 									type === "offline"
 										? "border-amber-500 bg-amber-50 text-amber-700"
 										: "border-border text-muted-foreground hover:border-muted-foreground/40",
+									isSubmitting && "opacity-50 cursor-not-allowed",
 								)}
 							>
 								<MapPin className="w-4 h-4" /> Trực tiếp
@@ -518,6 +541,7 @@ function CreateDialog({
 								value={link}
 								onChange={(e) => setLink(e.target.value)}
 								placeholder="https://meet.google.com/..."
+								disabled={isSubmitting}
 							/>
 						</div>
 					) : (
@@ -529,21 +553,31 @@ function CreateDialog({
 								value={location}
 								onChange={(e) => setLocation(e.target.value)}
 								placeholder="Phòng họp A, Tầng 3..."
+								disabled={isSubmitting}
 							/>
 						</div>
 					)}
 
 					<div className="flex gap-2 pt-2">
-						<Button variant="outline" className="flex-1" onClick={onClose}>
+						<Button
+							variant="outline"
+							className="flex-1"
+							onClick={onClose}
+							disabled={isSubmitting}
+						>
 							Hủy
 						</Button>
 						<Button
 							className="flex-1"
-							disabled={!selectedCandidate || !date || !time}
+							disabled={!selectedCandidate || !date || !time || isSubmitting}
 							onClick={handleSubmit}
 						>
-							<CalendarCheck2 className="w-4 h-4 mr-1.5" />
-							Gửi lời mời phỏng vấn
+							{isSubmitting ? (
+								<Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+							) : (
+								<CalendarCheck2 className="w-4 h-4 mr-1.5" />
+							)}
+							{isSubmitting ? "Đang gửi..." : "Gửi lời mời phỏng vấn"}
 						</Button>
 					</div>
 				</div>
@@ -556,8 +590,16 @@ function CreateDialog({
 export default function EmployerSchedule() {
 	const { user } = useAuth();
 	const location = useLocation();
-	const [interviews, setInterviews] = useState<Interview[]>(initialInterviews);
-	// default undefined = show all
+
+	// Move states to top
+	const [interviews, setInterviews] = useState<Interview[]>([]);
+	const [isLoading, setIsLoading] = useState(true);
+	const [totalPages, setTotalPages] = useState(1);
+	const [currentPage, setCurrentPage] = useState(1);
+	const [filterStatus, setFilterStatus] = useState("ALL");
+	const PAGE_SIZE = 6;
+
+	// Other states
 	const [date, setDate] = useState<Date | undefined>(undefined);
 	const [editTarget, setEditTarget] = useState<Interview | null>(null);
 	const [createOpen, setCreateOpen] = useState(false);
@@ -565,112 +607,218 @@ export default function EmployerSchedule() {
 		candidateId: number;
 		candidateName: string;
 		jobTitle: string;
+		jobId: number;
 	} | null>(null);
 
-	// Scroll to top on mount
-	useEffect(() => {
-		window.scrollTo(0, 0);
-	}, []);
+	const [myApplications, setMyApplications] = useState<any[]>([]);
+	const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
+	const [isDeleting, setIsDeleting] = useState(false);
+	const [updatingId, setUpdatingId] = useState<number | null>(null);
 
-	// Check if navigated with candidate data to open create dialog
-	useEffect(() => {
-		if (location.state?.openCreateDialog) {
-			setCreateOpen(true);
-			setPreFilledCandidate({
-				candidateId: location.state.candidateId,
-				candidateName: location.state.candidateName,
-				jobTitle: location.state.jobTitle,
-			});
-		}
-	}, [location.state]);
+	const fetchData = async (page = 1, selectedDate?: Date) => {
+		setIsLoading(true);
+		try {
+			// Format date for API if present
+			const dateParam = selectedDate ? selectedDate.toISOString() : "";
 
-	// Today string YYYY-MM-DD
-	const todayStr = useMemo(() => {
-		const now = new Date();
-		return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-	}, []);
+			const [interviewRes, appRes] = await Promise.all([
+				axiosClient.get(
+					`/api/interviews?page=${page}&limit=${PAGE_SIZE}&status=${filterStatus}&date=${dateParam}`,
+				),
+				axiosClient.get("/api/employer/applications/all"),
+			]);
 
-	// Auto-set past "scheduled" interviews to "completed" on mount
-	useEffect(() => {
-		setInterviews((prev) =>
-			prev.map((i) => {
-				if (i.status === "scheduled" && i.date < todayStr) {
-					return { ...i, status: "completed" };
+			if (interviewRes.data.errCode === 0) {
+				const formatted = interviewRes.data.data.map((i: any) => {
+					const d = new Date(i.scheduled_at);
+					const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+					const timeStr = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+
+					return {
+						id: i.id,
+						candidateId: i.candidate_id,
+						candidateName: i.candidate?.name || "Ứng viên",
+						candidateAvatar: i.candidate?.profile_picture,
+						jobId: i.job_id,
+						jobTitle: i.job?.title || "Vị trí",
+						date: dateStr,
+						time: timeStr,
+						type: i.location?.toLowerCase().includes("http")
+							? "online"
+							: "offline",
+						status: i.status.toLowerCase(),
+						link: i.location?.toLowerCase().includes("http")
+							? i.location
+							: undefined,
+						location: !i.location?.toLowerCase().includes("http")
+							? i.location
+							: undefined,
+					};
+				});
+				setInterviews(formatted);
+				if (interviewRes.data.pagination) {
+					setTotalPages(interviewRes.data.pagination.totalPages);
 				}
-				return i;
-			}),
-		);
-	}, [todayStr]);
+			}
 
-	// Build candidate list from applications for this employer's company
-	const myJobs = jobs.filter((j) => j.companyId === user?.companyId);
-	const myJobIds = myJobs.map((j) => j.id);
-	const myApplications = applications.filter(
-		(a) => myJobIds.includes(a.jobId) && a.status !== "rejected",
-	);
-	const availableCandidates = myApplications.map((app) => {
-		const candidate = users.find((u) => u.id === app.userId);
-		const job = jobs.find((j) => j.id === app.jobId);
-		return {
-			userId: app.userId,
-			userName: candidate?.name || "Ứng viên",
-			jobTitle: job?.title || "Không rõ",
-			jobId: app.jobId,
-		};
-	});
-
-	// Interviews happening today
-	const todayInterviews = interviews.filter(
-		(i) => i.date === todayStr && i.status !== "cancelled",
-	);
-
-	const scheduledCount = interviews.filter(
-		(i) => i.status === "scheduled",
-	).length;
-	const completedCount = interviews.filter(
-		(i) => i.status === "completed",
-	).length;
-
-	const PAGE_SIZE = 5;
-	const [currentPage, setCurrentPage] = useState(1);
-
-	const selectedDateStr = date
-		? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
-		: "";
-
-	// Sort newest first (date desc, then time desc), then apply date filter
-	const sortedInterviews = [...interviews].sort((a, b) => {
-		const dateCompare = b.date.localeCompare(a.date);
-		return dateCompare !== 0 ? dateCompare : b.time.localeCompare(a.time);
-	});
-	const filteredInterviews = selectedDateStr
-		? sortedInterviews.filter((i) => i.date === selectedDateStr)
-		: sortedInterviews;
-
-	// Pagination — only paginate when showing ALL (no date filter)
-	const isPaginated = !selectedDateStr;
-	const totalPages = isPaginated
-		? Math.ceil(filteredInterviews.length / PAGE_SIZE)
-		: 1;
-	const pagedInterviews = isPaginated
-		? filteredInterviews.slice(
-				(currentPage - 1) * PAGE_SIZE,
-				currentPage * PAGE_SIZE,
-			)
-		: filteredInterviews;
-
-	const handleSave = (updated: Interview) => {
-		setInterviews((prev) =>
-			prev.map((i) => (i.id === updated.id ? updated : i)),
-		);
+			if (appRes.data.errCode === 0) {
+				setMyApplications(appRes.data.data || []);
+			}
+		} catch (error) {
+			console.error("Error fetching data:", error);
+		} finally {
+			setIsLoading(false);
+		}
 	};
 
-	const handleDelete = (id: number) => {
-		setInterviews((prev) => prev.filter((i) => i.id !== id));
+	useEffect(() => {
+		fetchData(currentPage, date);
+	}, [currentPage, filterStatus, date]);
+
+	const availableCandidates = useMemo(() => {
+		return myApplications
+			.filter((app) => app.status !== "REJECTED")
+			.map((app) => ({
+				userId: app.userId,
+				userName: app.User?.name || "Ứng viên",
+				jobTitle: app.Job?.title || "Vị trí",
+				jobId: app.jobId,
+			}));
+	}, [myApplications]);
+
+	const scheduledCount = useMemo(
+		() =>
+			interviews.filter(
+				(i) =>
+					i.status === "scheduled" ||
+					i.status === "pending" ||
+					i.status === "accepted",
+			).length,
+		[interviews],
+	);
+	const completedCount = useMemo(
+		() => interviews.filter((i) => i.status === "completed").length,
+		[interviews],
+	);
+	const onlineCount = useMemo(
+		() => interviews.filter((i) => i.type === "online").length,
+		[interviews],
+	);
+	const offlineCount = useMemo(
+		() => interviews.filter((i) => i.type === "offline").length,
+		[interviews],
+	);
+
+	const handleUpdateStatus = async (id: number, status: string) => {
+		if (updatingId) return;
+		setUpdatingId(id);
+		try {
+			const res = await axiosClient.put("/api/interviews/update", {
+				id,
+				status: status.toUpperCase(),
+			});
+			if (res.data.errCode === 0) {
+				toast.success("Cập nhật trạng thái thành công!");
+				await fetchData(currentPage, date);
+			} else {
+				toast.error(res.data.message || "Lỗi khi cập nhật trạng thái");
+			}
+		} catch (error: any) {
+			const msg =
+				error.response?.data?.message || "Lỗi khi cập nhật trạng thái";
+			toast.error(msg);
+		} finally {
+			setUpdatingId(null);
+		}
 	};
 
-	const handleAdd = (interview: Interview) => {
-		setInterviews((prev) => [...prev, interview]);
+	const handleJoinMeet = (link: string) => {
+		if (link) {
+			window.open(link, "_blank");
+		} else {
+			toast.info("Không tìm thấy link phỏng vấn.");
+		}
+	};
+
+	const handleAdd = async (newInterview: any) => {
+		// Validation: Chặn ngày quá khứ
+		const selectedDateTime = new Date(
+			`${newInterview.date}T${newInterview.time}`,
+		);
+		if (selectedDateTime < new Date()) {
+			toast.error("Thời gian phỏng vấn không được ở trong quá khứ!");
+			return;
+		}
+
+		try {
+			// Convert local time to ISO for storage
+			const isoAt = new Date(
+				`${newInterview.date}T${newInterview.time}`,
+			).toISOString();
+			const res = await axiosClient.post("/api/interviews/create", {
+				candidate_id: newInterview.candidateId,
+				job_id: newInterview.jobId,
+				scheduled_at: isoAt,
+				location:
+					newInterview.type === "online"
+						? newInterview.link
+						: newInterview.location,
+				note: "",
+			});
+			if (res.data.errCode === 0) {
+				toast.success("Đã tạo lịch phỏng vấn!");
+				fetchData(currentPage);
+			} else {
+				toast.error(res.data.message || "Lỗi khi tạo lịch.");
+			}
+		} catch (error: any) {
+			const msg = error.response?.data?.message || "Lỗi khi tạo lịch.";
+			toast.error(msg);
+			throw error;
+		}
+	};
+
+	const handleSave = async (updated: Interview) => {
+		try {
+			const isoAt = new Date(`${updated.date}T${updated.time}`).toISOString();
+			const res = await axiosClient.put("/api/interviews/update", {
+				id: updated.id,
+				scheduled_at: isoAt,
+				location: updated.type === "online" ? updated.link : updated.location,
+				status: updated.status.toUpperCase(),
+			});
+			if (res.data.errCode === 0) {
+				toast.success("Đã cập nhật lịch phỏng vấn!");
+				fetchData(currentPage);
+				setEditTarget(null);
+			} else {
+				toast.error(res.data.message || "Lỗi khi cập nhật.");
+			}
+		} catch (error: any) {
+			const msg = error.response?.data?.message || "Lỗi khi cập nhật.";
+			toast.error(msg);
+			throw error;
+		}
+	};
+
+	const handleDelete = async () => {
+		if (!deleteTargetId) return;
+		setIsDeleting(true);
+		try {
+			const res = await axiosClient.delete(`/api/interviews/${deleteTargetId}`);
+			if (res.data.errCode === 0) {
+				toast.success("Đã xóa lịch phỏng vấn.");
+				fetchData(currentPage);
+				setDeleteTargetId(null);
+			} else {
+				toast.error(res.data.message || "Lỗi khi xóa.");
+			}
+		} catch (error: any) {
+			const msg = error.response?.data?.message || "Lỗi khi xóa.";
+			toast.error(msg);
+		} finally {
+			setIsDeleting(false);
+		}
 	};
 
 	return (
@@ -682,377 +830,388 @@ export default function EmployerSchedule() {
 						Lịch phỏng vấn
 					</h2>
 					<p className="text-sm text-muted-foreground mt-0.5">
-						{scheduledCount} buổi phỏng vấn sắp tới
+						Quản lý các buổi phỏng vấn của công ty
 					</p>
 				</div>
 
-				{/* Create button */}
-				<Button
-					onClick={() => setCreateOpen(true)}
-					className="relative gap-2 shadow-md bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all duration-200 pl-4 pr-5"
-				>
-					<span className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-						<Plus className="w-3.5 h-3.5" />
-					</span>
-					Tạo lịch phỏng vấn
-				</Button>
+				{/* Filter and Create */}
+				<div className="flex items-center gap-3">
+					<div className="flex items-center gap-2">
+						<Select
+							value={filterStatus}
+							onValueChange={(v) => {
+								setFilterStatus(v);
+								setCurrentPage(1);
+							}}
+						>
+							<SelectTrigger className="w-[180px] h-10 shadow-sm">
+								<SelectValue placeholder="Lọc trạng thái" />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="ALL">Tất cả</SelectItem>
+								<SelectItem value="PENDING">Đang chờ</SelectItem>
+								<SelectItem value="ACCEPTED">Đã đồng ý</SelectItem>
+								<SelectItem value="COMPLETED">Hoàn thành</SelectItem>
+								<SelectItem value="DECLINED">Ứng viên từ chối</SelectItem>
+								<SelectItem value="CANCELLED">Đã hủy</SelectItem>
+								<SelectItem value="EXPIRED">Đã hết hạn</SelectItem>
+							</SelectContent>
+						</Select>
+					</div>
+
+					<Button
+						onClick={() => setCreateOpen(true)}
+						className="gap-2 h-10 shadow-md bg-primary hover:bg-primary/90"
+					>
+						<Plus className="w-4 h-4" />
+						Tạo lịch
+					</Button>
+				</div>
 			</div>
 
 			{/* Stats Row */}
-			<div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-				<Card className="border-0 shadow-sm bg-gradient-to-br from-blue-50 to-indigo-50">
-					<CardContent className="p-4">
-						<div className="flex items-center gap-3">
-							<div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center">
-								<CalendarDays className="w-4 h-4 text-blue-600" />
+			<div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+				{[
+					{
+						label: "Sắp tới",
+						count: scheduledCount,
+						icon: CalendarDays,
+						color: "blue",
+					},
+					{
+						label: "Hoàn thành",
+						count: completedCount,
+						icon: CheckCircle2,
+						color: "emerald",
+					},
+					{ label: "Online", count: onlineCount, icon: Video, color: "violet" },
+					{
+						label: "Trực tiếp",
+						count: offlineCount,
+						icon: MapPin,
+						color: "amber",
+					},
+				].map((stat) => (
+					<Card
+						key={stat.label}
+						className="border-none shadow-sm bg-white overflow-hidden group"
+					>
+						<CardContent className="p-4 relative">
+							<div
+								className={cn(
+									"absolute top-0 right-0 w-24 h-24 -mr-8 -mt-8 rounded-full opacity-[0.03] transition-transform group-hover:scale-110",
+									`bg-${stat.color}-500`,
+								)}
+							/>
+							<div className="flex items-center gap-4">
+								<div
+									className={cn(
+										"w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:rotate-6",
+										`bg-${stat.color}-50 text-${stat.color}-600`,
+									)}
+								>
+									<stat.icon className="w-6 h-6" />
+								</div>
+								<div>
+									<p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+										{stat.label}
+									</p>
+									<p className="text-2xl font-bold text-slate-900 leading-tight">
+										{stat.count}
+									</p>
+								</div>
 							</div>
-							<div>
-								<p className="text-xs text-blue-500 font-medium">Sắp tới</p>
-								<p className="text-xl font-bold text-blue-700">
-									{scheduledCount}
-								</p>
-							</div>
-						</div>
-					</CardContent>
-				</Card>
-				<Card className="border-0 shadow-sm bg-gradient-to-br from-emerald-50 to-teal-50">
-					<CardContent className="p-4">
-						<div className="flex items-center gap-3">
-							<div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center">
-								<CheckCircle2 className="w-4 h-4 text-emerald-600" />
-							</div>
-							<div>
-								<p className="text-xs text-emerald-500 font-medium">
-									Hoàn thành
-								</p>
-								<p className="text-xl font-bold text-emerald-700">
-									{completedCount}
-								</p>
-							</div>
-						</div>
-					</CardContent>
-				</Card>
-				<Card className="border-0 shadow-sm bg-gradient-to-br from-violet-50 to-purple-50">
-					<CardContent className="p-4">
-						<div className="flex items-center gap-3">
-							<div className="w-9 h-9 rounded-xl bg-violet-100 flex items-center justify-center">
-								<Video className="w-4 h-4 text-violet-600" />
-							</div>
-							<div>
-								<p className="text-xs text-violet-500 font-medium">Online</p>
-								<p className="text-xl font-bold text-violet-700">
-									{interviews.filter((i) => i.type === "online").length}
-								</p>
-							</div>
-						</div>
-					</CardContent>
-				</Card>
-				<Card className="border-0 shadow-sm bg-gradient-to-br from-orange-50 to-amber-50">
-					<CardContent className="p-4">
-						<div className="flex items-center gap-3">
-							<div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center">
-								<MapPin className="w-4 h-4 text-orange-600" />
-							</div>
-							<div>
-								<p className="text-xs text-orange-500 font-medium">Trực tiếp</p>
-								<p className="text-xl font-bold text-orange-700">
-									{interviews.filter((i) => i.type === "offline").length}
-								</p>
-							</div>
-						</div>
-					</CardContent>
-				</Card>
+						</CardContent>
+					</Card>
+				))}
 			</div>
 
-			{/* Main Content */}
-			<div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] xl:grid-cols-[360px_1fr] gap-6 items-start">
-				{/* Calendar */}
-				<Card className="shadow-sm border border-border/60">
-					<CardHeader className="pb-2 px-5 pt-5">
-						<CardTitle className="text-base font-semibold text-foreground">
-							Lịch tháng
-						</CardTitle>
-					</CardHeader>
-					<CardContent className="px-4 pb-5">
-						<Calendar
-							mode="single"
-							selected={date}
-							onSelect={(d) => {
-								setDate(d);
-								setCurrentPage(1);
-							}}
-							className="pointer-events-auto w-full"
-							classNames={{
-								months: "w-full",
-								month: "space-y-3 w-full",
-								caption:
-									"flex justify-center pt-1 relative items-center w-full",
-								caption_label: "text-sm font-semibold",
-								nav: "space-x-1 flex items-center",
-								nav_button: cn(
-									"h-7 w-7 bg-transparent p-0 opacity-70 hover:opacity-100 rounded-md hover:bg-muted transition-colors",
-								),
-								nav_button_previous: "absolute left-1",
-								nav_button_next: "absolute right-1",
-								table: "w-full border-collapse space-y-1",
-								head_row: "flex w-full",
-								head_cell:
-									"text-muted-foreground rounded-md flex-1 font-medium text-[0.75rem] text-center",
-								row: "flex w-full mt-1",
-								cell: "flex-1 text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
-								day: cn(
-									"h-9 w-9 mx-auto p-0 font-normal rounded-full hover:bg-primary/10 transition-colors aria-selected:opacity-100",
-								),
-								day_selected:
-									"bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground rounded-full",
-								day_today: "bg-accent text-accent-foreground font-semibold",
-								day_outside: "text-muted-foreground/40 opacity-50",
-								day_disabled: "text-muted-foreground opacity-50",
-								day_range_middle:
-									"aria-selected:bg-accent aria-selected:text-accent-foreground",
-								day_hidden: "invisible",
-							}}
-						/>
-
-						{/* Only show "Đang xem" when a date is selected */}
-						{date ? (
-							<div className="mt-3 pt-3 border-t border-border/60">
-								<p className="text-xs text-muted-foreground text-center">
-									Đang xem:{" "}
-									<span className="font-semibold text-foreground">
-										{date.toLocaleDateString("vi-VN", {
-											weekday: "long",
-											day: "numeric",
-											month: "long",
-										})}
-									</span>
-								</p>
+			<div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+				{/* Calendar Column */}
+				<Card className="border-none shadow-sm bg-white h-fit xl:sticky xl:top-6">
+					<CardHeader className="pb-3 border-b border-slate-50">
+						<CardTitle className="text-lg font-bold flex items-center justify-between">
+							<div className="flex items-center gap-2">
+								<CalendarCheck2 className="w-5 h-5 text-primary" />
+								Lịch tháng
+							</div>
+							{date && (
 								<Button
 									variant="ghost"
 									size="sm"
-									className="w-full mt-2 text-xs text-muted-foreground h-7"
-									onClick={() => {
-										setDate(undefined);
-										setCurrentPage(1);
-									}}
+									onClick={() => setDate(undefined)}
+									className="h-8 text-[10px] text-primary hover:bg-primary/5 px-2"
 								>
-									← Xem tất cả lịch
+									Xóa lọc
 								</Button>
-							</div>
-						) : (
-							<div className="mt-3 pt-3 border-t border-border/60">
-								<p className="text-xs text-muted-foreground text-center">
-									Chọn một ngày để lọc lịch phỏng vấn
-								</p>
-							</div>
-						)}
+							)}
+						</CardTitle>
+					</CardHeader>
+					<CardContent className="p-3">
+						<Calendar
+							mode="single"
+							selected={date}
+							onSelect={setDate}
+							className="w-full p-0"
+							classNames={{
+								months: "w-full",
+								month: "w-full space-y-4",
+								table: "w-full border-collapse",
+								head_row: "flex w-full",
+								head_cell:
+									"text-muted-foreground rounded-md flex-1 font-medium text-[0.8rem] py-2",
+								row: "flex w-full mt-2",
+								cell: "flex-1 text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
+								day: cn(
+									buttonVariants({ variant: "ghost" }),
+									"h-10 w-full p-0 font-normal aria-selected:opacity-100 hover:bg-primary/10 hover:text-primary transition-all",
+								),
+								day_selected:
+									"bg-primary text-white hover:bg-primary hover:text-white focus:bg-primary focus:text-white rounded-lg shadow-md",
+								day_today: "bg-slate-100 text-slate-900 font-bold rounded-lg",
+								nav_button: cn(
+									buttonVariants({ variant: "outline" }),
+									"h-8 w-8 bg-white p-0 border-slate-200 hover:bg-slate-50 hover:text-primary",
+								),
+								caption_label: "text-base font-bold text-slate-900",
+							}}
+						/>
 					</CardContent>
 				</Card>
 
-				{/* Interview List */}
-				<div className="space-y-4 min-w-0">
+				{/* List Column */}
+				<div className="xl:col-span-2 space-y-4">
 					<div className="flex items-center justify-between">
-						<h3 className="font-heading font-semibold text-foreground text-base">
-							{selectedDateStr
-								? filteredInterviews.length > 0
-									? `Phỏng vấn ngày ${date?.toLocaleDateString("vi-VN")}`
-									: `Ngày ${date?.toLocaleDateString("vi-VN")}`
-								: "Tất cả lịch phỏng vấn"}
+						<h3 className="text-lg font-bold text-slate-900">
+							Danh sách phỏng vấn
 						</h3>
-						<span className="text-xs text-muted-foreground bg-muted px-2.5 py-1 rounded-full">
-							{filteredInterviews.length} buổi
-						</span>
+						<p className="text-xs text-muted-foreground font-medium">
+							Trang {currentPage} / {totalPages}
+						</p>
 					</div>
-					{/* Reset page when date filter changes */}
-					{/* (handled inline via key prop) */}
 
-					{filteredInterviews.length === 0 ? (
-						<Card className="border-dashed shadow-none">
-							<CardContent className="py-14 flex flex-col items-center justify-center text-center gap-3">
-								<div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center">
-									<CalendarDays className="w-7 h-7 text-muted-foreground" />
+					<div className="space-y-3">
+						{isLoading ? (
+							<div className="py-20 flex justify-center">
+								<Loader2 className="w-8 h-8 animate-spin text-primary/40" />
+							</div>
+						) : interviews.length > 0 ? (
+							interviews.map((item) => (
+								<Card
+									key={item.id}
+									className="border-none shadow-sm hover:shadow-md transition-all group bg-white overflow-hidden relative"
+								>
+									<div
+										className={cn(
+											"absolute left-0 top-0 bottom-0 w-1.5",
+											item.status === "completed"
+												? "bg-emerald-500"
+												: item.status === "cancelled"
+													? "bg-red-500"
+													: "bg-primary",
+										)}
+									/>
+									<CardContent className="p-4">
+										<div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+											<div className="flex items-start gap-4">
+												<div
+													className={cn(
+														"w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg text-white shadow-sm shrink-0 overflow-hidden",
+														!item.candidateAvatar &&
+															avatarColors[item.id % avatarColors.length],
+													)}
+												>
+													{item.candidateAvatar ? (
+														<img
+															src={item.candidateAvatar}
+															alt={item.candidateName}
+															className="w-full h-full object-cover"
+														/>
+													) : (
+														item.candidateName.charAt(0)
+													)}
+												</div>
+												<div className="min-w-0">
+													<div className="flex items-center gap-2 mb-1">
+														<h4 className="font-bold text-slate-900 truncate">
+															{item.candidateName}
+														</h4>
+														<Badge
+															variant="outline"
+															className={cn(
+																"text-[10px] px-2 py-0 border-none shadow-none",
+																statusConfig[item.status]?.className ||
+																	"bg-slate-100 text-slate-600",
+															)}
+														>
+															{statusConfig[item.status]?.label || item.status}
+														</Badge>
+													</div>
+													<div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+														<span className="flex items-center gap-1">
+															<Briefcase className="w-3.5 h-3.5" />{" "}
+															{item.jobTitle}
+														</span>
+														<span className="flex items-center gap-1">
+															<CalendarDays className="w-3.5 h-3.5" />{" "}
+															{item.date}
+														</span>
+														<span className="flex items-center gap-1 font-medium text-slate-600">
+															<Clock4 className="w-3.5 h-3.5" /> {item.time}
+														</span>
+													</div>
+												</div>
+											</div>
+
+											<div className="flex items-center gap-2 md:self-center">
+												{item.type === "online" ? (
+													<Button
+														size="sm"
+														onClick={() => handleJoinMeet(item.link || "")}
+														className="h-9 px-4 bg-violet-600 hover:bg-violet-700 text-white gap-2 shadow-sm"
+													>
+														<Video className="w-4 h-4" /> Tham gia
+													</Button>
+												) : (
+													<div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 rounded-lg text-xs font-medium border border-amber-100">
+														<MapPin className="w-3.5 h-3.5" /> Trực tiếp
+													</div>
+												)}
+
+												{["pending", "accepted", "scheduled"].includes(
+													item.status,
+												) ? (
+													<Button
+														size="sm"
+														variant="outline"
+														disabled={updatingId === item.id}
+														onClick={() =>
+															handleUpdateStatus(item.id, "COMPLETED")
+														}
+														className="h-9 border-slate-200 text-slate-600 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-colors"
+													>
+														{updatingId === item.id ? (
+															<Loader2 className="w-4 h-4 mr-2 animate-spin" />
+														) : null}
+														Hoàn thành
+													</Button>
+												) : null}
+
+												<div className="flex items-center gap-1 ml-2">
+													{item.status !== "completed" && (
+														<Button
+															size="icon"
+															variant="ghost"
+															className="h-8 w-8 text-slate-400 hover:text-primary"
+															onClick={() => setEditTarget(item)}
+														>
+															<Pencil className="w-3.5 h-3.5" />
+														</Button>
+													)}
+													<Button
+														size="icon"
+														variant="ghost"
+														className="h-8 w-8 text-slate-400 hover:text-red-500"
+														onClick={() => setDeleteTargetId(item.id)}
+													>
+														<Trash2 className="w-3.5 h-3.5" />
+													</Button>
+												</div>
+											</div>
+										</div>
+									</CardContent>
+								</Card>
+							))
+						) : (
+							<div className="bg-slate-50/50 rounded-2xl border-2 border-dashed border-slate-100 py-16 flex flex-col items-center text-center px-6">
+								<div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-4">
+									<CalendarDays className="w-8 h-8 text-slate-200" />
 								</div>
-								<div>
-									<p className="text-sm font-medium text-foreground">
-										Không có lịch phỏng vấn
-									</p>
-									<p className="text-xs text-muted-foreground mt-1">
-										Không có buổi phỏng vấn nào vào ngày này.
-									</p>
-								</div>
+								<h4 className="text-slate-900 font-bold mb-1">
+									Không có lịch phỏng vấn
+								</h4>
+								<p className="text-sm text-slate-500 max-w-[280px]">
+									Hãy chọn một ngày khác hoặc tạo lịch phỏng vấn mới cho ứng
+									viên của bạn.
+								</p>
 								<Button
 									variant="outline"
-									size="sm"
+									className="mt-6 gap-2"
 									onClick={() => {
 										setDate(undefined);
-										setCurrentPage(1);
+										setFilterStatus("ALL");
 									}}
 								>
 									Xem tất cả
 								</Button>
-							</CardContent>
-						</Card>
-					) : (
-						<div className="space-y-3">
-							{pagedInterviews.map((interview, index) => {
-								const config = statusConfig[interview.status];
-								const globalIndex = (currentPage - 1) * PAGE_SIZE + index;
-								const gradientColor =
-									avatarColors[globalIndex % avatarColors.length];
-								return (
-									<Card
-										key={interview.id}
-										className="shadow-sm border border-border/60 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group overflow-hidden"
-									>
-										<CardContent className="p-0">
-											<div className="flex items-stretch">
-												{/* Time strip */}
-												<div className="flex flex-col items-center justify-center px-4 py-4 bg-muted/40 border-r border-border/50 shrink-0 min-w-[76px]">
-													<p className="text-base font-bold text-foreground tabular-nums leading-none">
-														{interview.time}
-													</p>
-													<p className="text-[10px] text-muted-foreground mt-1">
-														{interview.date.slice(8, 10)}/
-														{interview.date.slice(5, 7)}
-													</p>
-												</div>
+							</div>
+						)}
 
-												{/* Main content */}
-												<div className="flex items-center justify-between gap-4 flex-1 min-w-0 px-5 py-4">
-													{/* Avatar + Info */}
-													<div className="flex items-center gap-3.5 min-w-0">
-														<div
-															className={cn(
-																"w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center shrink-0 text-white font-bold text-sm shadow-sm",
-																gradientColor,
-															)}
-														>
-															{interview.candidateName.charAt(0)}
-														</div>
-														<div className="min-w-0">
-															<p className="font-semibold text-foreground text-sm truncate">
-																{interview.candidateName}
-															</p>
-															<p className="text-xs text-muted-foreground truncate">
-																{interview.jobTitle}
-															</p>
-															<div className="flex items-center gap-2 mt-1.5 flex-wrap">
-																<span
-																	className={cn(
-																		"inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full",
-																		interview.type === "online"
-																			? "bg-violet-50 text-violet-600"
-																			: "bg-amber-50 text-amber-600",
-																	)}
-																>
-																	{interview.type === "online" ? (
-																		<>
-																			<Video className="w-3 h-3" /> Online
-																		</>
-																	) : (
-																		<>
-																			<MapPin className="w-3 h-3" /> Trực tiếp
-																		</>
-																	)}
-																</span>
-																{(interview.link || interview.location) && (
-																	<span className="text-[10px] text-muted-foreground truncate max-w-[160px]">
-																		{interview.link || interview.location}
-																	</span>
-																)}
-															</div>
-														</div>
-													</div>
-
-													{/* Right: Status + Actions */}
-													<div className="flex items-center gap-2 shrink-0">
-														<Badge
-															variant="outline"
-															className={cn(
-																"text-xs font-medium border hidden sm:inline-flex",
-																config.className,
-															)}
-														>
-															<span
-																className={cn(
-																	"w-1.5 h-1.5 rounded-full mr-1.5 inline-block",
-																	config.dotColor,
-																)}
-															/>
-															{config.label}
-														</Badge>
-
-														{/* Edit button */}
-														<Button
-															variant="ghost"
-															size="icon"
-															className="w-8 h-8 text-muted-foreground hover:text-foreground hover:bg-muted opacity-0 group-hover:opacity-100 transition-all"
-															onClick={() => setEditTarget(interview)}
-														>
-															<Pencil className="w-3.5 h-3.5" />
-														</Button>
-
-														{/* Delete button */}
-														<Button
-															variant="ghost"
-															size="icon"
-															className="w-8 h-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all"
-															onClick={() => handleDelete(interview.id)}
-														>
-															<Trash2 className="w-3.5 h-3.5" />
-														</Button>
-
-														{interview.status === "scheduled" && (
-															<Button
-																variant="outline"
-																size="sm"
-																className="text-xs gap-1 group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-primary transition-colors"
-															>
-																Tham gia
-																<ChevronRight className="w-3 h-3" />
-															</Button>
-														)}
-													</div>
-												</div>
-											</div>
-										</CardContent>
-									</Card>
-								);
-							})}
-
-							{/* Pagination — only shown when viewing all */}
-							{isPaginated && totalPages > 1 && (
-								<div className="pt-6 border-t border-border/50">
-									<NumberedPagination
-										currentPage={currentPage}
-										totalPages={totalPages}
-										onPageChange={setCurrentPage}
-									/>
-								</div>
-							)}
-						</div>
-					)}
+						{totalPages > 1 && (
+							<div className="mt-8">
+								<NumberedPagination
+									currentPage={currentPage}
+									totalPages={totalPages}
+									onPageChange={setCurrentPage}
+								/>
+							</div>
+						)}
+					</div>
 				</div>
 			</div>
 
-			{/* Edit Dialog */}
-			{editTarget && (
-				<EditDialog
-					interview={editTarget}
-					open={!!editTarget}
-					onClose={() => setEditTarget(null)}
-					onSave={handleSave}
-				/>
-			)}
+			<EditDialog
+				interview={editTarget!}
+				open={!!editTarget}
+				onClose={() => setEditTarget(null)}
+				onSave={handleSave}
+			/>
 
-			{/* Create Dialog */}
 			<CreateDialog
 				open={createOpen}
-				onClose={() => setCreateOpen(false)}
+				onClose={() => {
+					setCreateOpen(false);
+					setPreFilledCandidate(null);
+				}}
 				onAdd={handleAdd}
 				availableCandidates={availableCandidates}
 				preFilledCandidate={preFilledCandidate}
 			/>
+
+			<AlertDialog
+				open={!!deleteTargetId}
+				onOpenChange={(o) => {
+					if (!o && !isDeleting) setDeleteTargetId(null);
+				}}
+			>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Bạn có chắc chắn muốn xóa?</AlertDialogTitle>
+						<AlertDialogDescription>
+							Hành động này không thể hoàn tác. Lịch phỏng vấn này sẽ bị xóa
+							vĩnh viễn khỏi hệ thống.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel disabled={isDeleting}>Hủy</AlertDialogCancel>
+						<AlertDialogAction
+							disabled={isDeleting}
+							onClick={(e) => {
+								e.preventDefault();
+								handleDelete();
+							}}
+							className="bg-red-600 hover:bg-red-700"
+						>
+							{isDeleting ? (
+								<Loader2 className="w-4 h-4 mr-2 animate-spin" />
+							) : (
+								<Trash2 className="w-4 h-4 mr-2" />
+							)}
+							{isDeleting ? "Đang xóa..." : "Xác nhận xóa"}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	);
 }

@@ -7,10 +7,8 @@ import cookieParser from "cookie-parser";
 import passport from "passport";
 import http from "http";
 import { initSocket } from "./socket/socket";
+import { initCronJobs } from "./service/cronService";
 import verifyConnection from "./config/connectNeo4j";
-// import configSession from "../src/config/session";
-// import LoginWithGoogle from "../src/controllers/social/googleController";
-// import LoginWithFacebook from "./controllers/social/facebookController";
 require("dotenv").config();
 
 let app = express();
@@ -32,6 +30,7 @@ connectDB();
 verifyConnection();
 const server = http.createServer(app);
 initSocket(server);
+initCronJobs();
 
 app.use((req, res) => {
 	return res.send("404 Not Found");

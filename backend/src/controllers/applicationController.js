@@ -97,10 +97,24 @@ const HandleUpdateApplicationStatus = async (req, res) => {
     }
 };
 
+const HandleGetAllEmployerApplications = async (req, res) => {
+    try {
+        const companyId = req.user?.company.id;
+        if (!companyId) {
+            return res.status(403).json({ errCode: 1, errMessage: "Only employers with a company can view applications" });
+        }
+        const result = await applicationService.getAllApplicationsByEmployer(companyId, req.user.id);
+        return res.status(200).json(result);
+    } catch (error) {
+        return res.status(500).json({ errCode: -1, errMessage: "Internal server error" });
+    }
+};
+
 module.exports = {
     HandleApplyJob,
     HandleGetMyApplications,
     HandleGetEmployerApplications,
+    HandleGetAllEmployerApplications,
     HandleCancelApplication,
     HandleUpdateApplicationStatus,
     HandleGetApplicationById

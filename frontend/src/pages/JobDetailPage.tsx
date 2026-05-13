@@ -173,6 +173,8 @@ export default function JobDetailPage({ job: jobProp }: { job?: any }) {
 	const jobCategoryIds = job.categoryIds ?? [];
 	const jobLocationIds = job.locationIds ?? [];
 
+	const isFeatured = job?.featuredUntil && new Date(job.featuredUntil) > new Date();
+
 	return (
 		<div className="min-h-screen bg-slate-50">
 			{/* Fixed Social Icons Sidebar */}
@@ -230,11 +232,22 @@ export default function JobDetailPage({ job: jobProp }: { job?: any }) {
 					{/* Main Content */}
 					<div className="lg:col-span-7 space-y-6">
 						{/* Job Header */}
-						<div className="bg-white rounded-lg p-6 border border-slate-200">
+						<div className={`rounded-lg p-6 border transition-all duration-300 ${
+							isFeatured 
+							? "bg-amber-50 border-amber-300 shadow-[0_4px_20px_-1px_rgba(252,211,77,0.2)]" 
+							: "bg-white border-slate-200"
+						}`}>
 							{/* Title */}
-							<h1 className="text-2xl font-bold text-slate-900 mb-4">
-								{job.title}
-							</h1>
+							<div className="mb-4">
+								{isFeatured && (
+									<span className="inline-flex items-center mb-2 px-2.5 py-1 rounded-md text-xs font-bold bg-gradient-to-r from-amber-200 to-yellow-400 text-amber-900 shadow-sm uppercase tracking-wider">
+										⭐ Tin Nổi Bật
+									</span>
+								)}
+								<h1 className="text-2xl font-bold text-slate-900">
+									{job.title}
+								</h1>
+							</div>
 
 							{/* Key Info Badges */}
 							<div className="grid grid-cols-3 gap-6 mb-6">
@@ -322,8 +335,12 @@ export default function JobDetailPage({ job: jobProp }: { job?: any }) {
 						</div>
 
 						{/* Chi tiết tin tuyển dụng */}
-						<div className="bg-white rounded-lg border border-slate-200 p-6">
-							<div className="flex items-center gap-3 mb-6 pb-6 border-b-2 border-slate-900">
+						<div className={`rounded-lg border p-6 transition-all duration-300 ${
+							isFeatured 
+							? "bg-amber-50 border-amber-300 shadow-[0_4px_20px_-1px_rgba(252,211,77,0.15)]" 
+							: "bg-white border-slate-200"
+						}`}>
+							<div className={`flex items-center gap-3 mb-6 pb-6 border-b-2 ${isFeatured ? 'border-amber-400' : 'border-slate-900'}`}>
 								<div className="w-8 h-8 flex items-center justify-center rounded bg-slate-200">
 									<FileText className="w-5 h-5 text-slate-900" />
 								</div>

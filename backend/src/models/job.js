@@ -23,6 +23,7 @@ module.exports = (sequelize, DataTypes) => {
 				otherKey: "userId",
 				as: "saved_by_users",
 			});
+			Job.hasMany(models.Interview, { foreignKey: "job_id", as: "interviews" });
 		}
 	}
 
@@ -70,6 +71,11 @@ module.exports = (sequelize, DataTypes) => {
 				type: DataTypes.ENUM("open", "closed"),
 				allowNull: false,
 				defaultValue: "open",
+			},
+			featuredUntil: {
+				type: DataTypes.DATE,
+				allowNull: true,
+				field: "featured_until",
 			},
 		},
 		{

@@ -101,6 +101,7 @@ export default function EmployerJobDetail({ refreshData }: Props) {
   const company = job.Company;
   const locationNames = job.locations?.map((loc: any) => loc.name) || [];
   const isExpired = job.endDate && new Date(job.endDate) < new Date();
+  const isFeatured = job.featuredUntil && new Date(job.featuredUntil) > new Date();
 
   const handleStatusChange = async (appId: number, newStatus: string) => {
     setUpdatingAppId(appId);
@@ -174,9 +175,12 @@ export default function EmployerJobDetail({ refreshData }: Props) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          {/* Job Info Card */}
-          <Card className="rounded-xl border-border/60 shadow-sm overflow-hidden">
-            <CardHeader className="border-b border-border/60">
+          <Card className={`rounded-xl shadow-sm overflow-hidden border-t-4 transition-all duration-300 ${
+            isFeatured 
+            ? "bg-amber-50 border-amber-300 border-x-amber-200 border-b-amber-200 shadow-[0_4px_20px_-1px_rgba(252,211,77,0.15)]" 
+            : "border-border/60"
+          }`}>
+            <CardHeader className={`border-b ${isFeatured ? 'border-amber-100 bg-amber-50/50' : 'border-border/60'}`}>
               <div className="flex justify-between items-start">
                 <div className="flex gap-4">
                   <div className="w-16 h-16 rounded-xl bg-muted flex items-center justify-center shrink-0 border border-border/60 overflow-hidden">
@@ -189,7 +193,12 @@ export default function EmployerJobDetail({ refreshData }: Props) {
                   <div>
                     <h1 className="text-2xl font-bold text-foreground">{job.title}</h1>
                     <p className="text-muted-foreground font-medium">{company?.name}</p>
-                    <div className="flex gap-2 mt-2">
+                     <div className="flex gap-2 mt-2">
+                       {isFeatured && (
+                         <Badge className="bg-gradient-to-r from-amber-400 to-yellow-500 text-amber-950 border-none shadow-sm font-bold">
+                           ⭐ VIP
+                         </Badge>
+                       )}
                        <Badge variant={job.status === 'open' ? 'outline' : 'destructive'} className={job.status === 'open' ? 'text-emerald-600 border-emerald-600' : ''}>
                          {job.status === 'open' ? 'Đang tuyển' : 'Đã đóng'}
                        </Badge>

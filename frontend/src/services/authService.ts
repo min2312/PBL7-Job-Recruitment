@@ -59,7 +59,7 @@ const normalizeRole = (
 	return fallback;
 };
 
-export const normalizeAuthUser = (payload: unknown): User => {
+export const normalizeAuthUser = (payload: unknown, token?: string): User => {
 	const data = (payload ?? {}) as AuthPayloadRecord;
 
 	return {
@@ -73,6 +73,7 @@ export const normalizeAuthUser = (payload: unknown): User => {
 		description: data.description || "",
 		cv_file: data.cv_file || "",
 		company: data.company,
+		token: token || (data as any).access_token || "",
 	};
 };
 
@@ -119,7 +120,10 @@ export async function loginWithScope(
 		throw error;
 	}
 
-	return normalizeAuthUser(extractAuthPayload(responseData));
+	return normalizeAuthUser(
+		extractAuthPayload(responseData),
+		(responseData as any).DT?.access_token,
+	);
 }
 
 export async function loginWithFirebase() {
@@ -144,7 +148,10 @@ export async function loginWithFirebase() {
 		throw error;
 	}
 
-	return normalizeAuthUser(extractAuthPayload(responseData));
+	return normalizeAuthUser(
+		extractAuthPayload(responseData),
+		(responseData as any).DT?.access_token,
+	);
 }
 
 export async function refreshSession(scope: AuthScope) {
@@ -159,14 +166,20 @@ export async function refreshSession(scope: AuthScope) {
 const fetchAccountWithRefresh = async (scope: AuthScope) => {
 	try {
 		const response = await authHttpClient.get(getAccountPath(scope));
-		return normalizeAuthUser(extractAuthPayload(response.data));
+		return normalizeAuthUser(
+			extractAuthPayload(response.data),
+			(response.data as any).DT?.access_token,
+		);
 	} catch (error) {
 		if (isUnauthorized(error)) {
 			const refreshed = await refreshSession(scope);
 			if (refreshed) {
 				try {
 					const retryResponse = await authHttpClient.get(getAccountPath(scope));
-					return normalizeAuthUser(extractAuthPayload(retryResponse.data));
+					return normalizeAuthUser(
+						extractAuthPayload(retryResponse.data),
+						(retryResponse.data as any).DT?.access_token,
+					);
 				} catch (retryError) {
 					return null;
 				}
@@ -203,7 +216,10 @@ export async function updateProfile(data: FormData) {
 			responseData.message || responseData.errMessage || "Cập nhật thất bại",
 		);
 	}
-	return normalizeAuthUser(extractAuthPayload(responseData));
+	return normalizeAuthUser(
+		extractAuthPayload(responseData),
+		(responseData as any).DT?.access_token,
+	);
 }
 
 export async function changePassword(passwords: {
@@ -254,7 +270,10 @@ export async function updateEmployerLogo(data: FormData) {
 				"Cập nhật logo thất bại",
 		);
 	}
-	return normalizeAuthUser(extractAuthPayload(responseData));
+	return normalizeAuthUser(
+		extractAuthPayload(responseData),
+		(responseData as any).DT?.access_token,
+	);
 }
 
 export async function deleteEmployerLogo() {
@@ -265,7 +284,10 @@ export async function deleteEmployerLogo() {
 			responseData.message || responseData.errMessage || "Xóa logo thất bại",
 		);
 	}
-	return normalizeAuthUser(extractAuthPayload(responseData));
+	return normalizeAuthUser(
+		extractAuthPayload(responseData),
+		(responseData as any).DT?.access_token,
+	);
 }
 
 export async function logoutSession(scope: AuthScope | "all" = "all") {

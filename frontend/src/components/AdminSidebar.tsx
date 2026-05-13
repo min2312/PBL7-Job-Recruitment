@@ -9,6 +9,7 @@ import {
 	LogOut,
 	Home,
 	ChevronRight,
+    CreditCard
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
@@ -34,6 +35,7 @@ const items = [
 	{ title: "Việc làm", url: "/admin/jobs", icon: Briefcase },
 	{ title: "Công ty", url: "/admin/companies", icon: Building2 },
 	{ title: "Đơn ứng tuyển", url: "/admin/applications", icon: FileText },
+    { title: "Giao dịch", url: "/admin/transactions", icon: CreditCard },
 	// { title: 'Báo cáo', url: '/admin/reports', icon: Shield },
 	// { title: 'Cài đặt', url: '/admin/settings', icon: Settings },
 ];

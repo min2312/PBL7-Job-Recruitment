@@ -16,6 +16,7 @@ interface RelatedJobCardProps {
 export default function RelatedJobCard({ job, onMouseEnter, onMouseLeave }: RelatedJobCardProps) {
   const company = (job as any).Company;
   const firstLocation = (job as any).locations?.[0];
+  const isFeatured = (job as any).featuredUntil && new Date((job as any).featuredUntil) > new Date();
   const [isSaved, setIsSaved] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
@@ -128,6 +129,11 @@ export default function RelatedJobCard({ job, onMouseEnter, onMouseLeave }: Rela
           {/* Title & Salary */}
           <div className="flex items-start justify-between gap-3 mb-1">
             <div className="flex-1">
+              {isFeatured && (
+                <span className="inline-block mb-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-gradient-to-r from-amber-200 to-yellow-400 text-amber-900 shadow-sm uppercase tracking-wider">
+                  ⭐ Nổi bật
+                </span>
+              )}
               <Link to={`/jobs/${job.id}`} className="font-bold text-slate-900 text-sm line-clamp-2 hover:text-slate-700 group-hover:underline block flex items-center">
                 {job.title}
                 <CheckCircle className="w-3.5 h-3.5 text-black ml-1.5 flex-shrink-0" />

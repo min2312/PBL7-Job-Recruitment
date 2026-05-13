@@ -24,6 +24,10 @@ import {
 	resetPassword,
 } from "../controllers/otpController.js";
 import * as syncToNeo4jController from "../controllers/syncToNeo4jController";
+import * as notificationController from "../controllers/notificationController";
+import * as interviewController from "../controllers/interviewController";
+import * as chatController from "../controllers/chatController";
+import paymentController from "../controllers/paymentController";
 let router = express.Router();
 
 let initWebRoutes = (app) => {
@@ -129,6 +133,10 @@ let initWebRoutes = (app) => {
 		applicationController.HandleGetEmployerApplications,
 	);
 	router.get(
+		"/api/employer/applications/all",
+		applicationController.HandleGetAllEmployerApplications,
+	);
+	router.get(
 		"/api/employer/applications/:id",
 		applicationController.HandleGetApplicationById,
 	);
@@ -202,6 +210,29 @@ let initWebRoutes = (app) => {
 		"/api/neo4j/sync-new",
 		syncToNeo4jController.HandleSyncRecentToNeo4j,
 	);
+	
+	// NOTIFICATION
+	router.get("/api/notifications", notificationController.getNotifications);
+	router.put("/api/notifications/read/:id", notificationController.markAsRead);
+	router.put("/api/notifications/read-all", notificationController.markAllAsRead);
+	
+	// INTERVIEW
+	router.get("/api/interviews", interviewController.handleGetInterviews);
+	router.post("/api/interviews/create", interviewController.handleCreateInterview);
+	router.put("/api/interviews/update-status", interviewController.handleUpdateStatus);
+	router.put("/api/interviews/update", interviewController.handleUpdateInterview);
+	router.delete("/api/interviews/:id", interviewController.handleDeleteInterview);
+
+	// CHAT
+	router.get("/api/conversations", chatController.handleGetConversations);
+	router.get("/api/messages/unread-count", chatController.handleGetUnreadCount);
+	router.get("/api/messages/:id", chatController.handleGetMessages);
+	router.post("/api/conversations/start", chatController.handleStartConversation);
+
+	// PAYMENT (PAYOS)
+	router.post("/api/payment/create-link", paymentController.createPaymentLink);
+	router.post("/api/payment/payos-webhook", paymentController.handlePayOSWebhook);
+	router.get("/api/admin/transactions", paymentController.getAdminTransactions);
 
 	// router.get(
 	// 	"/auth/google",
