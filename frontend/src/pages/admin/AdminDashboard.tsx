@@ -11,6 +11,7 @@ import AdminJobDetail from "./AdminJobDetail";
 import { AdminCompanies } from "./AdminCompanies";
 import { AdminCompaniesDetail } from "./AdminCompaniesDetail";
 import { AdminApplications } from './AdminApplications';
+import AdminTransactions from "./AdminTransactions";
 // import { AdminReports } from './AdminReports';
 import { AdminSettings } from "./AdminSettings";
 
@@ -74,6 +75,7 @@ export default function AdminDashboard() {
 									element={<AdminCompaniesDetail />}
 								/>
 								<Route path="applications" element={<AdminApplications />} />
+                                <Route path="transactions" element={<AdminTransactions />} />
 								{/* <Route path="reports" element={<AdminReports />} /> */}
 								<Route path="settings" element={<AdminSettings />} />
 							</Routes>

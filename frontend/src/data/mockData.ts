@@ -68,6 +68,7 @@ export interface User {
   company?: Company;
   description?: string;
   companyId?: number;
+  token?: string;
 }
 
 export const categories: Category[] = [

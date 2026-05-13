@@ -365,7 +365,11 @@ export default function CompanyDetailPage() {
                       {companyJobs.map(job => (
                         <div
                           key={job.id}
-                          className="bg-white rounded-lg p-4 border border-slate-200 hover:border-slate-300 hover:bg-slate-100 transition-all group cursor-pointer"
+                          className={`rounded-lg p-4 border transition-all group cursor-pointer ${
+                            (job.isFeatured === 1 || job.isFeatured === true)
+                            ? "bg-amber-50 border-amber-300 hover:border-amber-500 shadow-sm"
+                            : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-100"
+                          }`}
                           onClick={() => navigate(`/jobs/${job.id}`)}
                         >
                           <div className="flex items-start gap-4">
@@ -387,10 +391,17 @@ export default function CompanyDetailPage() {
                             <div className="flex-1 min-w-0">
                               {/* Job Title with Salary */}
                               <div className="flex items-start justify-between gap-2 mb-1">
-                                <div
-                                  className="font-bold text-slate-900 text-sm line-clamp-1 hover:text-slate-700 group-hover:underline"
-                                >
-                                  {job.title}
+                                <div className="flex flex-col gap-1">
+                                  {(job.isFeatured === 1 || job.isFeatured === true) && (
+                                    <span className="inline-block w-fit px-1.5 py-0.5 rounded text-[10px] font-bold bg-gradient-to-r from-amber-200 to-yellow-400 text-amber-900 shadow-sm uppercase tracking-wider">
+                                      ⭐ Nổi bật
+                                    </span>
+                                  )}
+                                  <div
+                                    className="font-bold text-slate-900 text-sm line-clamp-1 hover:text-slate-700 group-hover:underline"
+                                  >
+                                    {job.title}
+                                  </div>
                                 </div>
                                 <span className="text-sm font-bold text-black whitespace-nowrap">
                                   {job.salary || 'Thoả thuận'}

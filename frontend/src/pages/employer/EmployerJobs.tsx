@@ -56,6 +56,23 @@ export default function EmployerJobs({
 	const [search, setSearch] = useState("");
 	const [deleteJobId, setDeleteJobId] = useState<number | null>(null);
 	const [deleting, setDeleting] = useState(false);
+	const [promoting, setPromoting] = useState<number | null>(null);
+
+    const handlePromoteJob = async (jobId: number) => {
+        setPromoting(jobId);
+        try {
+            const res = await axiosClient.post("/api/payment/create-link", { jobId });
+            if (res.data.errCode === 0) {
+                window.location.href = res.data.data;
+            } else {
+                toast.error(res.data.errMessage || "Không thể khởi tạo thanh toán");
+            }
+        } catch (error) {
+            toast.error("Lỗi khởi tạo thanh toán");
+        } finally {
+            setPromoting(null);
+        }
+    };
 
 	// Server-side search with debounce
 	useEffect(() => {
@@ -156,6 +173,7 @@ export default function EmployerJobs({
 								<TableHead>Vị trí</TableHead>
 								<TableHead className="text-center">Số lượng ứng viên</TableHead>
 								<TableHead className="text-center">Trạng thái</TableHead>
+								<TableHead className="text-center">Nổi bật</TableHead>
 								<TableHead>Hạn nộp</TableHead>
 								<TableHead className="text-right">Thao tác</TableHead>
 							</TableRow>
@@ -169,6 +187,8 @@ export default function EmployerJobs({
 												(1000 * 60 * 60 * 24),
 										)
 									: null;
+
+								const isFeatured = job.featuredUntil && new Date(job.featuredUntil) > new Date();
 
 								return (
 									<TableRow
@@ -197,6 +217,17 @@ export default function EmployerJobs({
 												<span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-100 text-rose-800">
 													Đã đóng
 												</span>
+											)}
+										</TableCell>
+
+										{/* Featured */}
+										<TableCell className="text-center">
+											{isFeatured ? (
+												<span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200 shadow-sm shadow-amber-200/50">
+													⭐ VIP
+												</span>
+											) : (
+												<span className="text-muted-foreground text-xs">-</span>
 											)}
 										</TableCell>
 
@@ -244,6 +275,23 @@ export default function EmployerJobs({
 														}
 													>
 														Chỉnh sửa
+													</DropdownMenuItem>
+
+													<DropdownMenuItem
+														onClick={(e) => {
+															e.stopPropagation();
+															if (!isFeatured) handlePromoteJob(job.id);
+														}}
+														className={`${isFeatured ? "text-slate-400 cursor-not-allowed" : "text-amber-600 font-medium focus:bg-amber-50 focus:text-amber-700"}`}
+														disabled={promoting === job.id || isFeatured}
+													>
+														{promoting === job.id ? (
+															<Loader2 className="w-4 h-4 mr-2 animate-spin" />
+														) : isFeatured ? (
+															"Đang là VIP"
+														) : (
+															"Nâng cấp VIP"
+														)}
 													</DropdownMenuItem>
 
 													<DropdownMenuItem

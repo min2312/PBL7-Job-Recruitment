@@ -1,14 +1,17 @@
 import { Server } from "socket.io";
 import { handleUpdateTable } from "./apiSocket.js";
 import { verifySocketToken } from "../middleware/JWT_Action.js";
-// import { saveMessage } from "../service/socialService.js";
+import * as chatService from "../service/chatService.js";
+import { createNotification } from "../service/notificationService.js";
+
 let io;
 
 const initSocket = (server) => {
 	io = new Server(server, {
 		cors: {
-			origin: "*",
+			origin: [`${process.env.CLIENT_URL}`],
 			methods: ["GET", "POST"],
+			credentials: true,
 		},
 	});
 
@@ -17,58 +20,76 @@ const initSocket = (server) => {
 	io.use(verifySocketToken);
 
 	io.on("connection", (socket) => {
-		// console.log("Client connected:", socket.id, "User:", socket.user);
-
 		// Join a room based on user ID
 		if (socket.user && socket.user.id) {
-			socket.join(socket.user.id.toString());
-			// console.log(
-			// 	`User ${socket.user.id} with socket ID ${socket.id} joined room ${socket.user.id}`
-			// );
+			const userRoom = socket.user.id.toString();
+			socket.join(userRoom);
+			console.log(`User ${socket.user.id} joined room ${userRoom}`);
 		}
 
-		socket.on("sendMessage", async ({ recipientId, message }) => {
-			// console.log(
-			// 	`Received message from ${socket.user.id} to ${recipientId}:`,
-			// 	message
-			// );
-			const result = await saveMessage(socket.user.id, recipientId, message);
+		// Track current active conversation for each socket
+		socket.activeConversation = null;
 
-			if (result.errCode === 0) {
-				// Emit to recipient with the saved message data including real ID
-				io.to(recipientId.toString()).emit("receiveMessage", {
-					senderId: socket.user.id,
-					messageId: result.message.id,
-					...message,
-				});
+		socket.on("joinConversation", (conversationId) => {
+			socket.join(`conversation_${conversationId}`);
+			socket.activeConversation = conversationId;
+		});
 
-				// Send acknowledgment back to sender with real message ID
-				socket.emit("messageSaved", {
-					tempId: message.tempId,
-					realId: result.message.id,
-					message: result.message,
-				});
+		socket.on("leaveConversation", () => {
+			if (socket.activeConversation) {
+				socket.leave(`conversation_${socket.activeConversation}`);
+				socket.activeConversation = null;
 			}
 		});
 
-		// Join a room based on user ID
-		if (socket.user && socket.user.id) {
-			socket.join(socket.user.id.toString());
-			console.log(
-				`User ${socket.user.id} with socket ID ${socket.id} joined room ${socket.user.id}`,
-			);
-		}
+		socket.on("sendMessage", async (data) => {
+			try {
+				const { recipientId, content, conversationId } = data;
 
-		socket.on("sendMessage", async ({ recipientId, message }) => {
-			console.log(
-				`Received message from ${socket.user.id} to ${recipientId}:`,
-				message,
-			);
-			await saveMessage(socket.user.id, recipientId, message);
-			io.to(recipientId.toString()).emit("receiveMessage", {
-				senderId: socket.user.id,
-				...message,
-			});
+				const message = await chatService.sendMessage({
+					sender_id: socket.user.id,
+					receiver_id: recipientId,
+					content: content,
+				});
+
+				const messageData = message.toJSON();
+
+				// Emit to recipient
+				io.to(recipientId.toString()).emit("receiveMessage", messageData);
+
+				// Emit back to sender (to sync multiple tabs)
+				socket.emit("receiveMessage", messageData);
+
+				// Only notify recipient if they are NOT actively viewing this specific conversation
+				const recipientSockets = await io.in(recipientId.toString()).fetchSockets();
+				const isViewing = recipientSockets.some(s => s.activeConversation == message.conversation_id);
+
+				if (!isViewing) {
+					await createNotification({
+						receiver_id: recipientId,
+						sender_id: socket.user.id,
+						type: "NEW_MESSAGE",
+						content: `Bạn có tin nhắn mới từ ${socket.user.name || "một người dùng"}.`,
+						reference_id: socket.user.id.toString(),
+						send_email: false,
+					});
+				}
+			} catch (error) {
+				console.error("Error in socket sendMessage:", error);
+			}
+		});
+
+		socket.on("markAsRead", async (data) => {
+			try {
+				const { conversationId } = data;
+				await chatService.markAsRead(conversationId, socket.user.id);
+				
+				// Get new total unread count
+				const totalUnread = await chatService.getTotalUnreadMessages(socket.user.id);
+				socket.emit("unreadCountUpdate", { totalUnread });
+			} catch (error) {
+				console.error("Error in socket markAsRead:", error);
+			}
 		});
 
 		socket.on("updatePost", (updatedPost) => {

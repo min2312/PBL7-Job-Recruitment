@@ -33,6 +33,7 @@ const nonSecurePaths = [
 	"/api/reset-otp/send",
 	"/api/reset-otp/verify",
 	"/api/reset-password",
+	"/api/payment/payos-webhook",
 	//NEO4J
 	"/api/neo4j/heatmap",
 	"/api/neo4j/competition",

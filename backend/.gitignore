@@ -10,25 +10,6 @@ jest.config.cjs
 jest.setup.cjs
 jesthtmlreporter.config.json
 dist
-# undo
-#  npx sequelize-cli db:migrate:undo --name migrations-shares.js
-#  npx sequelize-cli db:migrate:undo --name migrations-notifications.js
-#  npx sequelize-cli db:migrate:undo --name migrations-friendships.js
-#  npx sequelize-cli db:migrate:undo --name  migrations-conversations.js
-#  npx sequelize-cli db:migrate:undo --name migrations-messages.js
-#  npx sequelize-cli db:migrate:undo --name migrations-likes.js
-#  npx sequelize-cli db:migrate:undo --name  migrations-comments.js
-#  npx sequelize-cli db:migrate:undo --name  migrations-posts.js
-#  npx sequelize-cli db:migrate:undo --name migrations-users.js 
 
-# generate
-# npx sequelize-cli db:migrate --name migrations-users.js
-# npx sequelize-cli db:migrate --name migrations-posts.js
-# npx sequelize-cli db:migrate --name migrations-comments.js
-# npx sequelize-cli db:migrate --name migrations-likes.js
-# npx sequelize-cli db:migrate --name migrations-messages.js
-# npx sequelize-cli db:migrate --name migrations-conversations.js
-# npx sequelize-cli db:migrate --name migrations-friendships.js
-# npx sequelize-cli db:migrate --name migrations-notifications.js
-# npx sequelize-cli db:migrate --name migrations-shares.js
+#Nhớ đổi webhook cho PayOS khi deploy và azure blob storage mở ennable cổng và setup socket tcp
 

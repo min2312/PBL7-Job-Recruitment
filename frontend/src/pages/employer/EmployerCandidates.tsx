@@ -174,7 +174,7 @@ export default function EmployerCandidates({ myApplications, total, page, limit,
               <div className="px-5 pb-5 pt-0">
                 <Button 
                   className="w-full h-9 text-xs bg-emerald-600 hover:bg-emerald-700 shadow-sm"
-                  onClick={() => navigate('../messages', { state: { applicant } })}
+                  onClick={() => navigate('../messages', { state: { partnerId: applicant?.id } })}
                 >
                   <MessageSquare className="w-3 h-3 mr-2" /> Nhắn tin cho ứng viên
                 </Button>

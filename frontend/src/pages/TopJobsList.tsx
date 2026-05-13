@@ -156,6 +156,8 @@ export default function TopJobsList() {
 				createdAt: j.createdAt ?? j.created_at,
 				isSaved: j.isSaved,
 				isApplied: j.isApplied,
+				featuredUntil: j.featuredUntil,
+				isFeatured: j.isFeatured === 1 || j.isFeatured === true,
 			}));
 
 			setJobs(normalized);

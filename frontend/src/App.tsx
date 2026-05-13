@@ -1,9 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { SocketProvider } from "@/contexts/SocketContext";
 import { PageLoadProvider, usePageLoad } from "@/contexts/PageLoadContext";
 import HeaderMNP from "@/components/HeaderMNP";
 import Footer from "@/components/Footer";
@@ -11,6 +12,7 @@ import HomePage from "@/pages/HomePage";
 import JobListPage from "@/pages/JobListPage";
 import JobDetailPage from "@/pages/JobDetailPage";
 import SavedJobsPage from "@/pages/SavedJobsPage";
+import MessagesPage from "./pages/MessagesPage";
 import ApplicationsPage from "@/pages/ApplicationsPage";
 import LoginPage from "@/pages/LoginPage";
 import EmployerDashboard from "@/pages/EmployerDashboard";
@@ -21,6 +23,7 @@ import CompanyDetailPage from "@/pages/CompanyDetailPage";
 import JobSearchPage from "@/pages/JobSearchPage";
 import RegisterPage from "@/pages/RegisterPage";
 import CandidateProfile from "@/pages/CandidateProfile";
+import CandidateInterviews from "@/pages/CandidateInterviews";
 import NotFound from "@/pages/NotFound";
 import { Bounce, ToastContainer } from "react-toastify";
 import PrivateRoutes from "./routes/PrivateRoutes";
@@ -48,6 +51,10 @@ const styles = `
 // Main content wrapper component
 function MainContent() {
   const { isLoading } = usePageLoad();
+  const location = useLocation();
+  
+  const showFooter = !location.pathname.startsWith('/messages') && 
+                     !location.pathname.startsWith('/employer/messages');
   
   return (
     <div className="min-h-screen flex flex-col">
@@ -67,14 +74,16 @@ function MainContent() {
           {/* Private Routes */}
           <Route element={<PrivateRoutes />}>
             <Route path="/saved-jobs" element={<SavedJobsPage />} />
+            <Route path="/messages" element={<MessagesPage />} />
             <Route path="/applications" element={<ApplicationsPage />} />
+            <Route path="/interviews" element={<CandidateInterviews />} />
             <Route path="/candidate/profile" element={<CandidateProfile />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
-      <Footer />
+      {showFooter && <Footer />}
     </div>
   );
 }
@@ -97,24 +106,26 @@ const App = () => (
       />
       <BrowserRouter>
         <AuthProvider>
-          <PageLoadProvider>
-            <Toaster />
-            <Sonner />
+          <SocketProvider>
+            <PageLoadProvider>
+              <Toaster />
+              <Sonner />
 
-            <Routes>
-              {/* Dashboards - Được bảo vệ bằng PrivateRoutes */}
-              <Route element={<PrivateRoutes />}>
-                <Route path="/employer/*" element={<EmployerDashboard />} />
-                <Route path="/admin/*" element={<AdminDashboard />} />
-              </Route>
+              <Routes>
+                {/* Dashboards - Được bảo vệ bằng PrivateRoutes */}
+                <Route element={<PrivateRoutes />}>
+                  <Route path="/employer/*" element={<EmployerDashboard />} />
+                  <Route path="/admin/*" element={<AdminDashboard />} />
+                </Route>
 
-              {/* Public pages - HomePage manages its own header */}
-              <Route path="/" element={<HomePage />} />
+                {/* Public pages - HomePage manages its own header */}
+                <Route path="/" element={<HomePage />} />
 
-              {/* Other public pages with HeaderMNP */}
-              <Route path="*" element={<MainContent />} />
-            </Routes>
-          </PageLoadProvider>
+                {/* Other public pages with HeaderMNP */}
+                <Route path="*" element={<MainContent />} />
+              </Routes>
+            </PageLoadProvider>
+          </SocketProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

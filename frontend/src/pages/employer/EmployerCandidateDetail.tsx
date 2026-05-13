@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import axiosClient from '@/services/axiosClient';
 import { toast } from 'react-toastify';
+import { useAuth } from '@/hooks/useAuth';
 
 const statusConfig: Record<string, { label: string; emoji: string; className: string }> = {
   pending: { label: 'Đã nộp', emoji: '🟡', className: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
@@ -27,6 +28,7 @@ export default function EmployerCandidateDetail({ refreshData }: Props) {
   const [application, setApplication] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const { user } = useAuth();
 
   const fetchApplication = async () => {
     setLoading(true);
@@ -124,6 +126,30 @@ export default function EmployerCandidateDetail({ refreshData }: Props) {
   const job = application.Job;
   const config = statusConfig[application.status] || statusConfig.pending;
 
+  const handleSendMessage = async () => {
+    setUpdating(true);
+    try {
+      // Create or get conversation first
+      await axiosClient.post('/api/conversations/start', {
+        candidate_id: applicant.id,
+        employer_id: user?.id
+      });
+      // Then navigate to messages page with context
+      const chatPath = user?.role === 'EMPLOYER' ? '../messages' : '/messages';
+      navigate(chatPath, { state: { partnerId: applicant.id } });
+    } catch (error) {
+      console.error("Error starting conversation:", error);
+      toast.error("Không thể khởi tạo cuộc trò chuyện");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleInviteInterview = async () => {
+    // Just update status to 'interview', no navigation
+    await handleStatusChange('interview');
+  };
+
   return (
     <div className="space-y-6 max-w-4xl mx-auto pb-10">
       <div className="flex items-center justify-between">
@@ -137,7 +163,7 @@ export default function EmployerCandidateDetail({ refreshData }: Props) {
               size="sm" 
               variant="outline" 
               className="text-blue-600 border-blue-200 hover:bg-blue-50"
-              onClick={() => handleStatusChange('interview')}
+              onClick={handleInviteInterview}
               disabled={updating}
             >
               {updating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Calendar className="w-4 h-4 mr-2" />}
@@ -148,25 +174,25 @@ export default function EmployerCandidateDetail({ refreshData }: Props) {
           {(application.status === 'pending' || application.status === 'interview') && (
             <>
               <Button 
-                size="sm" 
-                variant="outline" 
-                className="text-green-600 border-green-200 hover:bg-green-50"
-                onClick={() => handleStatusChange('approved')}
-                disabled={updating}
-              >
-                {updating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
-                Chấp nhận
-              </Button>
-              <Button 
-                size="sm" 
-                variant="outline" 
-                className="text-red-600 border-red-200 hover:bg-red-50"
-                onClick={() => handleStatusChange('rejected')}
-                disabled={updating}
-              >
-                {updating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <XCircle className="w-4 h-4 mr-2" />}
-                Từ chối
-              </Button>
+              size="sm" 
+              variant="outline" 
+              className="text-green-600 border-green-200 hover:bg-green-50"
+              onClick={() => handleStatusChange('approved')}
+              disabled={updating}
+            >
+              {updating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
+              Chấp nhận
+            </Button>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="text-red-600 border-red-200 hover:bg-red-50"
+              onClick={() => handleStatusChange('rejected')}
+              disabled={updating}
+            >
+              {updating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <XCircle className="w-4 h-4 mr-2" />}
+              Từ chối
+            </Button>
             </>
           )}
         </div>
@@ -270,7 +296,7 @@ export default function EmployerCandidateDetail({ refreshData }: Props) {
                 </p>
               </div>
               <Separator />
-              <Button className="w-full bg-emerald-600 hover:bg-emerald-700" onClick={() => navigate('../messages', { state: { applicant } })}>
+              <Button className="w-full bg-emerald-600 hover:bg-emerald-700" onClick={handleSendMessage}>
                 <MessageSquare className="w-4 h-4 mr-2" /> Nhắn tin
               </Button>
             </CardContent>

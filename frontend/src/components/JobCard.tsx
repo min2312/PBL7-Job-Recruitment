@@ -47,6 +47,9 @@ export default function JobCard({
 	const firstLocation =
 		(job as any).locations?.[0] ??
 		(job.locationIds?.[0] ? getLocationById(job.locationIds[0]) : null);
+	const isFeatured =
+		(job as any).featuredUntil &&
+		new Date((job as any).featuredUntil) > new Date();
 	const [isSaved, setIsSaved] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
 	const { user } = useAuth();
@@ -100,7 +103,11 @@ export default function JobCard({
 		// Grid variant for TopJobsList
 		return (
 			<Card
-				className="p-4 border-2 border-slate-200 hover:border-black hover:shadow-lg transition-all cursor-pointer group h-[200px] flex flex-col overflow-hidden bg-white"
+				className={`p-4 border-2 transition-all cursor-pointer group h-[200px] flex flex-col overflow-hidden ${
+					isFeatured 
+					? "bg-amber-50 border-amber-300 hover:border-amber-500 shadow-[0_4px_20px_-1px_rgba(252,211,77,0.2)]" 
+					: "bg-white border-slate-200 hover:border-black hover:shadow-lg"
+				}`}
 				onClick={() => navigate(`/jobs/${job.id}`, { state: { job } })}
 				onMouseEnter={handleMouseEnter}
 				onMouseLeave={onMouseLeave}
@@ -121,6 +128,11 @@ export default function JobCard({
 						)}
 					</div>
 					<div className="flex-1 min-w-0">
+						{isFeatured && (
+							<span className="inline-block mb-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-gradient-to-r from-amber-200 to-yellow-400 text-amber-900 shadow-sm uppercase tracking-wider">
+								⭐ Nổi bật
+							</span>
+						)}
 						<div
 							className="font-semibold text-slate-900 text-sm line-clamp-2 hover:text-slate-700 group-hover:underline block leading-snug"
 						>
@@ -164,13 +176,16 @@ export default function JobCard({
 		);
 	}
 
-	// Default variant (list/detailed)
 	return (
 		<div
 			className="block group hover:cursor-pointer"
 			onClick={() => navigate(`/jobs/${job.id}`, { state: { job } })}
 		>
-			<div className="relative bg-card rounded-lg border border-border p-5 transition-all duration-300 hover:shadow-lg hover:border-primary/30 hover:-translate-y-0.5">
+			<div className={`relative rounded-lg border p-5 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 ${
+				isFeatured 
+				? "bg-amber-50 border-amber-300 hover:border-amber-500 shadow-[0_4px_20px_-1px_rgba(252,211,77,0.15)]" 
+				: "bg-card border-border hover:border-primary/30"
+			}`}>
 				<button
 					className="absolute top-4 right-4 text-muted-foreground hover:text-primary transition"
 					onClick={handleSaveJob}
@@ -192,6 +207,11 @@ export default function JobCard({
 						)}
 					</div>
 					<div className="flex-1 min-w-0">
+						{isFeatured && (
+							<span className="inline-flex items-center mb-1 px-2 py-0.5 rounded text-[10px] font-bold bg-gradient-to-r from-amber-200 to-yellow-400 text-amber-900 shadow-sm uppercase tracking-wider">
+								⭐ Nổi bật
+							</span>
+						)}
 						<div
 							className="font-heading font-semibold text-foreground group-hover:text-primary transition line-clamp-1 group-hover:underline"
 						>
