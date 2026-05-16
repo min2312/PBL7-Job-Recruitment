@@ -4,4 +4,4 @@ uploads
 __pycache__
 fix_db.py
 test.py
-models
+migrate_local_to_tidb.py
