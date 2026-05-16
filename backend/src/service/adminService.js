@@ -216,8 +216,8 @@ const getAllApplicationsPaginated = async (page = 1, limit = 10) => {
 		const offset = (page - 1) * limit;
 		const { count, rows } = await db.Application.findAndCountAll({
 			include: [
-				{ model: db.User, attributes: ["name", "email"] },
-				{ model: db.Job, attributes: ["title"] },
+				{ model: db.User, attributes: ["id", "name", "email", "phone", "profilePicture"] },
+				{ model: db.Job, attributes: ["id", "title"] },
 			],
 			order: [["createdAt", "DESC"]],
 			limit,
@@ -394,6 +394,24 @@ const deleteJob = async (jobId) => {
 	}
 };
 
+const updateApplicationStatus = async (applicationId, status) => {
+	try {
+		await db.Application.update({ status }, { where: { id: applicationId } });
+		return { errCode: 0, errMessage: `Application status updated to ${status}` };
+	} catch (e) {
+		return { errCode: -1, errMessage: e.message };
+	}
+};
+
+const deleteApplication = async (applicationId) => {
+	try {
+		await db.Application.destroy({ where: { id: applicationId } });
+		return { errCode: 0, errMessage: "Application deleted" };
+	} catch (e) {
+		return { errCode: -1, errMessage: e.message };
+	}
+};
+
 module.exports = {
 	HandleAdminLogin,
 	getAllUsersPaginated,
@@ -406,6 +424,8 @@ module.exports = {
 	deleteUser,
 	updateJobStatus,
 	deleteJob,
+	updateApplicationStatus,
+	deleteApplication,
 	getCompanyDetail,
 	getJobDetail,
 };

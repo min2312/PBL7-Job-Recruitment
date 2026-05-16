@@ -104,33 +104,130 @@ const handleWebhook = async (webhookBody) => {
 	}
 };
 
-const getAllTransactions = async () => {
-    try {
-        const transactions = await db.Transaction.findAll({
-            include: [
-                {
-                    model: db.User,
-                    attributes: ['id', 'name', 'email']
-                },
-                {
-                    model: db.Job,
-                    attributes: ['id', 'title']
-                }
-            ],
-            order: [['createdAt', 'DESC']]
-        });
-        return {
-            errCode: 0,
-            errMessage: "Lấy danh sách giao dịch thành công",
-            data: transactions
-        }
-    } catch (error) {
-        return { errCode: -1, errMessage: "Lỗi từ server" };
-    }
-}
+const getAllTransactions = async ({ page = 1, limit = 10, status = "all", mode = "all", dateValue } = {}) => {
+	try {
+		const { Op } = db.Sequelize;
+		const pageNum = Math.max(1, parseInt(page || "1"));
+		const pageSize = Math.max(1, parseInt(limit || "10"));
+		const offset = (pageNum - 1) * pageSize;
+
+		const where = {};
+
+		if (status && status !== "all" && status !== "ALL") {
+			where.status = status.toUpperCase();
+		}
+
+		if (mode && mode !== "all" && mode !== "ALL" && dateValue) {
+			let startDate, endDate;
+			if (mode.toLowerCase() === "day") {
+				startDate = new Date(`${dateValue}T00:00:00.000+07:00`);
+				endDate = new Date(`${dateValue}T23:59:59.999+07:00`);
+			} else if (mode.toLowerCase() === "month") {
+				const [year, month] = dateValue.split("-").map(Number);
+				const monthStr = String(month).padStart(2, "0");
+				const lastDay = new Date(year, month, 0).getDate();
+				startDate = new Date(`${year}-${monthStr}-01T00:00:00.000+07:00`);
+				endDate = new Date(`${year}-${monthStr}-${lastDay}T23:59:59.999+07:00`);
+			} else if (mode.toLowerCase() === "year") {
+				const year = Number(dateValue);
+				startDate = new Date(`${year}-01-01T00:00:00.000+07:00`);
+				endDate = new Date(`${year}-12-31T23:59:59.999+07:00`);
+			}
+
+			if (startDate && endDate && !isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
+				where.createdAt = {
+					[Op.between]: [startDate, endDate],
+				};
+			}
+		}
+
+		const statsWhere = { ...where };
+		delete statsWhere.status;
+
+		const allStatsRows = await db.Transaction.findAll({
+			where: statsWhere,
+			attributes: ["amount", "status"],
+		});
+
+		let totalRevenue = 0;
+		let successCount = 0;
+		let pendingCount = 0;
+		let cancelledCount = 0;
+
+		allStatsRows.forEach((t) => {
+			const s = t.status ? t.status.toUpperCase() : "";
+			if (s === "SUCCESS") {
+				totalRevenue += Number(t.amount || 0);
+				successCount++;
+			} else if (s === "PENDING") {
+				pendingCount++;
+			} else {
+				cancelledCount++;
+			}
+		});
+
+		const { count, rows } = await db.Transaction.findAndCountAll({
+			where,
+			include: [
+				{
+					model: db.User,
+					attributes: ["id", "name", "email", "profilePicture"],
+				},
+				{
+					model: db.Job,
+					attributes: ["id", "title"],
+				},
+			],
+			limit: pageSize,
+			offset,
+			order: [["createdAt", "DESC"]],
+			distinct: true,
+		});
+
+		const totalPages = Math.ceil(count / pageSize);
+
+		return {
+			errCode: 0,
+			errMessage: "Lấy danh sách giao dịch thành công",
+			data: rows,
+			pagination: {
+				page: pageNum,
+				limit: pageSize,
+				totalPages: totalPages === 0 ? 1 : totalPages,
+				totalRecords: count,
+			},
+			statistics: {
+				totalRevenue,
+				successCount,
+				pendingCount,
+				cancelledCount,
+			},
+		};
+	} catch (error) {
+		console.error("Error in getAllTransactions:", error);
+		return { errCode: -1, errMessage: "Lỗi từ server: " + error.message };
+	}
+};
+
+const cancelTransaction = async (orderCode) => {
+	try {
+		const transaction = await db.Transaction.findOne({
+			where: { orderCode: orderCode },
+		});
+
+		if (transaction && transaction.status === "PENDING") {
+			await transaction.update({ status: "CANCELLED" });
+		}
+		return { errCode: 0, errMessage: "Đã hủy giao dịch" };
+	} catch (error) {
+		console.error("Error cancelling transaction:", error);
+		return { errCode: -1, errMessage: "Lỗi hủy giao dịch: " + error.message };
+	}
+};
 
 module.exports = {
 	createPaymentLink,
 	handleWebhook,
-    getAllTransactions
+	getAllTransactions,
+	cancelTransaction,
 };

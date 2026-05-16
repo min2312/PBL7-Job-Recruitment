@@ -5,9 +5,15 @@ module.exports = {
 		await queryInterface.addColumn("users", "company_id", {
 			type: Sequelize.INTEGER,
 			allowNull: true,
+		});
+
+		await queryInterface.addConstraint("users", {
+			fields: ["company_id"],
+			type: "foreign key",
+			name: "fk_users_company_id",
 			references: {
-				model: "companies",
-				key: "id",
+				table: "companies",
+				field: "id",
 			},
 			onUpdate: "CASCADE",
 			onDelete: "SET NULL",
@@ -33,6 +39,7 @@ module.exports = {
 		await queryInterface.removeColumn("users", "cv_file");
 		await queryInterface.removeColumn("users", "description");
 		await queryInterface.removeColumn("users", "profile_picture");
+		await queryInterface.removeConstraint("users", "fk_users_company_id");
 		await queryInterface.removeColumn("users", "company_id");
 	},
 };

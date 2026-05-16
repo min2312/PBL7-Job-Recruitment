@@ -186,6 +186,33 @@ const initSocket = (server) => {
 			console.log(`User joined room ${roomId}`);
 		});
 
+		socket.on("room:send-message", (data) => {
+			const { roomId, message, senderName, senderAvatar, timestamp } = data;
+			io.to(roomId).emit("room:receive-message", {
+				id: Date.now() + "_" + Math.random().toString(36).substring(2, 7),
+				message,
+				senderName,
+				senderAvatar,
+				timestamp: timestamp || new Date().toISOString(),
+				senderId: socket.user?.id,
+			});
+		});
+
+		socket.on("room:screen-share", (data) => {
+			const { roomId, userId, isSharing } = data;
+			io.to(roomId).emit("room:screen-share-changed", { userId, isSharing });
+		});
+
+		socket.on("room:mic-toggle", (data) => {
+			const { roomId, userId, muted } = data;
+			io.to(roomId).emit("room:mic-toggle-changed", { userId, muted });
+		});
+
+		socket.on("room:video-toggle", (data) => {
+			const { roomId, userId, videoOff } = data;
+			io.to(roomId).emit("room:video-toggle-changed", { userId, videoOff });
+		});
+
 		socket.on("disconnect", (reason) => {
 			// console.log(`Client disconnected: ${socket.id}, Reason: ${reason}`);
 		});

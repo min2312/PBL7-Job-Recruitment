@@ -24,6 +24,7 @@ module.exports = (sequelize, DataTypes) => {
 			job_id: { type: DataTypes.INTEGER, allowNull: false },
 			scheduled_at: { type: DataTypes.DATE, allowNull: false },
 			location: { type: DataTypes.STRING, allowNull: true },
+			type: { type: DataTypes.STRING, allowNull: false, defaultValue: "online_inapp" },
 			status: {
 				type: DataTypes.ENUM(
 					"PENDING",

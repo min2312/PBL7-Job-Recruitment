@@ -80,7 +80,6 @@ let initWebRoutes = (app) => {
 	// router.delete("/api/delete-user", userController.HandleDeleteUser);
 	// // router.post("/payment", apiController.HandlePaymentMoMo);
 
-	// //ADMIN
 	// ADMIN
 	router.get("/api/admin/users", adminController.HandleGetAllUsers);
 	router.post("/api/admin/users/suspend", adminController.HandleSuspendUser);
@@ -93,6 +92,14 @@ let initWebRoutes = (app) => {
 	router.get(
 		"/api/admin/applications",
 		adminController.HandleGetAllApplications,
+	);
+	router.post(
+		"/api/admin/applications/status",
+		adminController.HandleUpdateApplicationStatus,
+	);
+	router.delete(
+		"/api/admin/applications/delete",
+		adminController.HandleDeleteApplication,
 	);
 	router.get("/api/admin/statistics", adminController.HandleGetStatistics);
 	router.get(
@@ -218,6 +225,7 @@ let initWebRoutes = (app) => {
 	
 	// INTERVIEW
 	router.get("/api/interviews", interviewController.handleGetInterviews);
+	router.get("/api/interviews/agora-token/:id", interviewController.handleGetAgoraToken);
 	router.post("/api/interviews/create", interviewController.handleCreateInterview);
 	router.put("/api/interviews/update-status", interviewController.handleUpdateStatus);
 	router.put("/api/interviews/update", interviewController.handleUpdateInterview);
@@ -233,6 +241,7 @@ let initWebRoutes = (app) => {
 	router.post("/api/payment/create-link", paymentController.createPaymentLink);
 	router.post("/api/payment/payos-webhook", paymentController.handlePayOSWebhook);
 	router.get("/api/admin/transactions", paymentController.getAdminTransactions);
+	router.post("/api/payment/cancel", paymentController.cancelPayment);
 
 	// router.get(
 	// 	"/auth/google",
