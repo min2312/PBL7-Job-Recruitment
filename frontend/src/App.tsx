@@ -24,6 +24,7 @@ import JobSearchPage from "@/pages/JobSearchPage";
 import RegisterPage from "@/pages/RegisterPage";
 import CandidateProfile from "@/pages/CandidateProfile";
 import CandidateInterviews from "@/pages/CandidateInterviews";
+import InterviewRoomPage from "@/pages/InterviewRoomPage";
 import NotFound from "@/pages/NotFound";
 import { Bounce, ToastContainer } from "react-toastify";
 import PrivateRoutes from "./routes/PrivateRoutes";
@@ -112,10 +113,11 @@ const App = () => (
               <Sonner />
 
               <Routes>
-                {/* Dashboards - Được bảo vệ bằng PrivateRoutes */}
+                {/* Dashboards & Fullscreen Rooms - Được bảo vệ bằng PrivateRoutes */}
                 <Route element={<PrivateRoutes />}>
                   <Route path="/employer/*" element={<EmployerDashboard />} />
                   <Route path="/admin/*" element={<AdminDashboard />} />
+                  <Route path="/interview/room/:interviewId" element={<InterviewRoomPage />} />
                 </Route>
 
                 {/* Public pages - HomePage manages its own header */}

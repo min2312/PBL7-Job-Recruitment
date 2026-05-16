@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import NumberedPagination from "@/components/NumberedPagination";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ export default function CandidateInterviews() {
   const itemsPerPage = 5;
   
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const fetchInterviews = useCallback(async () => {
     setLoading(true);
@@ -144,7 +146,9 @@ export default function CandidateInterviews() {
           <div className="grid gap-6">
             {interviews.map((interview) => {
               const config = statusConfig[interview.status] || statusConfig.PENDING;
-              const isOnline = interview.location?.startsWith("http") || interview.location?.toLowerCase().includes("online") || interview.location?.toLowerCase().includes("zoom") || interview.location?.toLowerCase().includes("google meet");
+              const isOnlineInApp = interview.type === "online_inapp" || (!interview.type && (interview.location?.includes("/interview/room") || interview.location === "MNP_LIVE_STUDIO"));
+              const isOnlineExternal = interview.type === "online_external" || (!interview.type && !isOnlineInApp && interview.location?.startsWith("http"));
+              const isOffline = interview.type === "offline" || (!isOnlineInApp && !isOnlineExternal);
               const date = new Date(interview.scheduled_at);
 
               return (
@@ -176,27 +180,37 @@ export default function CandidateInterviews() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-auto">
                           <div className="flex items-start gap-3 text-sm text-muted-foreground">
                             <div className="mt-0.5 p-2 bg-slate-100 rounded-lg">
-                              {isOnline ? <Video className="w-4 h-4 text-violet-600" /> : <MapPin className="w-4 h-4 text-emerald-600" />}
+                              {isOnlineInApp ? <Video className="w-4 h-4 text-purple-600" /> : isOnlineExternal ? <Video className="w-4 h-4 text-blue-600" /> : <MapPin className="w-4 h-4 text-emerald-600" />}
                             </div>
                             <div>
-                              <p className="font-bold text-slate-700">{isOnline ? "Phỏng vấn Online" : "Phỏng vấn trực tiếp"}</p>
-                              {isOnline ? (
-                                <a href={interview.location} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline break-all">
+                              <p className="font-bold text-slate-700">{isOnlineInApp ? "Phỏng vấn trực tuyến (MNP Live Studio)" : isOnlineExternal ? "Phỏng vấn Online (Link ngoài)" : "Phỏng vấn trực tiếp"}</p>
+                              {isOnlineInApp ? (
+                                <p className="text-purple-600 font-semibold">Phòng phỏng vấn Full HD bảo mật trên hệ thống</p>
+                              ) : isOnlineExternal ? (
+                                <a href={interview.location} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline break-all font-medium">
                                   {interview.location}
                                 </a>
                               ) : (
-                                <p>{interview.location}</p>
+                                <p className="font-medium text-slate-600">{interview.location || "Tại văn phòng"}</p>
                               )}
                             </div>
                           </div>
 
                           <div className="flex items-center justify-end gap-3 self-end">
-                            {isOnline && (interview.status === 'ACCEPTED' || interview.status === 'COMPLETED') && (
+                            {isOnlineInApp && interview.status === 'ACCEPTED' && (
                               <Button 
-                                className="bg-violet-600 hover:bg-violet-700 gap-2"
+                                className="bg-purple-600 hover:bg-purple-700 text-white gap-2 rounded-xl font-semibold shadow-sm"
+                                onClick={() => navigate(`/interview/room/${interview.id}`)}
+                              >
+                                <Video className="w-4 h-4" /> Vào MNP Live Studio
+                              </Button>
+                            )}
+                            {isOnlineExternal && interview.status === 'ACCEPTED' && (
+                              <Button 
+                                className="bg-blue-600 hover:bg-blue-700 text-white gap-2 rounded-xl font-semibold shadow-sm"
                                 onClick={() => window.open(interview.location, '_blank')}
                               >
-                                <Video className="w-4 h-4" /> Tham gia
+                                <Video className="w-4 h-4" /> Tham gia Link ngoài
                               </Button>
                             )}
                             {interview.status === 'PENDING' && (
@@ -224,7 +238,7 @@ export default function CandidateInterviews() {
                                 <span>Lời mời này đã hết hạn phản hồi</span>
                               </div>
                             )}
-                            {interview.status === 'ACCEPTED' && !isOnline && (
+                            {interview.status === 'ACCEPTED' && isOffline && (
                                <p className="text-sm text-green-600 font-medium italic bg-green-50 px-3 py-1 rounded-full">Bạn đã đồng ý tham gia buổi phỏng vấn này.</p>
                             )}
                             {interview.status === 'DECLINED' && (

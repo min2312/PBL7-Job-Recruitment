@@ -2,6 +2,12 @@ import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
+import {
 	FileText,
 	Search,
 	Calendar,
@@ -22,6 +28,8 @@ export function AdminApplications() {
 	const [totalItems, setTotalItems] = useState(0);
 	const [totalPages, setTotalPages] = useState(0);
 	const [currentPage, setCurrentPage] = useState(1);
+	const [selectedApp, setSelectedApp] = useState<any>(null);
+	const [showModal, setShowModal] = useState(false);
 
 	useEffect(() => {
 		window.scrollTo(0, 0);
@@ -56,6 +64,12 @@ export function AdminApplications() {
 				return (
 					<Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 font-bold uppercase text-[10px]">
 						Đang chờ
+					</Badge>
+				);
+			case "interview":
+				return (
+					<Badge className="bg-purple-500/10 text-purple-600 border-purple-500/20 font-bold uppercase text-[10px]">
+						Phỏng vấn
 					</Badge>
 				);
 			case "approved":
@@ -172,6 +186,10 @@ export function AdminApplications() {
 													<Button
 														variant="ghost"
 														size="sm"
+														onClick={() => {
+															setSelectedApp(app);
+															setShowModal(true);
+														}}
 														className="h-9 w-9 p-0 hover:bg-primary/10 text-primary rounded-xl"
 													>
 														<Eye className="w-4.5 h-4.5" />
@@ -217,6 +235,103 @@ export function AdminApplications() {
 					</div>
 				)}
 			</div>
+
+			{/* Modal Chi tiết đơn ứng tuyển (View-only) */}
+			<Dialog open={showModal} onOpenChange={setShowModal}>
+				<DialogContent className="max-w-2xl bg-white rounded-3xl p-8 border-0 shadow-2xl">
+					<DialogHeader>
+						<DialogTitle className="text-2xl font-black text-slate-800 flex items-center gap-3">
+							<div className="w-10 h-10 bg-primary/10 text-primary rounded-2xl flex items-center justify-center">
+								<FileText className="w-5 h-5" />
+							</div>
+							Chi tiết đơn ứng tuyển
+						</DialogTitle>
+					</DialogHeader>
+
+					{selectedApp && (
+						<div className="space-y-6 mt-4">
+							{/* Thông tin ứng viên */}
+							<div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 flex items-center gap-4">
+								<div className="w-14 h-14 bg-primary/10 text-primary rounded-full flex items-center justify-center text-xl font-extrabold shrink-0">
+									{selectedApp.User?.name?.charAt(0)}
+								</div>
+								<div>
+									<h3 className="text-lg font-bold text-slate-800">{selectedApp.User?.name}</h3>
+									<p className="text-sm font-semibold text-slate-500 mt-0.5">{selectedApp.User?.email}</p>
+									{selectedApp.User?.phone && (
+										<p className="text-sm font-medium text-slate-500 mt-0.5">SĐT: {selectedApp.User?.phone}</p>
+									)}
+								</div>
+							</div>
+
+							{/* Công việc ứng tuyển */}
+							<div className="space-y-3">
+								<div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Công việc ứng tuyển</div>
+								<div className="bg-purple-50 text-purple-700 rounded-2xl p-4 font-bold flex items-center justify-between">
+									<div className="flex items-center gap-2">
+										<Briefcase className="w-5 h-5" />
+										<span>{selectedApp.Job?.title}</span>
+									</div>
+									<a
+										href={`/jobs/${selectedApp.Job?.id || selectedApp.job_id}`}
+										target="_blank"
+										rel="noreferrer"
+										className="text-xs font-bold bg-white px-3 py-1.5 rounded-xl border border-purple-200 text-purple-600 flex items-center gap-1 hover:bg-purple-100 transition-all"
+									>
+										Xem tin <ExternalLink className="w-3.5 h-3.5" />
+									</a>
+								</div>
+							</div>
+
+							{/* Trạng thái & Quản lý */}
+							<div className="grid grid-cols-2 gap-4">
+								<div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col justify-center">
+									<div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Ngày nộp đơn</div>
+									<div className="text-sm font-bold text-slate-700 flex items-center gap-2">
+										<Calendar className="w-4 h-4 text-primary" />
+										{new Date(selectedApp.createdAt).toLocaleDateString("vi-VN", {
+											day: "2-digit",
+											month: "2-digit",
+											year: "numeric",
+											hour: "2-digit",
+											minute: "2-digit",
+										})}
+									</div>
+								</div>
+								<div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col justify-center items-start">
+									<div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Trạng thái hiện tại</div>
+									<div>{getStatusBadge(selectedApp.status)}</div>
+								</div>
+							</div>
+
+							{/* CV Đính kèm */}
+							<div className="space-y-3">
+								<div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Hồ sơ ứng viên (CV/Resume)</div>
+								{selectedApp.cv_file ? (
+									<div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex items-center justify-between">
+										<div className="flex items-center gap-3 font-bold text-sm text-slate-700">
+											<div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl text-xs uppercase">PDF/DOC</div>
+											<span className="truncate max-w-xs">{selectedApp.cv_file.split('/').pop()}</span>
+										</div>
+										<a
+											href={selectedApp.cv_file}
+											target="_blank"
+											rel="noreferrer"
+											className="bg-primary text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md hover:bg-primary/90 transition-all inline-block"
+										>
+											Xem / Tải CV
+										</a>
+									</div>
+								) : (
+									<div className="bg-amber-50 text-amber-600 font-bold rounded-2xl p-4 text-xs flex items-center gap-2">
+										<span>⚠️ Ứng viên không đính kèm file CV (Sử dụng hồ sơ trực tuyến).</span>
+									</div>
+								)}
+							</div>
+						</div>
+					)}
+				</DialogContent>
+			</Dialog>
 		</motion.div>
 	);
 }
