@@ -1,7 +1,8 @@
 import db from "../models";
 import { createNotification } from "./notificationService";
 import moment from "moment-timezone";
-
+import { generateRtcToken } from "./agoraService";
+require("dotenv").config();
 /**
  * Nhà tuyển dụng tạo lịch phỏng vấn
  */
@@ -14,14 +15,22 @@ const createInterview = async (data) => {
 			throw new Error("Thời gian phỏng vấn không được ở trong quá khứ.");
 		}
 
-		const interview = await db.Interview.create({
+		let interview = await db.Interview.create({
 			candidate_id,
 			employer_id,
 			job_id,
 			scheduled_at,
-			location,
+			location: data.type === "online_inapp" ? "" : location,
+			type: data.type || "online_inapp",
 			status: "PENDING",
 		});
+
+		if (interview.type === "online_inapp") {
+			interview.location = `${process.env.CLIENT_URL || "http://localhost:3000"}/interview/room/${interview.id}`;
+			await interview.save();
+		}
+
+		const finalLocation = interview.location;
 
 		// Lấy thông tin công việc và công ty
 		const job = await db.Job.findByPk(job_id, {
@@ -53,7 +62,7 @@ const createInterview = async (data) => {
 				<div style="font-size: 16px; color: #475569; line-height: 1.6;">
 					Bạn nhận được lời mời phỏng vấn cho vị trí: <strong style="color: #1e293b;">${job?.title}</strong><br>
 					<strong>Thời gian:</strong> ${timeStr} ngày ${dateStr}<br>
-					${location ? `<strong>Địa điểm/Link:</strong> ${location}` : ""}
+					${finalLocation ? `<strong>Địa điểm/Link:</strong> ${finalLocation}` : ""}
 				</div>
 			`,
 			reference_id: interview.id.toString(),
@@ -217,6 +226,9 @@ const updateInterview = async (id, data) => {
 			}
 		}
 
+		if (data.type === "online_inapp") {
+			data.location = `${process.env.CLIENT_URL || "http://localhost:3000"}/interview/room/${interview.id}`;
+		}
 		await interview.update(data);
 
 		const company = interview.job?.Company;
@@ -309,10 +321,53 @@ const deleteInterview = async (id) => {
 	}
 };
 
+const getInterviewAgoraToken = async (id, userId) => {
+	try {
+		const interview = await db.Interview.findByPk(id, {
+			include: [
+				{ model: db.User, as: "candidate", attributes: ["id", "name", "profile_picture"] },
+				{ model: db.User, as: "employer", attributes: ["id", "name", "profile_picture"] },
+				{ model: db.Job, as: "job", attributes: ["id", "title"] }
+			]
+		});
+
+		if (!interview) {
+			throw new Error("Không tìm thấy buổi phỏng vấn");
+		}
+
+		if (interview.candidate_id !== userId && interview.employer_id !== userId) {
+			const error = new Error("Bạn không có quyền tham gia phòng phỏng vấn này");
+			error.statusCode = 403;
+			throw error;
+		}
+
+		const channelName = "interview_" + id;
+		const tokenData = generateRtcToken(channelName, userId, "publisher", 14400);
+
+		return {
+			...tokenData,
+			interview: {
+				id: interview.id,
+				jobTitle: interview.job?.title,
+				candidateName: interview.candidate?.name,
+				candidateAvatar: interview.candidate?.profile_picture,
+				employerName: interview.employer?.name,
+				employerAvatar: interview.employer?.profile_picture,
+				scheduledAt: interview.scheduled_at,
+				status: interview.status
+			}
+		};
+	} catch (error) {
+		console.error("Error in getInterviewAgoraToken:", error);
+		throw error;
+	}
+};
+
 export {
 	createInterview,
 	updateInterviewStatus,
 	getInterviewsByUser,
 	updateInterview,
 	deleteInterview,
+	getInterviewAgoraToken,
 };

@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Send, Search, Paperclip, Loader2, MoreVertical, Phone, Video } from 'lucide-react';
+import { Send, Search, Paperclip, Loader2, MoreVertical } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import axiosClient from '@/services/axiosClient';
 import { useSocket } from '@/contexts/SocketContext';
@@ -337,17 +337,6 @@ export default function MessagesPage() {
                       Trực tuyến
                     </p>
                   </div>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" className="text-slate-400 hover:text-primary hover:bg-primary/5">
-                    <Phone className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="text-slate-400 hover:text-primary hover:bg-primary/5">
-                    <Video className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="text-slate-400 hover:text-primary hover:bg-primary/5">
-                    <MoreVertical className="w-4 h-4" />
-                  </Button>
                 </div>
               </div>
 

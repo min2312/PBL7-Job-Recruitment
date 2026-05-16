@@ -106,10 +106,30 @@ const handleGetInterviews = async (req, res) => {
 	}
 };
 
+const handleGetAgoraToken = async (req, res) => {
+	try {
+		const interviewId = req.params.id;
+		const userId = req.user.id;
+		const result = await interviewService.getInterviewAgoraToken(interviewId, userId);
+		return res.status(200).json({
+			errCode: 0,
+			data: result,
+		});
+	} catch (error) {
+		console.error("Error in handleGetAgoraToken:", error);
+		const status = error.statusCode || 500;
+		return res.status(status).json({
+			errCode: status === 403 ? 2 : 1,
+			message: error.message || "Lỗi máy chủ",
+		});
+	}
+};
+
 export {
 	handleCreateInterview,
 	handleUpdateStatus,
 	handleGetInterviews,
 	handleUpdateInterview,
 	handleDeleteInterview,
+	handleGetAgoraToken,
 };

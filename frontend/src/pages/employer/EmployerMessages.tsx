@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Send, Search, Paperclip, Loader2, MoreVertical, Phone, Video } from 'lucide-react';
+import { Send, Search, Paperclip, Loader2, MoreVertical } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import axiosClient from '@/services/axiosClient';
 import { useSocket } from '@/contexts/SocketContext';
@@ -313,17 +313,6 @@ export default function EmployerMessages() {
                       <p className="font-bold text-sm text-slate-900 leading-tight">{selectedConv.partner?.name}</p>
                       <p className="text-[10px] text-emerald-600 font-medium">Đang hoạt động</p>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-primary">
-                      <Phone className="w-3.5 h-3.5" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-primary">
-                      <Video className="w-3.5 h-3.5" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400">
-                      <MoreVertical className="w-3.5 h-3.5" />
-                    </Button>
                   </div>
                 </div>
 

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -62,7 +62,7 @@ interface Interview {
 	jobTitle: string;
 	date: string;
 	time: string;
-	type: "online" | "offline";
+	type: "online_inapp" | "online_external" | "offline";
 	status:
 		| "pending"
 		| "accepted"
@@ -246,21 +246,35 @@ function EditDialog({ interview, open, onClose, onSave }: EditDialogProps) {
 						</Label>
 						<Select
 							value={form.type}
-							onValueChange={(v) => set("type", v as "online" | "offline")}
+							onValueChange={(v) => {
+								const newType = v as any;
+								setForm((prev) => {
+									const next = { ...prev, type: newType };
+									if (newType === "offline" && prev.type === "online_inapp") {
+										next.location = "";
+									}
+									return next;
+								});
+							}}
 							disabled={isSubmitting}
 						>
 							<SelectTrigger>
 								<SelectValue />
 							</SelectTrigger>
 							<SelectContent>
-								<SelectItem value="online">
-									<span className="flex items-center gap-2">
-										<Video className="w-4 h-4 text-violet-500" /> Online
+								<SelectItem value="online_inapp">
+									<span className="flex items-center gap-2 font-semibold text-purple-700">
+										<Video className="w-4 h-4 text-purple-600" /> MNP Live Studio (Tích hợp)
+									</span>
+								</SelectItem>
+								<SelectItem value="online_external">
+									<span className="flex items-center gap-2 font-semibold text-blue-700">
+										<Link2 className="w-4 h-4 text-blue-600" /> Phỏng vấn qua Link ngoài
 									</span>
 								</SelectItem>
 								<SelectItem value="offline">
-									<span className="flex items-center gap-2">
-										<MapPin className="w-4 h-4 text-amber-500" /> Trực tiếp
+									<span className="flex items-center gap-2 font-semibold text-amber-700">
+										<MapPin className="w-4 h-4 text-amber-500" /> Trực tiếp (Offline)
 									</span>
 								</SelectItem>
 							</SelectContent>
@@ -268,10 +282,19 @@ function EditDialog({ interview, open, onClose, onSave }: EditDialogProps) {
 					</div>
 
 					{/* Conditional field */}
-					{form.type === "online" ? (
+					{form.type === "online_inapp" ? (
+						<div className="rounded-xl bg-purple-50 p-3 border border-purple-100 text-xs text-purple-800 space-y-1">
+							<p className="font-semibold flex items-center gap-1.5">
+								<Video className="w-4 h-4 text-purple-600 shrink-0" /> Phòng phỏng vấn Full HD tích hợp
+							</p>
+							<p className="text-purple-600/90 leading-relaxed">
+								Đường dẫn phòng: /interview/room/{interview?.id}
+							</p>
+						</div>
+					) : form.type === "online_external" ? (
 						<div className="space-y-1.5">
 							<Label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-								<Link2 className="w-3.5 h-3.5" /> Link phỏng vấn
+								<Link2 className="w-3.5 h-3.5" /> Link phỏng vấn (Google Meet / Zoom...)
 							</Label>
 							<Input
 								value={form.link || ""}
@@ -283,7 +306,7 @@ function EditDialog({ interview, open, onClose, onSave }: EditDialogProps) {
 					) : (
 						<div className="space-y-1.5">
 							<Label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-								<MapPin className="w-3.5 h-3.5" /> Địa điểm
+								<MapPin className="w-3.5 h-3.5" /> Địa điểm tổ chức
 							</Label>
 							<Input
 								value={form.location || ""}
@@ -350,7 +373,7 @@ function CreateDialog({
 	const [selectedApp, setSelectedApp] = useState("");
 	const [date, setDate] = useState("");
 	const [time, setTime] = useState("");
-	const [type, setType] = useState<"online" | "offline">("online");
+	const [type, setType] = useState<"online_inapp" | "online_external" | "offline">("online_inapp");
 	const [link, setLink] = useState("");
 	const [location, setLocation] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -387,15 +410,15 @@ function CreateDialog({
 				time,
 				type,
 				status: "scheduled",
-				link: type === "online" ? link : undefined,
-				location: type === "offline" ? location : undefined,
+				link: type === "online_external" ? link : undefined,
+				location: type === "online_inapp" ? "MNP_LIVE_STUDIO" : type === "offline" ? location : undefined,
 			};
 			await onAdd(newInterview);
 			// Reset
 			setSelectedApp("");
 			setDate("");
 			setTime("");
-			setType("online");
+			setType("online_inapp");
 			setLink("");
 			setLocation("");
 			onClose();
@@ -499,43 +522,66 @@ function CreateDialog({
 						<Label className="text-xs font-medium text-muted-foreground">
 							Hình thức phỏng vấn
 						</Label>
-						<div className="grid grid-cols-2 gap-2">
+						<div className="grid grid-cols-3 gap-2">
 							<button
 								type="button"
 								disabled={isSubmitting}
-								onClick={() => setType("online")}
+								onClick={() => setType("online_inapp")}
 								className={cn(
-									"flex items-center justify-center gap-2 rounded-lg border-2 py-2.5 text-sm font-medium transition-all",
-									type === "online"
-										? "border-violet-500 bg-violet-50 text-violet-700"
+									"flex flex-col items-center justify-center gap-1 rounded-xl border-2 p-2.5 text-xs font-semibold transition-all",
+									type === "online_inapp"
+										? "border-purple-600 bg-purple-50 text-purple-700 shadow-sm"
 										: "border-border text-muted-foreground hover:border-muted-foreground/40",
 									isSubmitting && "opacity-50 cursor-not-allowed",
 								)}
 							>
-								<Video className="w-4 h-4" /> Online
+								<Video className="w-4 h-4 text-purple-600" /> MNP Live Studio
+							</button>
+							<button
+								type="button"
+								disabled={isSubmitting}
+								onClick={() => setType("online_external")}
+								className={cn(
+									"flex flex-col items-center justify-center gap-1 rounded-xl border-2 p-2.5 text-xs font-semibold transition-all",
+									type === "online_external"
+										? "border-blue-600 bg-blue-50 text-blue-700 shadow-sm"
+										: "border-border text-muted-foreground hover:border-muted-foreground/40",
+									isSubmitting && "opacity-50 cursor-not-allowed",
+								)}
+							>
+								<Link2 className="w-4 h-4 text-blue-600" /> Link ngoài
 							</button>
 							<button
 								type="button"
 								disabled={isSubmitting}
 								onClick={() => setType("offline")}
 								className={cn(
-									"flex items-center justify-center gap-2 rounded-lg border-2 py-2.5 text-sm font-medium transition-all",
+									"flex flex-col items-center justify-center gap-1 rounded-xl border-2 p-2.5 text-xs font-semibold transition-all",
 									type === "offline"
-										? "border-amber-500 bg-amber-50 text-amber-700"
+										? "border-amber-500 bg-amber-50 text-amber-700 shadow-sm"
 										: "border-border text-muted-foreground hover:border-muted-foreground/40",
 									isSubmitting && "opacity-50 cursor-not-allowed",
 								)}
 							>
-								<MapPin className="w-4 h-4" /> Trực tiếp
+								<MapPin className="w-4 h-4 text-amber-500" /> Trực tiếp
 							</button>
 						</div>
 					</div>
 
 					{/* Conditional */}
-					{type === "online" ? (
+					{type === "online_inapp" ? (
+						<div className="rounded-xl bg-purple-50/50 p-3 border border-purple-100 text-xs text-purple-800 space-y-1">
+							<p className="font-semibold flex items-center gap-1.5">
+								<Video className="w-4 h-4 text-purple-600 shrink-0" /> Phòng phỏng vấn Full HD tích hợp
+							</p>
+							<p className="text-purple-600/90 leading-relaxed">
+								Hệ thống sẽ tự động tạo phòng trực tuyến bảo mật. Nhà tuyển dụng và ứng viên tham gia trực tiếp trên trình duyệt mà không cần cài thêm phần mềm.
+							</p>
+						</div>
+					) : type === "online_external" ? (
 						<div className="space-y-1.5">
 							<Label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-								<Link2 className="w-3.5 h-3.5" /> Link phỏng vấn
+								<Link2 className="w-3.5 h-3.5" /> Link phỏng vấn (Google Meet / Zoom...)
 							</Label>
 							<Input
 								value={link}
@@ -590,6 +636,7 @@ function CreateDialog({
 export default function EmployerSchedule() {
 	const { user } = useAuth();
 	const location = useLocation();
+	const navigate = useNavigate();
 
 	// Move states to top
 	const [interviews, setInterviews] = useState<Interview[]>([]);
@@ -643,16 +690,10 @@ export default function EmployerSchedule() {
 						jobTitle: i.job?.title || "Vị trí",
 						date: dateStr,
 						time: timeStr,
-						type: i.location?.toLowerCase().includes("http")
-							? "online"
-							: "offline",
+						type: i.type || "online_inapp",
 						status: i.status.toLowerCase(),
-						link: i.location?.toLowerCase().includes("http")
-							? i.location
-							: undefined,
-						location: !i.location?.toLowerCase().includes("http")
-							? i.location
-							: undefined,
+						link: i.type === "online_external" ? i.location : undefined,
+						location: i.location,
 					};
 				});
 				setInterviews(formatted);
@@ -674,17 +715,25 @@ export default function EmployerSchedule() {
 	useEffect(() => {
 		fetchData(currentPage, date);
 	}, [currentPage, filterStatus, date]);
-
+	
 	const availableCandidates = useMemo(() => {
 		return myApplications
-			.filter((app) => app.status !== "REJECTED")
+			.filter((app) => {
+				const hasActiveOrCompletedInterview = interviews.some(
+					(i) =>
+						i.candidateId === app.userId &&
+						i.jobId === app.jobId &&
+						["pending", "accepted", "scheduled", "completed"].includes(i.status),
+				);
+				return !hasActiveOrCompletedInterview;
+			})
 			.map((app) => ({
 				userId: app.userId,
 				userName: app.User?.name || "Ứng viên",
 				jobTitle: app.Job?.title || "Vị trí",
 				jobId: app.jobId,
 			}));
-	}, [myApplications]);
+	}, [myApplications, interviews]);
 
 	const scheduledCount = useMemo(
 		() =>
@@ -701,7 +750,7 @@ export default function EmployerSchedule() {
 		[interviews],
 	);
 	const onlineCount = useMemo(
-		() => interviews.filter((i) => i.type === "online").length,
+		() => interviews.filter((i) => i.type.startsWith("online")).length,
 		[interviews],
 	);
 	const offlineCount = useMemo(
@@ -759,8 +808,11 @@ export default function EmployerSchedule() {
 				candidate_id: newInterview.candidateId,
 				job_id: newInterview.jobId,
 				scheduled_at: isoAt,
+				type: newInterview.type,
 				location:
-					newInterview.type === "online"
+					newInterview.type === "online_inapp"
+						? "MNP_LIVE_STUDIO"
+						: newInterview.type === "online_external"
 						? newInterview.link
 						: newInterview.location,
 				note: "",
@@ -781,10 +833,17 @@ export default function EmployerSchedule() {
 	const handleSave = async (updated: Interview) => {
 		try {
 			const isoAt = new Date(`${updated.date}T${updated.time}`).toISOString();
+			const finalLoc =
+				updated.type === "online_inapp"
+					? `/interview/room/${updated.id}`
+					: updated.type === "online_external"
+					? updated.link
+					: updated.location;
 			const res = await axiosClient.put("/api/interviews/update", {
 				id: updated.id,
 				scheduled_at: isoAt,
-				location: updated.type === "online" ? updated.link : updated.location,
+				type: updated.type,
+				location: finalLoc,
 				status: updated.status.toUpperCase(),
 			});
 			if (res.data.errCode === 0) {
@@ -1064,19 +1123,33 @@ export default function EmployerSchedule() {
 											</div>
 
 											<div className="flex items-center gap-2 md:self-center">
-												{item.type === "online" ? (
-													<Button
-														size="sm"
-														onClick={() => handleJoinMeet(item.link || "")}
-														className="h-9 px-4 bg-violet-600 hover:bg-violet-700 text-white gap-2 shadow-sm"
-													>
-														<Video className="w-4 h-4" /> Tham gia
-													</Button>
-												) : (
-													<div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 rounded-lg text-xs font-medium border border-amber-100">
-														<MapPin className="w-3.5 h-3.5" /> Trực tiếp
+												{["accepted", "ACCEPTED", "scheduled", "SCHEDULED"].includes(item.status) ? (
+													item.type === "online_inapp" ? (
+														<Button
+															size="sm"
+															onClick={() => navigate(`/interview/room/${item.id}`)}
+															className="h-9 px-4 bg-purple-600 hover:bg-purple-700 text-white gap-2 shadow-sm font-semibold rounded-xl"
+														>
+															<Video className="w-4 h-4" /> Vào MNP Live Studio
+														</Button>
+													) : item.type === "online_external" ? (
+														<Button
+															size="sm"
+															onClick={() => handleJoinMeet(item.link || "")}
+															className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white gap-2 shadow-sm rounded-xl font-semibold"
+														>
+															<Link2 className="w-4 h-4" /> Link ngoài
+														</Button>
+													) : (
+														<div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 rounded-xl text-xs font-semibold border border-amber-100">
+															<MapPin className="w-3.5 h-3.5" /> Trực tiếp ({item.location || "Tại văn phòng"})
+														</div>
+													)
+												) : item.type === "offline" || !item.type?.startsWith("online") ? (
+													<div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold border border-slate-200/60">
+														<MapPin className="w-3.5 h-3.5" /> {item.location || "Tại văn phòng"}
 													</div>
-												)}
+												) : null}
 
 												{["pending", "accepted", "scheduled"].includes(
 													item.status,

@@ -51,7 +51,7 @@ const handlePayOSWebhook = async (req, res) => {
 
 const getAdminTransactions = async (req, res) => {
     try {
-        let response = await paymentService.getAllTransactions();
+        let response = await paymentService.getAllTransactions(req.query);
         return res.status(200).json(response);
     } catch (error) {
         return res.status(500).json({
@@ -59,10 +59,25 @@ const getAdminTransactions = async (req, res) => {
             errMessage: "Lỗi từ server",
         });
     }
-}
+};
+
+const cancelPayment = async (req, res) => {
+	try {
+		const { orderCode } = req.body;
+		if (!orderCode) {
+			return res.status(400).json({ errCode: 1, errMessage: "Thiếu orderCode" });
+		}
+		let response = await paymentService.cancelTransaction(orderCode);
+		return res.status(200).json(response);
+	} catch (error) {
+		console.log("Cancel Payment Error:", error);
+		return res.status(500).json({ errCode: -1, errMessage: "Lỗi từ server" });
+	}
+};
 
 module.exports = {
 	createPaymentLink,
 	handlePayOSWebhook,
-    getAdminTransactions
+	getAdminTransactions,
+	cancelPayment,
 };

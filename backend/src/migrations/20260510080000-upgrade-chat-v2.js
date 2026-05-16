@@ -57,13 +57,23 @@ module.exports = {
     await queryInterface.addColumn('messages', 'conversation_id', {
       type: Sequelize.INTEGER,
       allowNull: true, // Allow null for existing messages, then we can backfill
-      references: { model: 'conversations', key: 'id' },
+    });
+
+    await queryInterface.addConstraint('messages', {
+      fields: ['conversation_id'],
+      type: 'foreign key',
+      name: 'fk_messages_conversation_id',
+      references: {
+        table: 'conversations',
+        field: 'id'
+      },
       onUpdate: 'CASCADE',
       onDelete: 'CASCADE'
     });
   },
 
   down: async (queryInterface, Sequelize) => {
+    await queryInterface.removeConstraint('messages', 'fk_messages_conversation_id');
     await queryInterface.removeColumn('messages', 'conversation_id');
     await queryInterface.dropTable('conversations');
   }

@@ -331,6 +331,7 @@ const updateApplicationStatus = async (applicationId, status) => {
 const getAllApplicationsByEmployer = async (companyId) => {
 	try {
 		const rows = await db.Application.findAll({
+			where: { status: "interview" },
 			include: [
 				{
 					model: db.Job,

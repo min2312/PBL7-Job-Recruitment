@@ -13,10 +13,9 @@ module.exports = {
 		dialect: "mysql",
 		port: process.env.DB_PORT,
 		dialectOptions: {
-			// ssl: {
-			// 	require: true,
-			// 	rejectUnauthorized: true,
-			// },
+			...(process.env.NODE_ENV === "production"
+				? { ssl: { require: true, rejectUnauthorized: true } }
+				: {}),
 		},
 	},
 	production: {
@@ -26,5 +25,10 @@ module.exports = {
 		host: process.env.DB_HOST,
 		dialect: "mysql",
 		port: process.env.DB_PORT,
+		dialectOptions: {
+			...(process.env.NODE_ENV === "production"
+				? { ssl: { require: true, rejectUnauthorized: true } }
+				: {}),
+		},
 	},
 };

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { CheckCircle2, AlertCircle, ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import axiosClient from "@/services/axiosClient";
 
 export default function PaymentResult() {
 	const [searchParams] = useSearchParams();
@@ -18,6 +19,12 @@ export default function PaymentResult() {
             navigate("/employer/jobs");
         }
     }, [countdown, navigate]);
+
+	useEffect(() => {
+		if (paymentStatus === "cancel" && orderCode) {
+			axiosClient.post("/api/payment/cancel", { orderCode }).catch(console.error);
+		}
+	}, [paymentStatus, orderCode]);
 
 	if (paymentStatus === "success") {
 		return (

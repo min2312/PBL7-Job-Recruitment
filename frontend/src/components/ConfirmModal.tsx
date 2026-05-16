@@ -42,7 +42,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
 						initial={{ opacity: 0, scale: 0.9, y: 20 }}
 						animate={{ opacity: 1, scale: 1, y: 0 }}
 						exit={{ opacity: 0, scale: 0.9, y: 20 }}
-						className="relative w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl overflow-hidden"
+						className="relative w-full max-w-md bg-card text-card-foreground border border-border rounded-2xl shadow-2xl overflow-hidden"
 					>
 						<div className="p-6">
 							<div className="flex items-center justify-between mb-4">
@@ -62,12 +62,12 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
 							<h3 className="text-xl font-bold text-foreground mb-2">
 								{title}
 							</h3>
-							<p className="text-muted-foreground mb-6">{description}</p>
+							<p className="text-muted-foreground text-sm mb-6">{description}</p>
 
 							<div className="flex gap-3">
 								<Button
 									variant="outline"
-									className="flex-1"
+									className="flex-1 text-foreground border-border hover:bg-muted"
 									onClick={onClose}
 									disabled={isLoading}
 								>
@@ -75,7 +75,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
 								</Button>
 								<Button
 									variant="destructive"
-									className="flex-1 bg-red-600 hover:bg-red-700 text-white gap-2"
+									className="flex-1 bg-red-600 hover:bg-red-700 text-white gap-2 font-semibold shadow-lg shadow-red-600/20"
 									onClick={onConfirm}
 									disabled={isLoading}
 								>

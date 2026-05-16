@@ -11,5 +11,5 @@ jest.setup.cjs
 jesthtmlreporter.config.json
 dist
 
-#Nhớ đổi webhook cho PayOS khi deploy và azure blob storage mở ennable cổng và setup socket tcp
+#Nhớ đổi webhook cho PayOS khi deploy và azure blob storage mở ennable cổng và setup socket tcp và firebase cho FE
 

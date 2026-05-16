@@ -297,6 +297,32 @@ const HandleGetJobDetail = async (req, res) => {
 	}
 };
 
+const HandleUpdateApplicationStatus = async (req, res) => {
+	try {
+		const { applicationId, status } = req.body;
+		if (!applicationId || !status) {
+			return res.status(400).json({ errCode: 1, errMessage: "Missing required parameters" });
+		}
+		const result = await adminService.updateApplicationStatus(applicationId, status);
+		return res.status(200).json(result);
+	} catch (error) {
+		return res.status(500).json({ errCode: -1, errMessage: "Error from server" });
+	}
+};
+
+const HandleDeleteApplication = async (req, res) => {
+	try {
+		const { applicationId } = req.body;
+		if (!applicationId) {
+			return res.status(400).json({ errCode: 1, errMessage: "Missing required parameter: applicationId" });
+		}
+		const result = await adminService.deleteApplication(applicationId);
+		return res.status(200).json(result);
+	} catch (error) {
+		return res.status(500).json({ errCode: -1, errMessage: "Error from server" });
+	}
+};
+
 module.exports = {
 	HandleLoginAdmin,
 	HandleLogOut,
@@ -312,6 +338,8 @@ module.exports = {
 	HandleDeleteJob,
 	HandleGetAllCompanies,
 	HandleGetAllApplications,
+	HandleUpdateApplicationStatus,
+	HandleDeleteApplication,
 	HandleGetStatistics,
 	HandleGetCompanyDetail,
 	HandleGetJobDetail,
