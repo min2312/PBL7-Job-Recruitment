@@ -8,12 +8,9 @@ from dotenv import load_dotenv
 
 load_dotenv() 
 
-# --- GIẢI PHÁP TỐI ƯU HÓA AZURE: LƯU CACHE MODEL VĨNH VIỄN VÀO BỘ NHỚ /home ---
-# Tránh việc Hugging Face tải lại file 400MB mỗi khi container khởi động lại
-CACHE_DIR = os.path.join(os.getcwd(), "model_cache")
-os.makedirs(CACHE_DIR, exist_ok=True)
-os.environ["HF_HOME"] = CACHE_DIR
-os.environ["TRANSFORMERS_CACHE"] = CACHE_DIR
+import sys
+if sys.platform != "win32" and os.path.exists('/home'):
+    os.environ["HF_HOME"] = "/home/ai_models/hf_cache"
 
 import google.generativeai as genai
 from readCV import extract_text_from_pdf, parse_cv_with_ai
@@ -42,7 +39,7 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 API_BASE = os.environ.get("BACKEND_API_BASE")
 
 def preload_weights():
-    """Hàm load toàn bộ model/artifact ngay khi khởi động App để dùng nhanh hơn"""
+    """Hàm load toàn bộ model/artifact vào bộ nhớ RAM"""
     global model_st, rec_artifacts
     print("🚀 Đang khởi động AI Server: Preloading weights & models...")
     try:
@@ -63,8 +60,20 @@ def preload_weights():
     except Exception as e:
         print(f"❌ Lỗi khi preload: {e}")
 
-# Gọi preload ngay khi import
-preload_weights()
+# Khởi chạy nạp toàn bộ trọng số (weights) ngay khi khởi động App (đúng 1 lần duy nhất)
+# Điều kiện này đảm bảo: Khi chạy py .\app.py ở local, chỉ nạp ở tiến trình con (WERKZEUG_RUN_MAIN), bỏ qua tiến trình stat reloader. Khi chạy trên Gunicorn Azure, tự động nạp.
+if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not sys.argv[0].endswith("app.py"):
+    preload_weights()
+    from test import _cached_models, MODEL_DIR
+    try:
+        if not _cached_models:
+            _cached_models['model'] = joblib.load(os.path.join(MODEL_DIR, 'salary_predictor.pkl'))
+            _cached_models['category_mapping'] = joblib.load(os.path.join(MODEL_DIR, 'category_mapping.pkl'))
+            _cached_models['level_mapping'] = joblib.load(os.path.join(MODEL_DIR, 'level_mapping.pkl'))
+            _cached_models['edu_mapping'] = joblib.load(os.path.join(MODEL_DIR, 'edu_mapping.pkl'))
+            print("  - Salary Predictor: Loaded")
+    except Exception as e:
+        print(f"  - Salary Predictor error: {e}")
 
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
