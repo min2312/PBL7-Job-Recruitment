@@ -9,9 +9,12 @@ from dotenv import load_dotenv
 # Load environmental variables
 load_dotenv()
 
-# --- Cấu hình từ .env ---
-BASE_DIR = r"d:\PBL7\AI"
-VENV_PYTHON = os.path.join(BASE_DIR, ".venv", "Scripts", "python.exe")
+# --- Cấu hình tự động tương thích Windows / Linux ---
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+if sys.platform != "win32":
+    VENV_PYTHON = sys.executable  # Sử dụng thông dịch viên python hiện tại trên Linux (Azure)
+else:
+    VENV_PYTHON = os.path.join(BASE_DIR, ".venv", "Scripts", "python.exe")
 BACKEND_SYNC_URL = f"{os.getenv('BACKEND_URL', 'http://localhost:8081')}/api/neo4j/sync-new"
 
 def log(message):

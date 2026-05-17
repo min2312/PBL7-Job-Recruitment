@@ -1,16 +1,17 @@
 import os
+import sys
 import shutil
 
 def get_and_sync_model_dir(subpath=""):
     """
-    Trả về đường dẫn thư mục model. Nếu chạy trên Azure, tự động dùng /home/data/ai_models.
-    Nếu model chưa có trong /home/data, tự động copy từ thư mục models gốc của repo sang.
+    Trả về đường dẫn thư mục model. Nếu chạy trên Azure Linux, tự động dùng /home/ai_models.
+    Nếu model chưa có trong /home/ai_models, tự động copy từ thư mục models gốc của repo sang.
     """
     local_base = os.path.abspath(os.path.join(os.path.dirname(__file__), 'models'))
     
-    # Kiểm tra nếu đang chạy trên máy chủ Azure App Service Linux
-    if os.path.exists('/home/data'):
-        persistent_base = '/home/data/ai_models'
+    # Kiểm tra nếu đang chạy trên máy chủ Azure App Service Linux (/home luôn tồn tại)
+    if sys.platform != "win32" and os.path.exists('/home'):
+        persistent_base = '/home/ai_models'
         persistent_target = os.path.join(persistent_base, subpath) if subpath else persistent_base
         local_target = os.path.join(local_base, subpath) if subpath else local_base
 
@@ -26,11 +27,11 @@ def get_and_sync_model_dir(subpath=""):
                         shutil.copytree(s, d, dirs_exist_ok=True)
                     else:
                         shutil.copy2(s, d)
-            print("✅ Đồng bộ Model vĩnh viễn thành công!")
+            print(f"✅ Đồng bộ Model vĩnh viễn thành công vào {persistent_target}!")
             
         return persistent_target
     else:
-        # Nếu chạy dưới Local PC của bạn
+        # Nếu chạy dưới Local PC của bạn (Windows / macOS)
         target = os.path.join(local_base, subpath) if subpath else local_base
         os.makedirs(target, exist_ok=True)
         return target
