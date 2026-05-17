@@ -2,7 +2,7 @@ import express from "express";
 import bodyParser from "body-parser";
 import initWebRouters from "./routes/web";
 import cors from "cors";
-import connectDB from "../src/config/connectDB";
+import connectDB from "./config/connectDB";
 import cookieParser from "cookie-parser";
 import passport from "passport";
 import http from "http";
