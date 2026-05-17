@@ -31,8 +31,10 @@ BASE_URL = os.getenv('BACKEND_URL', 'http://localhost:8081')
 SALARY_API = f'{BASE_URL}/api/neo4j/training-dataset'
 RECOMMEND_API = f'{BASE_URL}/api/neo4j/recommendation-dataset'
 
-MODEL_SALARY_DIR = 'models/salary'
-MODEL_REC_DIR = 'models/recommendation'
+from model_manager import get_and_sync_model_dir
+
+MODEL_SALARY_DIR = get_and_sync_model_dir('salary')
+MODEL_REC_DIR = get_and_sync_model_dir('recommendation')
 
 LEVEL_MAPPING = {
     'Thực tập sinh': 1, 'Nhân viên': 2, 'Trưởng nhóm': 3,

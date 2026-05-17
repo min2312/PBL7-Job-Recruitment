@@ -10,7 +10,9 @@ load_dotenv()
 
 from ai_utils import generate_with_rotation
 
-MODEL_DIR = 'models/salary'
+from model_manager import get_and_sync_model_dir
+
+MODEL_DIR = get_and_sync_model_dir('salary')
 
 def get_all_valid_mappings():
     """Hàm chui vào thư mục models/ lấy TOÀN BỘ danh sách chuẩn để ép Gemini"""

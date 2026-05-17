@@ -25,7 +25,10 @@ def clean_text(text):
     return text
 
 class RecommendationEngine:
-    def __init__(self, model_dir='models/recommendation'):
+    def __init__(self, model_dir=None):
+        if model_dir is None:
+            from model_manager import get_and_sync_model_dir
+            model_dir = get_and_sync_model_dir('recommendation')
         self.model_dir = model_dir
         self.model_st = None
         self.artifacts = {}

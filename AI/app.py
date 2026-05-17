@@ -18,7 +18,9 @@ import joblib
 from sentence_transformers import SentenceTransformer
 import faiss
 
-MODEL_REC_DIR = 'models/recommendation'
+from model_manager import get_and_sync_model_dir
+
+MODEL_REC_DIR = get_and_sync_model_dir('recommendation')
 model_st = None # Load lazy
 rec_artifacts = {} # Cache cho df, index, clf, vectorizer
 

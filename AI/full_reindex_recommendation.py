@@ -20,7 +20,9 @@ if sys.stdout.encoding != 'utf-8':
 # Cấu hình
 BASE_URL = os.getenv('BACKEND_URL', 'http://localhost:8081')
 RECOMMEND_API = f'{BASE_URL}/api/neo4j/recommendation-dataset'
-MODEL_REC_DIR = 'models/recommendation'
+from model_manager import get_and_sync_model_dir
+
+MODEL_REC_DIR = get_and_sync_model_dir('recommendation')
 
 def fetch_all_recommendation_data():
     # Không truyền tham số days để lấy TOÀN BỘ database
