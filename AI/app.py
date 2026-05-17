@@ -8,6 +8,13 @@ from dotenv import load_dotenv
 
 load_dotenv() 
 
+# --- GIẢI PHÁP TỐI ƯU HÓA AZURE: LƯU CACHE MODEL VĨNH VIỄN VÀO BỘ NHỚ /home ---
+# Tránh việc Hugging Face tải lại file 400MB mỗi khi container khởi động lại
+CACHE_DIR = os.path.join(os.getcwd(), "model_cache")
+os.makedirs(CACHE_DIR, exist_ok=True)
+os.environ["HF_HOME"] = CACHE_DIR
+os.environ["TRANSFORMERS_CACHE"] = CACHE_DIR
+
 import google.generativeai as genai
 from readCV import extract_text_from_pdf, parse_cv_with_ai
 from test import load_model_and_predict
