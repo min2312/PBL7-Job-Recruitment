@@ -3,7 +3,7 @@ torch==2.2.2+cpu
 gunicorn
 Flask
 pdfplumber
-google-genai
+google-generativeai
 pandas
 xgboost
 scikit-learn
