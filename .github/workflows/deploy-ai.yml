@@ -27,13 +27,10 @@ jobs:
           cache: "pip"
           cache-dependency-path: AI/requirements.txt
 
-      - name: Install dependencies
+      - name: Check Python environment
         working-directory: ./AI
         run: |
-          python -m venv antenv
-          source antenv/bin/activate
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
 
       - name: Upload artifact for deployment
         uses: actions/upload-artifact@v4
