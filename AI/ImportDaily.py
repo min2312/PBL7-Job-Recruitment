@@ -16,7 +16,9 @@ DB_HOST = os.getenv("DB_HOST", "127.0.0.1")
 DB_PORT = os.getenv("DB_PORT", "3306")
 DB_NAME = os.getenv("DB_NAME", "job_recruitment")
 
-engine = create_engine(f"mysql+pymysql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset=utf8mb4")
+import urllib.parse
+escaped_pass = urllib.parse.quote_plus(DB_PASS) if DB_PASS else ""
+engine = create_engine(f"mysql+pymysql://{DB_USER}:{escaped_pass}@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset=utf8mb4")
 
 def normalize_list_field(value):
     if not isinstance(value, str):

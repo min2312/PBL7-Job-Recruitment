@@ -178,6 +178,7 @@ module.exports = {
 			job_id: {
 				type: Sequelize.INTEGER,
 				allowNull: false,
+				primaryKey: true,
 				references: {
 					model: "jobs",
 					key: "id",
@@ -188,6 +189,7 @@ module.exports = {
 			category_id: {
 				type: Sequelize.INTEGER,
 				allowNull: false,
+				primaryKey: true,
 				references: {
 					model: "categories",
 					key: "id",
@@ -222,6 +224,7 @@ module.exports = {
 			job_id: {
 				type: Sequelize.INTEGER,
 				allowNull: false,
+				primaryKey: true,
 				references: {
 					model: "jobs",
 					key: "id",
@@ -232,6 +235,7 @@ module.exports = {
 			location_id: {
 				type: Sequelize.INTEGER,
 				allowNull: false,
+				primaryKey: true,
 				references: {
 					model: "locations",
 					key: "id",
@@ -291,6 +295,7 @@ module.exports = {
 			user_id: {
 				type: Sequelize.INTEGER,
 				allowNull: false,
+				primaryKey: true,
 				references: {
 					model: "users",
 					key: "id",
@@ -301,6 +306,7 @@ module.exports = {
 			job_id: {
 				type: Sequelize.INTEGER,
 				allowNull: false,
+				primaryKey: true,
 				references: {
 					model: "jobs",
 					key: "id",
@@ -320,24 +326,6 @@ module.exports = {
 					"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
 				),
 			},
-		});
-
-		await queryInterface.addConstraint("job_categories", {
-			type: "primary key",
-			fields: ["job_id", "category_id"],
-			name: "pk_job_categories",
-		});
-
-		await queryInterface.addConstraint("job_locations", {
-			type: "primary key",
-			fields: ["job_id", "location_id"],
-			name: "pk_job_locations",
-		});
-
-		await queryInterface.addConstraint("saved_jobs", {
-			type: "primary key",
-			fields: ["user_id", "job_id"],
-			name: "pk_saved_jobs",
 		});
 	},
 

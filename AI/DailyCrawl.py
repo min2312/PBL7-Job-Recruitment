@@ -47,7 +47,9 @@ class DailyTopCVCrawler:
         db_port = os.getenv("DB_PORT")
         db_name = os.getenv("DB_NAME")
         
-        db_url = f"mysql+pymysql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
+        import urllib.parse
+        escaped_pass = urllib.parse.quote_plus(db_pass) if db_pass else ""
+        db_url = f"mysql+pymysql://{db_user}:{escaped_pass}@{db_host}:{db_port}/{db_name}"
         self.db_engine = create_engine(db_url)
         
         self.http_session = None
