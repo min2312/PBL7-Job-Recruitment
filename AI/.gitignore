@@ -3,5 +3,4 @@ uploads
 .env
 __pycache__
 fix_db.py
-test.py
 migrate_local_to_tidb.py
