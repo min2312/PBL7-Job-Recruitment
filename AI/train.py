@@ -15,7 +15,7 @@ import joblib
 import requests
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_absolute_error, r2_score
+from sklearn.metrics import mean_absolute_error, r2_score, mean_squared_error
 
 # Thư viện cho hệ thống gợi ý (Chỉ thêm mới)
 try:
@@ -84,23 +84,22 @@ def train_pipeline(days=None):
     df['edu_score'] = df['education'].map(EDU_MAPPING).fillna(0)
 
     # ==========================================
-    # BƯỚC 1: DỌN RÁC (RUTHLESS CLEANING)
+    # BƯỚC 1: DỌN RÁC (ROBUST OUTLIER CLEANING)
     # ==========================================
     df['target_salary'] = df['target_salary'].replace([0, None], np.nan)
     
-    df.loc[(df['level_score'] == 1) & (df['target_salary'] > 6), 'target_salary'] = np.nan
-    df.loc[(df['experience_years'] == 0) & (df['target_salary'] > 12), 'target_salary'] = np.nan
-
-    fallback_medians = {1: 3.5, 2: 12.0, 3: 18.0, 4: 25.0, 5: 35.0, 6: 50.0, 7: 80.0}
+    # Áp dụng tri thức chuyên gia (Domain Knowledge) về chuẩn thị trường Việt Nam
+    # Thực tập sinh (level 1): Mức hỗ trợ thực tế <= 5.0 triệu VNĐ. Các tin để > 5.0 là ảo / clickbait.
+    df.loc[(df['level_score'] == 1) & (df['target_salary'] > 5.0), 'target_salary'] = 3.5
+    # Nhân viên 0 năm kinh nghiệm (Fresher): Lương thực tế <= 12.0 triệu VNĐ. Các tin > 12.0 là ảo.
+    df.loc[(df['experience_years'] == 0) & (df['level_score'] == 2) & (df['target_salary'] > 12.0), 'target_salary'] = 10.0
     
-    level_medians = df.groupby('level_score')['target_salary'].median()
-    df['target_salary'] = df.apply(
-        lambda row: (level_medians.get(row['level_score']) 
-                     if pd.notna(level_medians.get(row['level_score'])) 
-                     else fallback_medians.get(row['level_score'], 15.0)) 
-        if pd.isna(row['target_salary']) else row['target_salary'],
-        axis=1
-    )
+    # Tính toán trung vị mức lương theo cấp bậc và số năm kinh nghiệm
+    df['grp_med'] = df.groupby(['level_score', 'experience_years'])['target_salary'].transform('median')
+    df['grp_med'] = df['grp_med'].fillna(df.groupby('level_score')['target_salary'].transform('median'))
+    
+    # Loại bỏ các dữ liệu dị biệt nằm ngoài dải [75% median, 125% median]
+    df = df[(df['target_salary'] >= df['grp_med'] * 0.75) & (df['target_salary'] <= df['grp_med'] * 1.25)].copy()
 
     # BƯỚC 2: FEATURE ENGINEERING
     df['exp_demand_power'] = df['experience_years'] * df['market_demand']
@@ -119,29 +118,32 @@ def train_pipeline(days=None):
 
     X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    # BƯỚC 3: HUẤN LUYỆN TĂNG CƯỜNG (INCREMENTAL)
+    # BƯỚC 3: HUẤN LUYỆN TĂNG CƯỜNG / KHỞI TẠO LẠI
     monotone_constraints = {'level_score': 1, 'experience_years': 1, 'edu_score': 1}
     
     model_path = os.path.join(MODEL_SALARY_DIR, 'salary_predictor.pkl')
     existing_model = None
-    if os.path.exists(model_path):
+    # Nếu cập nhật hàng ngày (days <= 7), dùng incremental. Nếu train toàn bộ dữ liệu (days > 7), train từ đầu tránh phình cây (overfitting)
+    if os.path.exists(model_path) and days is not None and days <= 7:
         print(f"-> Tìm thấy mô hình cũ, sẽ huấn luyện tiếp (Incremental Training)...")
         existing_model = joblib.load(model_path)
+    else:
+        print(f"-> Huấn luyện mô hình từ đầu với tập dữ liệu chuẩn hóa chất lượng cao...")
 
     print("2. Đang huấn luyện mô hình XGBoost...")
     model = xgb.XGBRegressor(
-        n_estimators=500,
-        learning_rate=0.01,
-        max_depth=4,
-        min_child_weight=5,
+        n_estimators=300,
+        learning_rate=0.05,
+        max_depth=5,
+        min_child_weight=3,
         subsample=0.8,
         colsample_bytree=0.8,
-        reg_alpha=2.0,
-        reg_lambda=5.0,
+        reg_alpha=1.0,
+        reg_lambda=3.0,
         monotone_constraints=monotone_constraints,
         enable_categorical=True,
         eval_metric='rmse',
-        early_stopping_rounds=50
+        early_stopping_rounds=30
     )
 
     eval_set = [(X_train, y_train), (X_val, y_val)]
@@ -152,10 +154,12 @@ def train_pipeline(days=None):
     y_pred_vnd = np.expm1(model.predict(X_val))
     y_val_vnd = np.expm1(y_val)
     mae = mean_absolute_error(y_val_vnd, y_pred_vnd)
+    rmse = np.sqrt(mean_squared_error(y_val_vnd, y_pred_vnd))
     r2 = r2_score(y_val_vnd, y_pred_vnd)
     
     print("\n=== KẾT QUẢ ĐÁNH GIÁ ===")
     print(f"MAE: {mae:.2f} triệu VNĐ")
+    print(f"RMSE: {rmse:.2f} triệu VNĐ")
     print(f"R2 Score: {r2:.2f}")
 
     # XUẤT BIỂU ĐỒ

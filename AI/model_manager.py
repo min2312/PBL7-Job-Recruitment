@@ -15,9 +15,20 @@ def get_and_sync_model_dir(subpath=""):
         persistent_target = os.path.join(persistent_base, subpath) if subpath else persistent_base
         local_target = os.path.join(local_base, subpath) if subpath else local_base
 
-        # Nếu thư mục persistent chưa tồn tại hoặc rỗng, tiến hành copy từ code gốc sang
+        # Kiểm tra xem có cần đồng bộ (chưa tồn tại, rỗng, hoặc file trong code mới hơn)
+        need_sync = False
         if not os.path.exists(persistent_target) or not os.listdir(persistent_target):
-            print(f"🔄 Đang đồng bộ lần đầu từ {local_target} sang đĩa vĩnh viễn {persistent_target}...")
+            need_sync = True
+        elif os.path.exists(local_target):
+            for item in os.listdir(local_target):
+                s = os.path.join(local_target, item)
+                d = os.path.join(persistent_target, item)
+                if os.path.isfile(s) and (not os.path.exists(d) or os.path.getmtime(s) > os.path.getmtime(d) + 5):
+                    need_sync = True
+                    break
+
+        if need_sync:
+            print(f"🔄 Đang đồng bộ cập nhật từ {local_target} sang đĩa vĩnh viễn {persistent_target}...")
             os.makedirs(persistent_target, exist_ok=True)
             if os.path.exists(local_target):
                 for item in os.listdir(local_target):
