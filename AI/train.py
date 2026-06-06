@@ -162,6 +162,18 @@ def train_pipeline(days=None):
     print(f"RMSE: {rmse:.2f} triệu VNĐ")
     print(f"R2 Score: {r2:.2f}")
 
+    # GHI KẾT QUẢ VÀO FILE METRICS.TXT (GHI ĐÈ)
+    metrics_path = os.path.join(MODEL_SALARY_DIR, 'metrics.txt')
+    try:
+        with open(metrics_path, 'w', encoding='utf-8') as f:
+            f.write("=== KẾT QUẢ ĐÁNH GIÁ ===\n")
+            f.write(f"MAE: {mae:.2f} triệu VNĐ\n")
+            f.write(f"RMSE: {rmse:.2f} triệu VNĐ\n")
+            f.write(f"R2 Score: {r2:.2f}\n")
+        print(f"-> Đã lưu kết quả metric vào file: {metrics_path}")
+    except Exception as e:
+        print(f"Lỗi khi lưu file metrics.txt: {e}")
+
     # XUẤT BIỂU ĐỒ
     results = model.evals_result()
     if 'validation_0' in results:

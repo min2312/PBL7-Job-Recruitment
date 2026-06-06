@@ -40,7 +40,7 @@ def run_step(name, command):
         log(f"LỖI hệ thống khi chạy {name}: {str(e)}")
         return False
 
-def sync_neo4j(retries=3):
+def sync_neo4j(retries=10):
     log("Đang gọi API đồng bộ dữ liệu sang Neo4j...")
     for i in range(retries):
         try:
@@ -56,7 +56,7 @@ def sync_neo4j(retries=3):
             log(f"Lỗi kết nối API Neo4j lần {i+1}: {str(e)}")
         
         if i < retries - 1:
-            wait_time = (i + 1) * 10
+            wait_time = 30  # Chờ 30 giây trước khi thử lại
             log(f"Sẽ thử lại sau {wait_time} giây...")
             time.sleep(wait_time)
             
