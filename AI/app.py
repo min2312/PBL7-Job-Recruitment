@@ -38,9 +38,32 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 API_BASE = os.environ.get("BACKEND_API_BASE")
 
+_last_rec_loaded_time = 0
+
+def load_recommendation_artifacts():
+    global rec_artifacts, _last_rec_loaded_time
+    index_path = os.path.join(MODEL_REC_DIR, 'faiss.index')
+    
+    try:
+        current_mtime = os.path.getmtime(index_path)
+    except FileNotFoundError:
+        current_mtime = 0
+
+    if not rec_artifacts or current_mtime > _last_rec_loaded_time:
+        try:
+            print(f"🔄 Phát hiện bộ gợi ý việc làm mới trên đĩa (mtime: {current_mtime}). Đang nạp vào RAM...")
+            rec_artifacts['df'] = joblib.load(os.path.join(MODEL_REC_DIR, 'df.pkl'))
+            rec_artifacts['index'] = faiss.read_index(index_path)
+            rec_artifacts['clf'] = joblib.load(os.path.join(MODEL_REC_DIR, 'clf.pkl'))
+            rec_artifacts['vectorizer'] = joblib.load(os.path.join(MODEL_REC_DIR, 'vectorizer_cls.pkl'))
+            _last_rec_loaded_time = current_mtime
+            print("✅ Đã nạp thành công bộ gợi ý mới!")
+        except Exception as e:
+            print(f"❌ Lỗi khi nạp bộ gợi ý việc làm: {e}")
+
 def preload_weights():
     """Hàm load toàn bộ model/artifact vào bộ nhớ RAM"""
-    global model_st, rec_artifacts
+    global model_st
     print("🚀 Đang khởi động AI Server: Preloading weights & models...")
     try:
         # 1. Load model ST
@@ -49,12 +72,7 @@ def preload_weights():
             print("  - SentenceTransformer: Loaded")
 
         # 2. Load artifacts cho Recommendation
-        if not rec_artifacts:
-            rec_artifacts['df'] = joblib.load(os.path.join(MODEL_REC_DIR, 'df.pkl'))
-            rec_artifacts['index'] = faiss.read_index(os.path.join(MODEL_REC_DIR, 'faiss.index'))
-            rec_artifacts['clf'] = joblib.load(os.path.join(MODEL_REC_DIR, 'clf.pkl'))
-            rec_artifacts['vectorizer'] = joblib.load(os.path.join(MODEL_REC_DIR, 'vectorizer_cls.pkl'))
-            print("  - Recommendation Artifacts: Loaded")
+        load_recommendation_artifacts()
         
         print("✅ Preload hoàn tất!")
     except Exception as e:
@@ -64,16 +82,13 @@ def preload_weights():
 # Điều kiện này đảm bảo: Khi chạy py .\app.py ở local, chỉ nạp ở tiến trình con (WERKZEUG_RUN_MAIN), bỏ qua tiến trình stat reloader. Khi chạy trên Gunicorn Azure, tự động nạp.
 if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not sys.argv[0].endswith("app.py"):
     preload_weights()
-    from test import _cached_models, MODEL_DIR
     try:
-        if not _cached_models:
-            _cached_models['model'] = joblib.load(os.path.join(MODEL_DIR, 'salary_predictor.pkl'))
-            _cached_models['category_mapping'] = joblib.load(os.path.join(MODEL_DIR, 'category_mapping.pkl'))
-            _cached_models['level_mapping'] = joblib.load(os.path.join(MODEL_DIR, 'level_mapping.pkl'))
-            _cached_models['edu_mapping'] = joblib.load(os.path.join(MODEL_DIR, 'edu_mapping.pkl'))
-            print("  - Salary Predictor: Loaded")
+        from test import load_model_and_predict
+        # Gọi thử với dữ liệu trống để kích hoạt load model lương
+        load_model_and_predict({})
+        print("  - Salary Predictor: Loaded")
     except Exception as e:
-        print(f"  - Salary Predictor error: {e}")
+        print(f"  - Salary Predictor pre-load error: {e}")
 
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -274,9 +289,8 @@ def recommend_api():
         if model_st is None:
             model_st = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
 
-        # 2. Load artifacts (Lazy load & Cache) - Đã được preload ở startup nhưng vẫn giữ để an toàn
-        if not rec_artifacts:
-            preload_weights()
+        # 2. Load artifacts (Lazy load & Cache) - Tự động nạp lại nếu file trên đĩa có sự thay đổi
+        load_recommendation_artifacts()
 
         df = rec_artifacts['df']
         index = rec_artifacts['index']

@@ -6,29 +6,42 @@ from model_manager import get_and_sync_model_dir
 
 MODEL_DIR = get_and_sync_model_dir('salary')
 
-# Bộ đệm lưu giữ model trên RAM đúng 1 lần duy nhất mãi mãi
+# Bộ đệm lưu giữ model trên RAM
 _cached_models = {}
+_last_loaded_time = 0
 
 def load_model_and_predict(cv_data):
-    global _cached_models
+    global _cached_models, _last_loaded_time
     
-    if not _cached_models:
-        model_path = os.path.join(MODEL_DIR, 'salary_predictor.pkl')
+    model_path = os.path.join(MODEL_DIR, 'salary_predictor.pkl')
+    
+    # Kiểm tra thời gian cập nhật của file trên đĩa
+    try:
+        current_mtime = os.path.getmtime(model_path)
+    except FileNotFoundError:
+        current_mtime = 0
+
+    # Nếu chưa load lần nào hoặc file trên đĩa mới hơn bản trong RAM
+    if not _cached_models or current_mtime > _last_loaded_time:
         mapping_path = os.path.join(MODEL_DIR, 'category_mapping.pkl')
         lvl_map_path = os.path.join(MODEL_DIR, 'level_mapping.pkl')
         edu_map_path = os.path.join(MODEL_DIR, 'edu_mapping.pkl')
         
         try:
+            print(f"🔄 Phát hiện mô hình lương mới trên đĩa (mtime: {current_mtime}). Đang nạp vào RAM...")
             _cached_models['model'] = joblib.load(model_path)
             _cached_models['category_mapping'] = joblib.load(mapping_path)
             _cached_models['level_mapping'] = joblib.load(lvl_map_path)
             _cached_models['edu_mapping'] = joblib.load(edu_map_path)
+            _last_loaded_time = current_mtime
+            print("✅ Đã nạp thành công mô hình lương mới!")
         except FileNotFoundError:
-            return {
-                "avg_salary": 15.0, "min_salary": 12.0, "max_salary": 20.0,
-                "range_suggested": "12.0 - 20.0 triệu VNĐ", "formatted": "15.0 triệu VNĐ / tháng",
-                "error": "Chưa có model. Hãy chạy train.py trước!"
-            }
+            if not _cached_models:
+                return {
+                    "avg_salary": 15.0, "min_salary": 12.0, "max_salary": 20.0,
+                    "range_suggested": "12.0 - 20.0 triệu VNĐ", "formatted": "15.0 triệu VNĐ / tháng",
+                    "error": "Chưa có model. Hãy chạy train.py trước!"
+                }
 
     model = _cached_models['model']
     category_mapping = _cached_models['category_mapping']
