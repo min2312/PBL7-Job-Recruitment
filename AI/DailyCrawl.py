@@ -23,6 +23,8 @@ from fake_useragent import UserAgent
 from sqlalchemy import create_engine, text
 import numpy as np
 from dotenv import load_dotenv
+import re
+import urllib.parse
 
 # Load environmental variables
 load_dotenv()
@@ -83,10 +85,23 @@ class DailyTopCVCrawler:
         print(f"   [🔄] HTTP Session khởi tạo | Impersonate: {impersonate} | UA: {user_agent[:50]}...")
 
     def fetch_page(self, url, retries=3):
-        """GET request nhanh bằng curl_cffi"""
+        """GET request nhanh bằng curl_cffi, hỗ trợ ScraperAPI/ZenRows nếu có API key"""
+        scraper_api_key = os.getenv("SCRAPER_API_KEY")
+        zenrows_api_key = os.getenv("ZENROWS_API_KEY")
+        scraper_api_url = os.getenv("SCRAPER_API_URL")
+        zenrows_api_url = os.getenv("ZENROWS_API_URL")
+
         for attempt in range(retries):
             try:
-                resp = self.http_session.get(url, timeout=20)
+                if scraper_api_key:
+                    req_url = f"{scraper_api_url}?api_key={scraper_api_key}&url={urllib.parse.quote(url)}"
+                    resp = self.http_session.get(req_url, timeout=35)
+                elif zenrows_api_key:
+                    req_url = f"{zenrows_api_url}?apikey={zenrows_api_key}&url={urllib.parse.quote(url)}"
+                    resp = self.http_session.get(req_url, timeout=35)
+                else:
+                    resp = self.http_session.get(url, timeout=20)
+
                 if resp.status_code == 200:
                     self.request_count += 1
                     return resp.text
