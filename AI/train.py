@@ -109,22 +109,45 @@ def train_pipeline(days=None):
     y = np.log1p(df['target_salary'])
 
     categorical_cols = ['category', 'location']
-    for col in categorical_cols:
-        X[col] = X[col].astype('category')
+    
+    # Xác định có dùng huấn luyện tăng cường (Incremental) hay không để đồng bộ danh mục
+    model_path = os.path.join(MODEL_SALARY_DIR, 'salary_predictor.pkl')
+    mapping_path = os.path.join(MODEL_SALARY_DIR, 'category_mapping.pkl')
+    
+    is_incremental = False
+    saved_categories = None
+    if os.path.exists(model_path) and os.path.exists(mapping_path) and days is not None and days <= 7:
+        try:
+            saved_categories = joblib.load(mapping_path)
+            is_incremental = True
+            print("-> Phát hiện chế độ Incremental. Đồng bộ category_mapping từ mô hình cũ...")
+        except Exception as e:
+            print(f"-> Cảnh báo: Không thể load category_mapping cũ ({e}). Sẽ huấn luyện từ đầu.")
+            is_incremental = False
 
-    joblib.dump({col: X[col].cat.categories.tolist() for col in categorical_cols}, os.path.join(MODEL_SALARY_DIR, 'category_mapping.pkl'))
+    if is_incremental and saved_categories is not None:
+        for col in categorical_cols:
+            # Ép kiểu dữ liệu mới theo danh mục của mô hình cũ. Các category lạ/mới sẽ tự động thành NaN (không gây crash)
+            X[col] = pd.Categorical(X[col], categories=saved_categories[col])
+    else:
+        for col in categorical_cols:
+            X[col] = X[col].astype('category')
+        # Lưu mapping mới khi huấn luyện từ đầu
+        joblib.dump({col: X[col].cat.categories.tolist() for col in categorical_cols}, mapping_path)
+        
     joblib.dump(LEVEL_MAPPING, os.path.join(MODEL_SALARY_DIR, 'level_mapping.pkl'))
     joblib.dump(EDU_MAPPING, os.path.join(MODEL_SALARY_DIR, 'edu_mapping.pkl'))
 
-    X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
+    if len(X) < 5:
+        X_train, X_val, y_train, y_val = X, X, y, y
+    else:
+        X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
 
     # BƯỚC 3: HUẤN LUYỆN TĂNG CƯỜNG / KHỞI TẠO LẠI
     monotone_constraints = {'level_score': 1, 'experience_years': 1, 'edu_score': 1}
     
-    model_path = os.path.join(MODEL_SALARY_DIR, 'salary_predictor.pkl')
     existing_model = None
-    # Nếu cập nhật hàng ngày (days <= 7), dùng incremental. Nếu train toàn bộ dữ liệu (days > 7), train từ đầu tránh phình cây (overfitting)
-    if os.path.exists(model_path) and days is not None and days <= 7:
+    if is_incremental:
         print(f"-> Tìm thấy mô hình cũ, sẽ huấn luyện tiếp (Incremental Training)...")
         existing_model = joblib.load(model_path)
     else:
