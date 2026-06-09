@@ -31,10 +31,23 @@ export const parseSalary = (salaryRaw) => {
 		return { min: null, max: null, formatted: salaryRaw };
 	}
 
+	const toMillion = (n) => {
+		if (currency === "usd" || text.includes("$") || text.includes("usd")) {
+			return n * 0.025; // Quy đổi trực tiếp: 1 USD = 0.025 Triệu VNĐ (tương đương 25.000 VNĐ)
+		}
+		if (n > 100000) {
+			return n / 1000000;
+		}
+		return n; // Mặc định là đơn vị Triệu VNĐ
+	};
+
 	let [min, max] = numbers;
 	if (numbers.length === 1) {
 		max = min;
 	}
+
+	min = toMillion(min);
+	max = toMillion(max);
 
 	if (min > max) [min, max] = [max, min];
 
@@ -549,9 +562,8 @@ export const backfillSalaryParsedFields = async () => {
 	try {
 		const select = await session.run(`
       MATCH (j:Job)
-      WHERE j.salary IS NOT NULL AND (j.salary_min IS NULL OR j.salary_max IS NULL)
+      WHERE j.salary IS NOT NULL
       RETURN ID(j) AS nodeId, j.salary AS salary
-      LIMIT 1000
     `);
 
 		const updates = [];

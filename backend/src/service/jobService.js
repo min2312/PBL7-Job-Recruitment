@@ -252,7 +252,7 @@ async function fetchRandomJobsByLocation({
 
 			const toMillion = (n) => {
 				if (unit === "million") return n;
-				if (unit === "usd") return n * 25; // approximate: 1 USDk ~= 25 million VND scaling (approx)
+				if (unit === "usd") return n * 0.025; // Quy đổi trực tiếp: 1 USD = 0.025 Triệu VNĐ
 				if (n > 1000) return n / 1000000; // raw VND -> million
 				return n; // assume already in millions
 			};
@@ -790,7 +790,7 @@ async function searchJobs({
 			);
 			const toMillion = (n) => {
 				if (unit === "million") return n;
-				if (unit === "usd") return n * 25;
+				if (unit === "usd") return n * 0.025; // Quy đổi trực tiếp: 1 USD = 0.025 Triệu VNĐ
 				if (n > 1000) return n / 1000000;
 				return n;
 			};
