@@ -7,7 +7,7 @@ import moment from "moment-timezone";
 const initCronJobs = () => {
 	// Chạy lúc 6:00 AM hàng ngày theo múi giờ Việt Nam
 	cron.schedule(
-		"0 6 * * *",
+		"0 10 * * *",
 		async () => {
 			console.log("--- Running Daily Cron Job at 6:00 AM (VN Time) ---");
 			await sendDailyInterviewReminders();
