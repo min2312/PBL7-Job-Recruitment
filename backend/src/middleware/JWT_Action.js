@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 require("dotenv").config();
 
 const nonSecurePaths = [
+	"/",
 	"/api/login",
 	"/api/firebase-login",
 	"/api/register",
