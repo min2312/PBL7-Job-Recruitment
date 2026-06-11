@@ -183,4 +183,4 @@ const handleExpiredInterviews = async () => {
 	}
 };
 
-export { initCronJobs };
+export { initCronJobs, sendDailyInterviewReminders, handleExpiredInterviews };
